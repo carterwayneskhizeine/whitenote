@@ -38,7 +38,11 @@ Dataset ID: 96b74969e65411f09f5fb2cef1c18441
 
 ```prisma
 model AiConfig {
-  id String @id @default("global_config")
+  id String @id @default(cuid())
+
+  // --- 用户关联 (多租户隔离) ---
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String @unique  // 每个用户只有一条配置
 
   // --- 基础 OpenAI 连接 ---
   openaiBaseUrl String @default("http://localhost:4000")
@@ -51,9 +55,9 @@ model AiConfig {
   ragTimeFilterEnd   DateTime?
 
   // --- RAGFlow 配置 (热更新) ---
-  ragflowBaseUrl  String @default("http://localhost:4154")
-  ragflowApiKey   String @default("")
-  ragflowChatId   String @default("")
+  ragflowBaseUrl   String @default("http://localhost:4154")
+  ragflowApiKey    String @default("")
+  ragflowChatId    String @default("")
   ragflowDatasetId String @default("")
 
   // --- 自动化 ---
@@ -71,6 +75,12 @@ model AiConfig {
 }
 ```
 
+> [!IMPORTANT]
+> **多用户模式**：每个用户拥有独立的 AI 配置，通过 `userId` 字段关联。这确保：
+> - 用户可以使用自己的 API Key
+> - AI 人设配置互不干扰
+> - 成本和隐私完全隔离
+
 运行迁移：
 ```bash
 pnpm prisma migrate dev --name add_ragflow_config
@@ -85,28 +95,26 @@ pnpm prisma migrate dev --name add_ragflow_config
 ```typescript
 import { prisma } from "@/lib/prisma"
 
-// 配置缓存 (短时间缓存，减少数据库查询)
-let configCache: {
-  data: Awaited<ReturnType<typeof getAiConfigFromDb>> | null
+// 用户级别配置缓存 (key = userId)
+const configCache = new Map<string, {
+  data: Awaited<ReturnType<typeof getAiConfigFromDb>>
   timestamp: number
-} = {
-  data: null,
-  timestamp: 0,
-}
+}>()
 
 const CACHE_TTL = 5000 // 5 秒缓存，保证热更新响应速度
 
 /**
- * 从数据库获取 AI 配置
+ * 从数据库获取用户的 AI 配置
  */
-async function getAiConfigFromDb() {
+async function getAiConfigFromDb(userId: string) {
   let config = await prisma.aiConfig.findUnique({
-    where: { id: "global_config" },
+    where: { userId },
   })
 
+  // 如果用户没有配置，创建默认配置
   if (!config) {
     config = await prisma.aiConfig.create({
-      data: { id: "global_config" },
+      data: { userId },
     })
   }
 
@@ -114,41 +122,41 @@ async function getAiConfigFromDb() {
 }
 
 /**
- * 获取 AI 配置 (带短时缓存)
- * 每次调用都会检查缓存是否过期，确保配置更新后快速生效
+ * 获取用户的 AI 配置 (带短时缓存)
+ * @param userId 当前用户 ID
  */
-export async function getAiConfig() {
+export async function getAiConfig(userId: string) {
   const now = Date.now()
+  const cached = configCache.get(userId)
   
   // 缓存有效，直接返回
-  if (configCache.data && now - configCache.timestamp < CACHE_TTL) {
-    return configCache.data
+  if (cached && now - cached.timestamp < CACHE_TTL) {
+    return cached.data
   }
 
   // 缓存过期，从数据库获取
-  const config = await getAiConfigFromDb()
-  configCache = {
+  const config = await getAiConfigFromDb(userId)
+  configCache.set(userId, {
     data: config,
     timestamp: now,
-  }
+  })
 
   return config
 }
 
 /**
- * 清除配置缓存 (配置更新后调用)
+ * 清除用户的配置缓存 (配置更新后调用)
  */
-export function invalidateConfigCache() {
-  configCache = {
-    data: null,
-    timestamp: 0,
-  }
+export function invalidateConfigCache(userId: string) {
+  configCache.delete(userId)
 }
 
 /**
- * 更新 AI 配置
+ * 更新用户的 AI 配置
+ * @param userId 当前用户 ID
+ * @param data 要更新的配置字段
  */
-export async function updateAiConfig(data: Partial<{
+export async function updateAiConfig(userId: string, data: Partial<{
   openaiBaseUrl: string
   openaiApiKey: string
   openaiModel: string
@@ -164,13 +172,13 @@ export async function updateAiConfig(data: Partial<{
   aiExpertise: string | null
 }>) {
   const config = await prisma.aiConfig.upsert({
-    where: { id: "global_config" },
+    where: { userId },
     update: data,
-    create: { id: "global_config", ...data },
+    create: { userId, ...data },
   })
 
   // 清除缓存，确保下次调用获取最新配置
-  invalidateConfigCache()
+  invalidateConfigCache(userId)
 
   return config
 }
@@ -191,17 +199,18 @@ interface ChatMessage {
 }
 
 interface ChatOptions {
+  userId: string  // 必须传入用户 ID
   messages: ChatMessage[]
   stream?: boolean
 }
 
 /**
  * 调用 OpenAI 兼容接口 (标准模式)
- * 每次调用都读取最新配置 (热更新)
+ * 每次调用都读取用户的最新配置 (热更新)
  */
 export async function callOpenAI(options: ChatOptions): Promise<string> {
-  // 每次调用获取最新配置
-  const config = await getAiConfig()
+  // 获取用户的配置
+  const config = await getAiConfig(options.userId)
 
   if (!config.openaiApiKey) {
     throw new Error("OpenAI API key not configured")
@@ -231,9 +240,10 @@ export async function callOpenAI(options: ChatOptions): Promise<string> {
 
 /**
  * 构建 AI 人设系统提示词 (热更新)
+ * @param userId 用户 ID
  */
-export async function buildSystemPrompt(): Promise<string> {
-  const config = await getAiConfig()
+export async function buildSystemPrompt(userId: string): Promise<string> {
+  const config = await getAiConfig(userId)
 
   const personalities: Record<string, string> = {
     friendly: "你是一个友好、热情的 AI 助手，语气亲切自然。",

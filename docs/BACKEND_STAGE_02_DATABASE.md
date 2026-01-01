@@ -29,7 +29,7 @@ datasource db {
 }
 
 // ============================================
-// 1. 用户模型 (单用户系统)
+// 1. 用户模型 (多用户系统)
 // ============================================
 model User {
   id            String    @id @default(cuid())
@@ -49,6 +49,7 @@ model User {
   messages      Message[]
   comments      Comment[]
   templates     Template[]
+  aiConfig      AiConfig?  // 每用户独立的 AI 配置
 }
 
 // ============================================
@@ -259,10 +260,14 @@ model Media {
 }
 
 // ============================================
-// 11. AI 配置 (单例)
+// 11. AI 配置 (每用户独立)
 // ============================================
 model AiConfig {
-  id String @id @default("global_config")
+  id String @id @default(cuid())
+
+  // 用户关联 (多租户隔离)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String @unique  // 每个用户只有一条配置
 
   // 基础连接
   openaiBaseUrl String @default("http://localhost:4000")
@@ -271,6 +276,10 @@ model AiConfig {
 
   // RAG 模式
   enableRag          Boolean   @default(false)
+  ragflowBaseUrl     String    @default("http://localhost:4154")
+  ragflowApiKey      String    @default("")
+  ragflowChatId      String    @default("")
+  ragflowDatasetId   String    @default("")
   ragTimeFilterStart DateTime?
   ragTimeFilterEnd   DateTime?
 
@@ -341,19 +350,19 @@ async function main() {
 
   console.log('Created owner user:', owner.email)
 
-  // 2. 创建默认 AI 配置
+  // 2. 为用户创建默认 AI 配置
   const aiConfig = await prisma.aiConfig.upsert({
-    where: { id: 'global_config' },
+    where: { userId: owner.id },
     update: {},
     create: {
-      id: 'global_config',
+      userId: owner.id,
       openaiBaseUrl: process.env.OPENAI_BASE_URL || 'http://localhost:4000',
       openaiApiKey: process.env.OPENAI_API_KEY || '',
       openaiModel: process.env.OPENAI_MODEL || 'gpt-3.5-turbo',
     },
   })
 
-  console.log('Created AI config:', aiConfig.id)
+  console.log('Created AI config for user:', owner.email)
 
   // 3. 创建内置模板
   const templates = [
@@ -452,7 +461,7 @@ pnpm prisma studio
 
 访问 http://localhost:5555，确认：
 - ✅ `User` 表有一条 owner 记录
-- ✅ `AiConfig` 表有 global_config 记录
+- ✅ `AiConfig` 表有该用户的配置记录
 - ✅ `Template` 表有两条内置模板
 
 ---
@@ -464,6 +473,7 @@ erDiagram
     User ||--o{ Message : creates
     User ||--o{ Comment : writes
     User ||--o{ Template : owns
+    User ||--o| AiConfig : has
     
     Message ||--o{ MessageTag : has
     Message ||--o{ MessageLink : links

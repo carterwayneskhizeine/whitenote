@@ -235,6 +235,7 @@ model User {
   messages      Message[]
   comments      Comment[]
   templates     Template[]
+  aiConfig      AiConfig?  // 每用户独立的 AI 配置
 }
 
 // --------------------------------------
@@ -391,10 +392,14 @@ model Media {
 }
 
 // --------------------------------------
-// 10. AI 系统动态配置 (Singleton)
+// 10. AI 系统动态配置 (每用户独立)
 // --------------------------------------
 model AiConfig {
-  id             String   @id @default("global_config")
+  id             String   @id @default(cuid())
+
+  // --- 用户关联 (多租户隔离) ---
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String   @unique  // 每个用户只有一条配置
 
   // --- 基础连接 ---
   openaiBaseUrl  String   @default("http://localhost:4000")
@@ -403,6 +408,10 @@ model AiConfig {
 
   // --- RAG 模式 ---
   enableRag      Boolean  @default(false)
+  ragflowBaseUrl String   @default("http://localhost:4154")
+  ragflowApiKey  String   @default("")
+  ragflowChatId  String   @default("")
+  ragflowDatasetId String @default("")
   ragTimeFilterStart DateTime?
   ragTimeFilterEnd   DateTime?
 
@@ -411,11 +420,11 @@ model AiConfig {
   enableBriefing Boolean  @default(true)
   briefingTime   String   @default("08:00")
 
-  // --- AI 人设 (新增) ---
+  // --- AI 人设 ---
   aiPersonality  String   @default("friendly") // friendly, professional, casual
   aiExpertise    String?  // 专业领域偏好
 
-  // --- 链接建议 (新增) ---
+  // --- 链接建议 ---
   enableLinkSuggestion Boolean @default(true)
 
   updatedAt      DateTime @updatedAt
@@ -439,7 +448,10 @@ model SearchHistory {
 
 ### 7.1 配置加载器逻辑 (Config Loader)
 
-系统采用了单例模式来管理 AI 配置。在任何 Server Action 执行前，系统会首先尝试从数据库查询 ID 为 `global_config` 的记录。如果不存在，则会自动初始化一条包含默认值（如 localhost 地址、RAG 关闭、自动打标开启）的记录并返回。这确保了系统在首次启动时无需手动配置数据库即可运行。
+系统采用**用户级别配置**来管理 AI 设置，实现多租户隔离。在任何需要 AI 配置的操作前，系统会根据当前用户 ID 查询其专属的 `AiConfig` 记录。如果该用户尚无配置记录，则自动创建一条包含默认值（如 localhost 地址、RAG 关闭、自动打标开启）的记录并返回。这确保了：
+- **隐私隔离**：每个用户可使用自己的 API Key
+- **个性化配置**：AI 人设、RAGFlow 配置等互不干扰
+- **成本分离**：各用户独立承担 API 调用费用
 
 ### 7.2 AI 响应主逻辑 (Main Interaction)
 
