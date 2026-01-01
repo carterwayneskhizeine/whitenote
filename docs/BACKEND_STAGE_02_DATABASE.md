@@ -95,6 +95,7 @@ model VerificationToken {
 // ============================================
 model Message {
   id        String   @id @default(cuid())
+  title     String?  // 笔记标题 (与 Alias 配合使用)
   content   String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -118,6 +119,7 @@ model Message {
   // 双向链接系统
   outgoingLinks MessageLink[] @relation("OutgoingLinks")
   incomingLinks MessageLink[] @relation("IncomingLinks")
+  aliases       MessageAlias[] // 别名/历史标题
 
   // 版本历史
   versions MessageVersion[]
@@ -161,6 +163,16 @@ model MessageTag {
 // ============================================
 // 5. 双向链接系统
 // ============================================
+model MessageAlias {
+  id        String   @id @default(cuid())
+  alias     String   // 别名/历史标题
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, alias])
+  @@index([alias])
+}
+
 model MessageLink {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())

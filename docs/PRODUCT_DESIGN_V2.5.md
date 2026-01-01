@@ -79,10 +79,15 @@ WhiteNote 2.5 是一座完全属于用户的数字城池。
 
 ### 4.2 双向链接系统 (Bi-directional Links) 🆕
 
-- **语法**: 在笔记中使用 `[[笔记标题]]` 或 `[[#标签]]` 创建内部链接。
+- **语法**:
+  - `[[笔记标题]]`: 引用笔记。
+  - `[[#标签]]`: 引用标签。
+- **稳健性设计 (Robustness)**:
+  - **Alias (别名) 重定向**: 当笔记重命名时，旧标题自动保留为“别名”。旧链接 `[[Old Title]]` 不会失效，会自动解析到目标笔记。
+  - **ID 锚定**: 虽然底层解析依赖标题/别名，但 API 返回的 Link 关系基于稳定的 UUID (`sourceId` -> `targetId`)。
 - **自动反向链接**: 系统自动追踪哪些笔记引用了当前笔记，在笔记底部显示 "Backlinks" 面板。
 - **悬浮预览**: 鼠标悬停在链接上时，显示目标笔记的预览卡片，无需跳转即可快速浏览。
-- **智能补全**: 输入 `[[` 后自动弹出搜索框，实时匹配已有笔记标题。
+- **智能补全**: 输入 `[[` 后自动弹出搜索框，实时匹配已有笔记标题和别名。
 
 ### 4.3 知识图谱 (Knowledge Graph) 🆕
 
@@ -243,6 +248,7 @@ model User {
 // --------------------------------------
 model Message {
   id        String   @id @default(cuid())
+  title     String?  // 🆕 笔记标题 (与 Alias 配合使用)
   content   String   @db.Text // 支持 Markdown 和长文本
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -266,6 +272,7 @@ model Message {
   // 双向链接系统
   outgoingLinks MessageLink[] @relation("OutgoingLinks")
   incomingLinks MessageLink[] @relation("IncomingLinks")
+  aliases       MessageAlias[] // 🆕 别名/历史标题
 
   // 版本历史
   versions  MessageVersion[]
@@ -299,8 +306,19 @@ model MessageTag {
 }
 
 // --------------------------------------
-// 4. 双向链接系统 (多对多自关联)
+// 4. 双向链接系统
 // --------------------------------------
+// 别名系统 (重命名重定向)
+model MessageAlias {
+  id        String   @id @default(cuid())
+  alias     String   // 别名/历史标题
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, alias])
+  @@index([alias])
+}
+
 model MessageLink {
   id            String   @id @default(cuid())
   createdAt     DateTime @default(now())
