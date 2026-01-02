@@ -21,13 +21,16 @@ export default function LoginPage() {
         email,
         password,
         callbackUrl: "/",
-        redirect: true,
+        redirect: false,
       })
 
       // 如果重定向被阻止，手动处理
       if (result?.error) {
         setError("邮箱或密码错误")
         setLoading(false)
+      } else if (result?.ok) {
+        router.push("/")
+        router.refresh()
       }
     } catch (err) {
       setError("登录失败，请重试")
