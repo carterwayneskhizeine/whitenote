@@ -1,7 +1,8 @@
 # WhiteNote 2.5 后端开发指南 - Stage 7: 后台任务队列
 
-> **前置文档**: [Stage 6: AI 集成](file:///d:/Code/WhiteNote/docs/BACKEND_STAGE_06_AI.md)  
+> **前置文档**: [Stage 6: AI 集成](file:///d:/Code/WhiteNote/docs/BACKEND_STAGE_06_AI.md)
 > **下一步**: [Stage 8: 实时多端同步](file:///d:/Code/WhiteNote/docs/BACKEND_STAGE_08_REALTIME_SYNC.md)
+> **状态**: ✅ 已完成 (2026-01-02)
 
 ---
 
@@ -28,7 +29,7 @@ pnpm add -D @types/ioredis
 ```typescript
 import { Redis } from "ioredis"
 
-const redis = new Redis(process.env.REDIS_URL || "redis://localhost:6379", {
+const redis = new Redis(process.env.REDIS_URL || "redis://localhost:4338", {
   maxRetriesPerRequest: null,
 })
 
@@ -39,7 +40,7 @@ export default redis
 
 ```env
 # Redis
-REDIS_URL="redis://localhost:6379"
+REDIS_URL="redis://localhost:4338"
 ```
 
 ---
@@ -118,17 +119,18 @@ import prisma from "@/lib/prisma"
 import { applyAutoTags } from "@/lib/ai/auto-tag"
 
 interface AutoTagJobData {
+  userId: string
   messageId: string
 }
 
 export async function processAutoTag(job: Job<AutoTagJobData>) {
-  const { messageId } = job.data
-  
+  const { userId, messageId } = job.data
+
   console.log(`[AutoTag] Processing message: ${messageId}`)
-  
+
   const message = await prisma.message.findUnique({
     where: { id: messageId },
-    select: { authorId: true }
+    select: { authorId: true },
   })
 
   if (!message) {
@@ -138,14 +140,17 @@ export async function processAutoTag(job: Job<AutoTagJobData>) {
 
   // 获取用户配置
   const config = await prisma.aiConfig.findUnique({
-    where: { userId: message.authorId }
+    where: { userId: message.authorId },
   })
 
-  // 传入配置的 autoTagModel (如果 applyAutoTags 支持)
-  // 这里假设 applyAutoTags 已经被更新为接受 model 参数
-  const model = config?.autoTagModel || "gpt-3.5-turbo"
-  await applyAutoTags(messageId, model)
-  
+  if (!config?.enableAutoTag) {
+    console.log(`[AutoTag] Auto-tagging disabled for user: ${message.authorId}`)
+    return
+  }
+
+  // 调用自动打标签（传入 userId）
+  await applyAutoTags(userId, messageId, config.autoTagModel)
+
   console.log(`[AutoTag] Completed for message: ${messageId}`)
 }
 ```
@@ -158,23 +163,24 @@ import prisma from "@/lib/prisma"
 import { syncToRAGFlow } from "@/lib/ai/ragflow"
 
 interface SyncRAGFlowJobData {
+  userId: string
   messageId: string
 }
 
 export async function processSyncRAGFlow(job: Job<SyncRAGFlowJobData>) {
-  const { messageId } = job.data
-  
+  const { userId, messageId } = job.data
+
   console.log(`[SyncRAGFlow] Processing message: ${messageId}`)
-  
+
   const message = await prisma.message.findUnique({
     where: { id: messageId },
     select: { id: true, content: true },
   })
-  
+
   if (message) {
-    await syncToRAGFlow(message.id, message.content)
+    await syncToRAGFlow(userId, message.id, message.content)
   }
-  
+
   console.log(`[SyncRAGFlow] Completed for message: ${messageId}`)
 }
 ```
@@ -184,65 +190,67 @@ export async function processSyncRAGFlow(job: Job<SyncRAGFlowJobData>) {
 ```typescript
 import { Job } from "bullmq"
 import prisma from "@/lib/prisma"
-import { callOpenAI, buildSystemPrompt } from "@/lib/ai/openai"
+import { callOpenAI } from "@/lib/ai/openai"
+import { buildSystemPrompt } from "@/lib/ai/openai"
 
 export async function processDailyBriefing(job: Job) {
   console.log(`[DailyBriefing] Starting daily briefing generation`)
-  
-  // 获取第一个用户作为晨报作者 (Owner)
-  const owner = await prisma.user.findFirst({
-    orderBy: { createdAt: "asc" },
-  })
 
-  if (!owner) {
-    console.log(`[DailyBriefing] No owner found, skipping`)
-    return
-  }
-
-  // 获取 AI 配置 (修正为获取 Owner 的配置)
-  const config = await prisma.aiConfig.findUnique({
-    where: { userId: owner.id },
-  })
-  
-  if (!config?.enableBriefing) {
-    console.log(`[DailyBriefing] Briefing disabled, skipping`)
-    return
-  }
-  
-  // 获取昨天的笔记
-  const yesterday = new Date()
-  yesterday.setDate(yesterday.getDate() - 1)
-  yesterday.setHours(0, 0, 0, 0)
-  
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  
-  const messages = await prisma.message.findMany({
+  // 获取所有启用了晨报功能的用户
+  const usersWithBriefing = await prisma.user.findMany({
     where: {
-      authorId: owner.id, // 仅获取 Owner 的笔记
-      createdAt: {
-        gte: yesterday,
-        lt: today,
-      },
-      // 排除 AI 生成的内容
-      author: {
-        email: { not: "ai@whitenote.local" },
+      aiConfig: {
+        enableBriefing: true,
       },
     },
-    select: { content: true },
+    include: {
+      aiConfig: true,
+    },
     orderBy: { createdAt: "asc" },
   })
-  
-  if (messages.length === 0) {
-    console.log(`[DailyBriefing] No messages yesterday, skipping`)
+
+  if (usersWithBriefing.length === 0) {
+    console.log(`[DailyBriefing] No users with briefing enabled, skipping`)
     return
   }
-  
-  // 生成晨报
-  const systemPrompt = await buildSystemPrompt(owner.id) // 传入 userId
-  const contentSummary = messages.map((m) => m.content).join("\n---\n")
-  
-  const briefingPrompt = `作为用户的第二大脑，请根据用户昨天的笔记内容生成一份简短的晨报。
+
+  // 为每个用户生成晨报
+  for (const user of usersWithBriefing) {
+    console.log(`[DailyBriefing] Generating briefing for user: ${user.email}`)
+
+    const config = user.aiConfig
+    if (!config) continue
+
+    // 获取昨天的笔记
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    yesterday.setHours(0, 0, 0, 0)
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const messages = await prisma.message.findMany({
+      where: {
+        authorId: user.id,
+        createdAt: {
+          gte: yesterday,
+          lt: today,
+        },
+      },
+      select: { content: true },
+      orderBy: { createdAt: "asc" },
+    })
+
+    if (messages.length === 0) {
+      console.log(`[DailyBriefing] No messages yesterday for user: ${user.email}`)
+      continue
+    }
+
+    // 生成晨报
+    const systemPrompt = await buildSystemPrompt(user.id)
+    const contentSummary = messages.map((m) => m.content).join("\n---\n")
+
+    const briefingPrompt = `作为用户的第二大脑，请根据用户昨天的笔记内容生成一份简短的晨报。
 
 昨日笔记内容：
 ${contentSummary}
@@ -254,36 +262,44 @@ ${contentSummary}
 
 保持简洁，使用 markdown 格式。`
 
-  const briefingContent = await callOpenAI({
-    userId: owner.id, // 必传
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: briefingPrompt },
-    ],
-    model: config.briefingModel, // 🆕 使用配置的晨报专用模型
-  })
-  
-  // 创建晨报消息
-  const briefing = await prisma.message.create({
-    data: {
-      content: `# ☀️ 每日晨报 - ${yesterday.toLocaleDateString("zh-CN")}\n\n${briefingContent}`,
-      authorId: owner.id,
-      isPinned: true,
-    },
-  })
-  
-  // 添加 DailyReview 标签
-  const tag = await prisma.tag.upsert({
-    where: { name: "DailyReview" },
-    create: { name: "DailyReview", color: "#FFD700" },
-    update: {},
-  })
-  
-  await prisma.messageTag.create({
-    data: { messageId: briefing.id, tagId: tag.id },
-  })
-  
-  console.log(`[DailyBriefing] Created briefing: ${briefing.id}`)
+    try {
+      const briefingContent = await callOpenAI({
+        userId: user.id,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: briefingPrompt },
+        ],
+        model: config.briefingModel,
+      })
+
+      // 创建晨报消息
+      const yesterdayStr = yesterday.toLocaleDateString("zh-CN")
+      const briefing = await prisma.message.create({
+        data: {
+          content: `# ☀️ 每日晨报 - ${yesterdayStr}\n\n${briefingContent}`,
+          authorId: user.id,
+          isPinned: true,
+        },
+      })
+
+      // 添加 DailyReview 标签
+      const tag = await prisma.tag.upsert({
+        where: { name: "DailyReview" },
+        create: { name: "DailyReview", color: "#FFD700" },
+        update: {},
+      })
+
+      await prisma.messageTag.create({
+        data: { messageId: briefing.id, tagId: tag.id },
+      })
+
+      console.log(`[DailyBriefing] Created briefing for ${user.email}: ${briefing.id}`)
+    } catch (error) {
+      console.error(`[DailyBriefing] Failed for user ${user.email}:`, error)
+    }
+  }
+
+  console.log(`[DailyBriefing] Completed all briefings`)
 }
 ```
 
@@ -398,17 +414,24 @@ import { addTask } from "@/lib/queue"
 
 // ... 在消息创建成功后添加：
 
-// 添加自动打标签任务
+// 获取用户 AI 配置
 const config = await prisma.aiConfig.findUnique({
-  where: { id: "global_config" },
+  where: { userId: session.user.id },
 })
 
+// 添加自动打标签任务（如果启用）
 if (config?.enableAutoTag) {
-  await addTask("auto-tag", { messageId: message.id })
+  await addTask("auto-tag", {
+    userId: session.user.id,
+    messageId: message.id,
+  })
 }
 
-// 添加 RAGFlow 同步任务 (始终保持同步)
-await addTask("sync-ragflow", { messageId: message.id })
+// 添加 RAGFlow 同步任务（始终保持同步）
+await addTask("sync-ragflow", {
+  userId: session.user.id,
+  messageId: message.id,
+})
 ```
 
 ---
@@ -468,7 +491,7 @@ Worker 必须作为独立进程运行（`pnpm worker`），不能集成到 Next.
 
 ```bash
 # 1. 确保 Redis 运行中
-redis-cli ping
+docker exec whitenote-redis redis-cli ping
 # 应返回 PONG
 
 # 2. 启动 Worker

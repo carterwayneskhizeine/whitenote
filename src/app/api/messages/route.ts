@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { getPaginationParams } from "@/lib/validation"
+import { addTask } from "@/lib/queue"
 import { NextRequest } from "next/server"
 
 /**
@@ -151,6 +152,25 @@ export async function POST(request: NextRequest) {
           select: { children: true, comments: true },
         },
       },
+    })
+
+    // 获取用户 AI 配置
+    const config = await prisma.aiConfig.findUnique({
+      where: { userId: session.user.id },
+    })
+
+    // 添加自动打标签任务（如果启用）
+    if (config?.enableAutoTag) {
+      await addTask("auto-tag", {
+        userId: session.user.id,
+        messageId: message.id,
+      })
+    }
+
+    // 添加 RAGFlow 同步任务（始终保持同步）
+    await addTask("sync-ragflow", {
+      userId: session.user.id,
+      messageId: message.id,
     })
 
     return Response.json({ data: message }, { status: 201 })
