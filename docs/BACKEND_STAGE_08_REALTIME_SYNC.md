@@ -70,7 +70,7 @@ pnpm add -D @types/socket.io @types/socket.io-client
 import { Server as SocketIOServer, Socket } from "socket.io"
 import { Server as HTTPServer } from "http"
 import { parse } from "cookie"
-import { prisma } from "@/lib/prisma"
+import prisma from "@/lib/prisma"
 import redis from "@/lib/redis"
 
 interface SocketData {
