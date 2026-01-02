@@ -114,7 +114,7 @@ export async function addCronTask<T>(
 
 ```typescript
 import { Job } from "bullmq"
-import { prisma } from "@/lib/prisma"
+import prisma from "@/lib/prisma"
 import { applyAutoTags } from "@/lib/ai/auto-tag"
 
 interface AutoTagJobData {
@@ -154,7 +154,7 @@ export async function processAutoTag(job: Job<AutoTagJobData>) {
 
 ```typescript
 import { Job } from "bullmq"
-import { prisma } from "@/lib/prisma"
+import prisma from "@/lib/prisma"
 import { syncToRAGFlow } from "@/lib/ai/ragflow"
 
 interface SyncRAGFlowJobData {
@@ -183,7 +183,7 @@ export async function processSyncRAGFlow(job: Job<SyncRAGFlowJobData>) {
 
 ```typescript
 import { Job } from "bullmq"
-import { prisma } from "@/lib/prisma"
+import prisma from "@/lib/prisma"
 import { callOpenAI, buildSystemPrompt } from "@/lib/ai/openai"
 
 export async function processDailyBriefing(job: Job) {
@@ -438,6 +438,32 @@ pnpm worker
 
 ---
 
+## 实现要点
+
+### 1. prisma 导入方式
+
+⚠️ **注意**: Prisma Client 使用**默认导出**而非命名导出：
+
+```typescript
+// ✅ 正确
+import prisma from "@/lib/prisma"
+
+// ❌ 错误
+import { prisma } from "@/lib/prisma"
+```
+
+本 Stage 所有代码示例中的 prisma 导入均需使用默认导出方式。
+
+### 2. Worker 进程独立运行
+
+Worker 必须作为独立进程运行（`pnpm worker`），不能集成到 Next.js 进程中。
+
+### 3. Redis 连接复用
+
+多个 Queue 和 Worker 共享同一个 Redis 连接实例（`ioredis`），避免连接数过多。
+
+---
+
 ## 验证检查点
 
 ```bash
@@ -451,25 +477,3 @@ pnpm worker
 # 3. 创建消息后检查 Worker 日志
 # 应看到 [AutoTag] 和 [SyncRAGFlow] 的日志输出
 ```
-
----
-
-## 后端开发完成 🎉
-
-恭喜！你已完成 WhiteNote 2.5 的全部后端开发。
-
-### 总结
-
-| Stage | 内容 |
-|-------|------|
-| 1 | 项目初始化、环境配置 |
-| 2 | 数据库 Schema、Prisma 迁移 |
-| 3 | NextAuth.js 认证系统 |
-| 4 | Messages CRUD API |
-| 5 | Tags/Comments/Templates/Search/Config API |
-| 6 | AI 集成 (OpenAI + RAGFlow) |
-| 7 | 后台任务队列 (BullMQ) |
-
-### 下一步
-
-继续 [API 测试指南](file:///d:/Code/WhiteNote/docs/API_TESTING_GUIDE.md) 验证所有 API 端点。

@@ -1,10 +1,12 @@
 import { auth } from "@/lib/auth"
-import prisma from "@/lib/prisma"
+import { getAiConfig, updateAiConfig } from "@/lib/ai/config"
 import { NextRequest } from "next/server"
+
+export const runtime = 'nodejs'
 
 /**
  * GET /api/config
- * 获取当前用户的 AI 配置
+ * 获取 AI 配置 (支持热更新)
  */
 export async function GET() {
   const session = await auth()
@@ -12,27 +14,7 @@ export async function GET() {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  let config = await prisma.aiConfig.findUnique({
-    where: { userId: session.user.id },
-  })
-
-  // 如果不存在，创建默认配置
-  if (!config) {
-    config = await prisma.aiConfig.create({
-      data: {
-        userId: session.user.id,
-        openaiBaseUrl: process.env.OPENAI_BASE_URL || "http://localhost:4000",
-        openaiApiKey: process.env.OPENAI_API_KEY || "",
-        openaiModel: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
-        autoTagModel: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
-        briefingModel: process.env.OPENAI_MODEL || "gpt-3.5-turbo",
-        ragflowBaseUrl: process.env.RAGFLOW_BASE_URL || "http://localhost:4154",
-        ragflowApiKey: process.env.RAGFLOW_API_KEY || "",
-        ragflowChatId: process.env.RAGFLOW_CHAT_ID || "",
-        ragflowDatasetId: process.env.RAGFLOW_DATASET_ID || "",
-      },
-    })
-  }
+  const config = await getAiConfig(session.user.id)
 
   // 隐藏敏感字段
   return Response.json({
@@ -46,7 +28,7 @@ export async function GET() {
 
 /**
  * PUT /api/config
- * 更新当前用户的 AI 配置
+ * 更新 AI 配置 (立即生效，无需重启)
  */
 export async function PUT(request: NextRequest) {
   const session = await auth()
@@ -79,29 +61,68 @@ export async function PUT(request: NextRequest) {
       "enableLinkSuggestion",
     ]
 
-    const updateData: any = { userId: session.user.id }
+    const updateData: Record<string, unknown> = {}
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
         updateData[field] = body[field]
       }
     }
 
-    const config = await prisma.aiConfig.upsert({
-      where: { userId: session.user.id },
-      update: updateData,
-      create: updateData,
-    })
+    const config = await updateAiConfig(session.user.id, updateData)
 
-    // 隐藏敏感字段
     return Response.json({
       data: {
         ...config,
         openaiApiKey: config.openaiApiKey ? "***" : "",
         ragflowApiKey: config.ragflowApiKey ? "***" : "",
       },
+      message: "Configuration updated successfully. Changes take effect immediately.",
     })
   } catch (error) {
     console.error("Failed to update config:", error)
     return Response.json({ error: "Failed to update config" }, { status: 500 })
+  }
+}
+
+/**
+ * POST /api/config/test
+ * 测试 RAGFlow 连接
+ */
+export async function POST() {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const config = await getAiConfig(session.user.id)
+
+  try {
+    // 测试 RAGFlow 连接
+    const response = await fetch(
+      `${config.ragflowBaseUrl}/api/v1/datasets`,
+      {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${config.ragflowApiKey}`,
+        },
+      }
+    )
+
+    if (response.ok) {
+      return Response.json({
+        success: true,
+        message: "RAGFlow connection successful",
+      })
+    } else {
+      return Response.json({
+        success: false,
+        error: `RAGFlow returned status ${response.status}`,
+      })
+    }
+  } catch (error) {
+    return Response.json({
+      success: false,
+      error: error instanceof Error ? error.message : "Connection failed",
+    })
   }
 }

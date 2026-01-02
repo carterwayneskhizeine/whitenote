@@ -1,7 +1,8 @@
 # WhiteNote 2.5 后端开发指南 - Stage 6: AI 集成 (热更新配置)
 
-> **前置文档**: [Stage 5: Tags/Comments/Templates API](file:///d:/Code/WhiteNote/docs/BACKEND_STAGE_05_OTHER_API.md)  
+> **前置文档**: [Stage 5: Tags/Comments/Templates API](file:///d:/Code/WhiteNote/docs/BACKEND_STAGE_05_OTHER_API.md)
 > **下一步**: [Stage 7: 后台任务队列](file:///d:/Code/WhiteNote/docs/BACKEND_STAGE_07_WORKERS.md)
+> **状态**: ✅ 已完成 (2026-01-02)
 
 ---
 
@@ -687,30 +688,237 @@ export async function POST(request: NextRequest) {
 
 ---
 
-## 验证热更新
+## 验证热更新（浏览器控制台测试）
+
+> [!TIP]
+> **推荐使用浏览器开发者工具测试 API**
+> - 自动处理认证 cookie
+> - 无需手动管理 session token
+> - 实时查看请求/响应
+
+### 步骤 1: 启动开发服务器
 
 ```bash
-# 1. 更新 RAGFlow 配置
-curl -X PUT http://localhost:3005/api/config \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{
-    "ragflowBaseUrl": "http://localhost:4154",
-    "ragflowApiKey": "ragflow-61LVcg1JlwvJPHPmDLEHiw5NWfG6-QUvWShJ6gcbQSc",
-    "ragflowChatId": "1c4db240e66011f09080b2cef1c18441",
-    "ragflowDatasetId": "96b74969e65411f09f5fb2cef1c18441",
-    "enableRag": true
-  }'
-
-# 2. 立即测试 (无需重启)
-curl -X POST http://localhost:3005/api/ai/chat \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{"messageId":"<id>","content":"测试 RAG 模式"}'
+pnpm dev
 ```
+
+访问 http://localhost:3005/login 并登录（测试账号: `owner@whitenote.local` / `admin123`）
+
+### 步骤 2: 测试配置热更新
+
+按 `F12` 打开浏览器控制台，执行以下代码：
+
+```javascript
+// 1. 获取当前配置
+const configRes = await fetch('/api/config')
+const configData = await configRes.json()
+console.log('当前配置:', configData)
+
+// 2. 更新 RAGFlow 配置（热更新）
+const updateRes = await fetch('/api/config', {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    ragflowBaseUrl: "http://localhost:4154",
+    ragflowApiKey: "ragflow-61LVcg1JlwvJPHPmDLEHiw5NWfG6-QUvWShJ6gcbQSc",
+    ragflowChatId: "1c4db240e66011f09080b2cef1c18441",
+    ragflowDatasetId: "96b74969e65411f09f5fb2cef1c18441",
+    enableRag: true
+  })
+})
+const updateData = await updateRes.json()
+console.log('更新结果:', updateData)
+// 预期输出: { data: {...}, message: "Configuration updated successfully. Changes take effect immediately." }
+
+// 3. 测试 RAGFlow 连接
+const testRes = await fetch('/api/config', { method: 'POST' })
+const testData = await testRes.json()
+console.log('连接测试:', testData)
+// 预期输出: { success: true, message: "RAGFlow connection successful" }
+```
+
+### 步骤 3: 测试 AI 聊天功能
+
+```javascript
+// 1. 创建测试消息
+const createRes = await fetch('/api/messages', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    content: '这是一条测试消息，用于测试 AI RAG 模式。',
+    tags: ['测试', 'AI']
+  })
+})
+const createData = await createRes.json()
+console.log('创建消息:', createData)
+// 记下返回的 messageId
+
+// 2. 调用 AI 聊天（使用实际的 messageId）
+const chatRes = await fetch('/api/ai/chat', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    messageId: createData.data.id,  // 使用实际的消息 ID
+    content: '请总结这条消息的内容'
+  })
+})
+const chatData = await chatRes.json()
+console.log('AI 回复:', chatData)
+```
+
+### 步骤 4: 测试 AI 增强功能
+
+```javascript
+// 测试文本增强功能
+const enhanceRes = await fetch('/api/ai/enhance', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    action: 'summarize',
+    content: 'WhiteNote 是一个伪装成 Twitter 时间线风格的多用户知识管理与 AI 记忆系统。它结合了 Notion 的结构化能力与 Twitter 的碎片化记录体验，由双模 AI 驱动，支持实时多端同步编辑。'
+  })
+})
+const enhanceData = await enhanceRes.json()
+console.log('文本增强结果:', enhanceData)
+```
+
+---
+
+## 构建验证
+
+```bash
+# 构建项目
+pnpm build
+
+# 预期输出:
+# ✓ Compiled successfully
+# ✓ Generating static pages (15/15)
+```
+
+所有 API 端点应正确构建：
+- `/api/config` (GET/PUT/POST)
+- `/api/ai/chat` (POST)
+- `/api/ai/enhance` (POST)
+
+---
+
+## 实现要点
+
+### 1. prisma 导入方式
+
+⚠️ **注意**: Prisma Client 使用**默认导出**而非命名导出：
+
+```typescript
+// ✅ 正确
+import prisma from "@/lib/prisma"
+
+// ❌ 错误
+import { prisma } from "@/lib/prisma"
+```
+
+### 2. RAGFlow userId 参数
+
+`callRAGFlow` 函数需要传入 `userId` 参数：
+
+```typescript
+// ✅ 正确
+export async function callRAGFlow(
+  userId: string,  // 必须传入
+  messages: RAGFlowMessage[]
+)
+
+// ❌ 错误（文档中的示例）
+export async function callRAGFlow(
+  messages: RAGFlowMessage[]
+)
+```
+
+### 3. API Route 运行时
+
+所有使用 bcryptjs 或 NextAuth 的 API routes 必须设置：
+
+```typescript
+export const runtime = 'nodejs'
+```
+
+---
+
+## 文件结构
+
+```
+src/
+├── lib/
+│   └── ai/
+│       ├── config.ts       # AI 配置服务（热更新核心）
+│       ├── openai.ts       # OpenAI 服务（标准模式）
+│       └── ragflow.ts      # RAGFlow 服务（RAG 模式）
+└── app/
+    └── api/
+        ├── config/
+        │   └── route.ts     # 配置 API（支持热更新）
+        └── ai/
+            ├── chat/
+            │   └── route.ts  # AI 聊天 API
+            └── enhance/
+                └── route.ts  # AI 增强 API
+```
+
+---
+
+## 故障排查
+
+### 问题 1: "OpenAI API key not configured"
+
+**原因**: 未配置 OpenAI API Key
+
+**解决方案**:
+```javascript
+// 通过浏览器控制台配置
+await fetch('/api/config', {
+  method: 'PUT',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    openaiApiKey: "your-api-key-here",
+    openaiBaseUrl: "http://localhost:4000",
+    openaiModel: "gpt-3.5-turbo"
+  })
+})
+```
+
+### 问题 2: "RAGFlow connection failed"
+
+**原因**: RAGFlow 服务未启动或配置错误
+
+**解决方案**:
+1. 确认 RAGFlow 服务运行在 `http://localhost:4154`
+2. 验证 API Key 是否正确
+3. 使用连接测试接口验证：
+   ```javascript
+   await fetch('/api/config', { method: 'POST' })
+     .then(r => r.json())
+     .then(console.log)
+   ```
+
+### 问题 3: AI 响应慢或超时
+
+**原因**: OpenAI 服务响应慢
+
+**解决方案**:
+1. 检查 `openaiBaseUrl` 是否正确
+2. 确认 OpenAI 服务正常运行
+3. 考虑使用更快的模型（如 DeepSeek）
 
 ---
 
 ## 下一步
 
-继续 [Stage 7: 后台任务队列](file:///d:/Code/WhiteNote/docs/BACKEND_STAGE_07_WORKERS.md)。
+✅ **Stage 6 完成！**
+
+继续实现 [Stage 7: 后台任务队列](file:///d:/Code/WhiteNote/docs/BACKEND_STAGE_07_WORKERS.md)，包括：
+- 自动打标（Auto-Tagging Worker）
+- 每日晨报生成（Daily Briefing）
+- BullMQ 队列集成
+
+---
+
+*文档最后更新: 2026-01-02*
