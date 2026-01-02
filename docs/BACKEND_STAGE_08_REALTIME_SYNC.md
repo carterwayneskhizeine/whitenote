@@ -95,7 +95,7 @@ export function initSocketServer(httpServer: HTTPServer) {
   io = new SocketIOServer(httpServer, {
     path: "/api/socket",
     cors: {
-      origin: process.env.NEXTAUTH_URL || "http://localhost:3000",
+      origin: process.env.NEXTAUTH_URL || "http://localhost:3005",
       credentials: true,
     },
   })
@@ -310,7 +310,7 @@ import { initSocketServer } from "./src/lib/socket/server"
 
 const dev = process.env.NODE_ENV !== "production"
 const hostname = "localhost"
-const port = parseInt(process.env.PORT || "3000", 10)
+const port = parseInt(process.env.PORT || "3005", 10)
 
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()

@@ -491,7 +491,7 @@ export const runtime = 'nodejs'
 
 ```bash
 # 1. 测试注册
-curl -X POST http://localhost:3000/api/auth/register \
+curl -X POST http://localhost:3005/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"123456","name":"Test User"}'
 

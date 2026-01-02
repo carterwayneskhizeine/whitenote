@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhiteNote API 测试</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 { color: #333; margin-bottom: 20px; }
+    .section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .section h2 {
+      color: #555;
+      margin-bottom: 15px;
+      font-size: 18px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #666;
+      font-weight: 500;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    textarea {
+      min-height: 100px;
+      font-family: monospace;
+    }
+    button {
+      background: #0070f3;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-right: 10px;
+    }
+    button:hover { background: #0051cc; }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .response {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 15px;
+      margin-top: 15px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+    .response.error {
+      background: #f8d7da;
+      border-color: #f5c6cb;
+      color: #721c24;
+    }
+    .response.success {
+      background: #d4edda;
+      border-color: #c3e6cb;
+      color: #155724;
+    }
+    .status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-left: 10px;
+    }
+    .status.success { background: #d4edda; color: #155724; }
+    .status.error { background: #f8d7da; color: #721c24; }
+    .user-info {
+      background: #e7f3ff;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+    }
+    .loading {
+      display: inline-block;
+      margin-left: 10px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧪 WhiteNote Messages API 测试</h1>
+
+    <!-- 用户信息 -->
+    <div class="section">
+      <h2>👤 当前用户</h2>
+      <div id="userInfo" class="user-info">加载中...</div>
+      <button onclick="fetchUserInfo()">刷新用户信息</button>
+      <button onclick="window.location.href='/login'" id="loginBtn">去登录</button>
+    </div>
+
+    <!-- 1. 创建消息 -->
+    <div class="section">
+      <h2>📝 1. 创建消息 (POST /api/messages)</h2>
+      <div class="form-group">
+        <label>内容 (content)</label>
+        <textarea id="createContent">Hello WhiteNote! This is a test message.</textarea>
+      </div>
+      <div class="form-group">
+        <label>标签 (tags, 逗号分隔)</label>
+        <input type="text" id="createTags" value="test,api,first">
+      </div>
+      <button onclick="createMessage()">创建消息</button>
+      <div id="createResponse" class="response" style="display:none"></div>
+    </div>
+
+    <!-- 2. 获取消息列表 -->
+    <div class="section">
+      <h2>📋 2. 获取消息列表 (GET /api/messages)</h2>
+      <div class="form-group">
+        <label>查询参数</label>
+        <input type="text" id="listParams" placeholder="例如: ?tagId=xxx&isStarred=true&page=1&limit=10">
+      </div>
+      <button onclick="fetchMessages()">获取消息列表</button>
+      <div id="listResponse" class="response" style="display:none"></div>
+    </div>
+
+    <!-- 3. 获取单条消息 -->
+    <div class="section">
+      <h2>🔍 3. 获取单条消息 (GET /api/messages/[id])</h2>
+      <div class="form-group">
+        <label>消息 ID</label>
+        <input type="text" id="getMessageId" placeholder="输入消息 ID">
+      </div>
+      <button onclick="fetchMessage()">获取消息详情</button>
+      <div id="getMessageResponse" class="response" style="display:none"></div>
+    </div>
+
+    <!-- 4. 更新消息 -->
+    <div class="section">
+      <h2>✏️ 4. 更新消息 (PUT /api/messages/[id])</h2>
+      <div class="form-group">
+        <label>消息 ID</label>
+        <input type="text" id="updateMessageId" placeholder="输入消息 ID">
+      </div>
+      <div class="form-group">
+        <label>新内容</label>
+        <textarea id="updateContent">Updated content...</textarea>
+      </div>
+      <button onclick="updateMessage()">更新消息</button>
+      <div id="updateResponse" class="response" style="display:none"></div>
+    </div>
+
+    <!-- 5. 收藏/取消收藏 -->
+    <div class="section">
+      <h2>⭐ 5. 切换收藏状态 (POST /api/messages/[id]/star)</h2>
+      <div class="form-group">
+        <label>消息 ID</label>
+        <input type="text" id="starMessageId" placeholder="输入消息 ID">
+      </div>
+      <button onclick="toggleStar()">切换收藏</button>
+      <div id="starResponse" class="response" style="display:none"></div>
+    </div>
+
+    <!-- 6. 置顶/取消置顶 -->
+    <div class="section">
+      <h2>📌 6. 切换置顶状态 (POST /api/messages/[id]/pin)</h2>
+      <div class="form-group">
+        <label>消息 ID</label>
+        <input type="text" id="pinMessageId" placeholder="输入消息 ID">
+      </div>
+      <button onclick="togglePin()">切换置顶</button>
+      <div id="pinResponse" class="response" style="display:none"></div>
+    </div>
+
+    <!-- 7. 删除消息 -->
+    <div class="section">
+      <h2>🗑️ 7. 删除消息 (DELETE /api/messages/[id])</h2>
+      <div class="form-group">
+        <label>消息 ID</label>
+        <input type="text" id="deleteMessageId" placeholder="输入消息 ID">
+      </div>
+      <button onclick="deleteMessage()" style="background: #dc3545;">删除消息</button>
+      <div id="deleteResponse" class="response" style="display:none"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+
+    // 显示响应
+    function showResponse(elementId, data, isSuccess) {
+      const el = document.getElementById(elementId);
+      el.style.display = 'block';
+      el.className = 'response ' + (isSuccess ? 'success' : 'error');
+      el.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+    }
+
+    // 获取用户信息
+    async function fetchUserInfo() {
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`);
+        const data = await res.json();
+
+        if (res.ok) {
+          document.getElementById('userInfo').innerHTML = `
+            <strong>✅ 已登录</strong><br>
+            ID: ${data.data.id}<br>
+            Email: ${data.data.email}<br>
+            Name: ${data.data.name || 'N/A'}
+          `;
+          document.getElementById('loginBtn').style.display = 'none';
+        } else {
+          document.getElementById('userInfo').innerHTML = `<strong>❌ 未登录</strong><br>${data.error}`;
+          document.getElementById('loginBtn').style.display = 'inline-block';
+        }
+      } catch (error) {
+        document.getElementById('userInfo').innerHTML = `<strong>❌ 错误</strong><br>${error.message}`;
+      }
+    }
+
+    // 1. 创建消息
+    async function createMessage() {
+      const content = document.getElementById('createContent').value;
+      const tagsInput = document.getElementById('createTags').value;
+      const tags = tagsInput.split(',').map(t => t.trim()).filter(t => t);
+
+      try {
+        const res = await fetch(`${API_BASE}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content, tags }),
+        });
+
+        const data = await res.json();
+        showResponse('createResponse', data, res.ok);
+
+        if (res.ok && data.data.id) {
+          // 自动填充 ID 到其他表单
+          const id = data.data.id;
+          document.getElementById('getMessageId').value = id;
+          document.getElementById('updateMessageId').value = id;
+          document.getElementById('starMessageId').value = id;
+          document.getElementById('pinMessageId').value = id;
+          document.getElementById('deleteMessageId').value = id;
+        }
+      } catch (error) {
+        showResponse('createResponse', error.message, false);
+      }
+    }
+
+    // 2. 获取消息列表
+    async function fetchMessages() {
+      const params = document.getElementById('listParams').value;
+
+      try {
+        const res = await fetch(`${API_BASE}/messages${params}`);
+        const data = await res.json();
+        showResponse('listResponse', data, res.ok);
+      } catch (error) {
+        showResponse('listResponse', error.message, false);
+      }
+    }
+
+    // 3. 获取单条消息
+    async function fetchMessage() {
+      const id = document.getElementById('getMessageId').value;
+
+      if (!id) {
+        showResponse('getMessageResponse', '请输入消息 ID', false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/messages/${id}`);
+        const data = await res.json();
+        showResponse('getMessageResponse', data, res.ok);
+      } catch (error) {
+        showResponse('getMessageResponse', error.message, false);
+      }
+    }
+
+    // 4. 更新消息
+    async function updateMessage() {
+      const id = document.getElementById('updateMessageId').value;
+      const content = document.getElementById('updateContent').value;
+
+      if (!id) {
+        showResponse('updateResponse', '请输入消息 ID', false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/messages/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content }),
+        });
+
+        const data = await res.json();
+        showResponse('updateResponse', data, res.ok);
+      } catch (error) {
+        showResponse('updateResponse', error.message, false);
+      }
+    }
+
+    // 5. 切换收藏
+    async function toggleStar() {
+      const id = document.getElementById('starMessageId').value;
+
+      if (!id) {
+        showResponse('starResponse', '请输入消息 ID', false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/messages/${id}/star`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+        showResponse('starResponse', data, res.ok);
+      } catch (error) {
+        showResponse('starResponse', error.message, false);
+      }
+    }
+
+    // 6. 切换置顶
+    async function togglePin() {
+      const id = document.getElementById('pinMessageId').value;
+
+      if (!id) {
+        showResponse('pinResponse', '请输入消息 ID', false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/messages/${id}/pin`, {
+          method: 'POST',
+        });
+        const data = await res.json();
+        showResponse('pinResponse', data, res.ok);
+      } catch (error) {
+        showResponse('pinResponse', error.message, false);
+      }
+    }
+
+    // 7. 删除消息
+    async function deleteMessage() {
+      const id = document.getElementById('deleteMessageId').value;
+
+      if (!id) {
+        showResponse('deleteResponse', '请输入消息 ID', false);
+        return;
+      }
+
+      if (!confirm('确定要删除这条消息吗？')) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/messages/${id}`, {
+          method: 'DELETE',
+        });
+        const data = await res.json();
+        showResponse('deleteResponse', data, res.ok);
+      } catch (error) {
+        showResponse('deleteResponse', error.message, false);
+      }
+    }
+
+    // 页面加载时获取用户信息
+    fetchUserInfo();
+  </script>
+</body>
+</html>

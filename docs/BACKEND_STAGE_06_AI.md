@@ -691,7 +691,7 @@ export async function POST(request: NextRequest) {
 
 ```bash
 # 1. 更新 RAGFlow 配置
-curl -X PUT http://localhost:3000/api/config \
+curl -X PUT http://localhost:3005/api/config \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{
@@ -703,7 +703,7 @@ curl -X PUT http://localhost:3000/api/config \
   }'
 
 # 2. 立即测试 (无需重启)
-curl -X POST http://localhost:3000/api/ai/chat \
+curl -X POST http://localhost:3005/api/ai/chat \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{"messageId":"<id>","content":"测试 RAG 模式"}'

@@ -47,7 +47,7 @@ CREATE DATABASE whitenote_test;
 
 ```env
 DATABASE_URL="postgresql://postgres:your_password@localhost:5432/whitenote_test?schema=public"
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="http://localhost:3005"
 NEXTAUTH_SECRET="test-secret-key"
 ```
 
@@ -68,11 +68,11 @@ pnpm add -D vitest @vitejs/plugin-react supertest @types/supertest
 
 ```bash
 # 方法 1: 使用浏览器 DevTools
-# 1. 访问 http://localhost:3000/login
+# 1. 访问 http://localhost:3005/login
 # 2. 登录后在 DevTools > Application > Cookies 中复制 next-auth.session-token
 
 # 方法 2: 程序化登录
-curl -c cookies.txt -X POST http://localhost:3000/api/auth/callback/credentials \
+curl -c cookies.txt -X POST http://localhost:3005/api/auth/callback/credentials \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "email=owner@whitenote.local&password=admin123"
 ```
@@ -81,7 +81,7 @@ curl -c cookies.txt -X POST http://localhost:3000/api/auth/callback/credentials 
 
 ```bash
 # 测试获取当前用户
-curl http://localhost:3000/api/auth/me \
+curl http://localhost:3005/api/auth/me \
   -b cookies.txt
 
 # 预期响应
@@ -92,7 +92,7 @@ curl http://localhost:3000/api/auth/me \
 
 ```bash
 # 创建消息
-curl -X POST http://localhost:3000/api/messages \
+curl -X POST http://localhost:3005/api/messages \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{"content":"这是测试消息 #test","tags":["测试","API"]}'
@@ -103,7 +103,7 @@ curl -X POST http://localhost:3000/api/messages \
 # ---
 
 # 获取消息列表
-curl "http://localhost:3000/api/messages?page=1&limit=10" \
+curl "http://localhost:3005/api/messages?page=1&limit=10" \
   -b cookies.txt
 
 # 预期响应
@@ -112,13 +112,13 @@ curl "http://localhost:3000/api/messages?page=1&limit=10" \
 # ---
 
 # 获取单条消息 (替换 <id> 为实际 ID)
-curl http://localhost:3000/api/messages/<id> \
+curl http://localhost:3005/api/messages/<id> \
   -b cookies.txt
 
 # ---
 
 # 更新消息
-curl -X PUT http://localhost:3000/api/messages/<id> \
+curl -X PUT http://localhost:3005/api/messages/<id> \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{"content":"更新后的内容"}'
@@ -126,7 +126,7 @@ curl -X PUT http://localhost:3000/api/messages/<id> \
 # ---
 
 # 收藏消息
-curl -X POST http://localhost:3000/api/messages/<id>/star \
+curl -X POST http://localhost:3005/api/messages/<id>/star \
   -b cookies.txt
 
 # 预期响应
@@ -135,13 +135,13 @@ curl -X POST http://localhost:3000/api/messages/<id>/star \
 # ---
 
 # 置顶消息
-curl -X POST http://localhost:3000/api/messages/<id>/pin \
+curl -X POST http://localhost:3005/api/messages/<id>/pin \
   -b cookies.txt
 
 # ---
 
 # 删除消息
-curl -X DELETE http://localhost:3000/api/messages/<id> \
+curl -X DELETE http://localhost:3005/api/messages/<id> \
   -b cookies.txt
 
 # 预期响应
@@ -152,7 +152,7 @@ curl -X DELETE http://localhost:3000/api/messages/<id> \
 
 ```bash
 # 获取所有标签
-curl http://localhost:3000/api/tags \
+curl http://localhost:3005/api/tags \
   -b cookies.txt
 
 # 预期响应
@@ -161,7 +161,7 @@ curl http://localhost:3000/api/tags \
 # ---
 
 # 创建标签
-curl -X POST http://localhost:3000/api/tags \
+curl -X POST http://localhost:3005/api/tags \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{"name":"新标签","color":"#FF5733"}'
@@ -169,7 +169,7 @@ curl -X POST http://localhost:3000/api/tags \
 # ---
 
 # 获取标签下的消息
-curl "http://localhost:3000/api/tags/<tag-id>/messages" \
+curl "http://localhost:3005/api/tags/<tag-id>/messages" \
   -b cookies.txt
 ```
 
@@ -177,7 +177,7 @@ curl "http://localhost:3000/api/tags/<tag-id>/messages" \
 
 ```bash
 # 添加评论
-curl -X POST http://localhost:3000/api/messages/<id>/comments \
+curl -X POST http://localhost:3005/api/messages/<id>/comments \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{"content":"这是一条评论"}'
@@ -185,7 +185,7 @@ curl -X POST http://localhost:3000/api/messages/<id>/comments \
 # ---
 
 # 获取评论列表
-curl http://localhost:3000/api/messages/<id>/comments \
+curl http://localhost:3005/api/messages/<id>/comments \
   -b cookies.txt
 ```
 
@@ -193,13 +193,13 @@ curl http://localhost:3000/api/messages/<id>/comments \
 
 ```bash
 # 获取模板列表
-curl http://localhost:3000/api/templates \
+curl http://localhost:3005/api/templates \
   -b cookies.txt
 
 # ---
 
 # 创建自定义模板
-curl -X POST http://localhost:3000/api/templates \
+curl -X POST http://localhost:3005/api/templates \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{"name":"我的模板","content":"# 标题\n\n内容...","description":"测试模板"}'
@@ -209,7 +209,7 @@ curl -X POST http://localhost:3000/api/templates \
 
 ```bash
 # 搜索
-curl "http://localhost:3000/api/search?q=测试&page=1&limit=10" \
+curl "http://localhost:3005/api/search?q=测试&page=1&limit=10" \
   -b cookies.txt
 ```
 
@@ -217,13 +217,13 @@ curl "http://localhost:3000/api/search?q=测试&page=1&limit=10" \
 
 ```bash
 # 获取配置
-curl http://localhost:3000/api/config \
+curl http://localhost:3005/api/config \
   -b cookies.txt
 
 # ---
 
 # 更新配置
-curl -X PUT http://localhost:3000/api/config \
+curl -X PUT http://localhost:3005/api/config \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{"enableRag":true,"enableAutoTag":true}'
@@ -233,7 +233,7 @@ curl -X PUT http://localhost:3000/api/config \
 
 ```bash
 # AI 聊天
-curl -X POST http://localhost:3000/api/ai/chat \
+curl -X POST http://localhost:3005/api/ai/chat \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{"messageId":"<id>","content":"总结这条笔记"}'
@@ -241,13 +241,13 @@ curl -X POST http://localhost:3000/api/ai/chat \
 # ---
 
 # AI 文本增强 - 摘要
-curl -X POST http://localhost:3000/api/ai/enhance \
+curl -X POST http://localhost:3005/api/ai/enhance \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{"action":"summarize","content":"这是一段很长的文本..."}'
 
 # AI 文本增强 - 翻译
-curl -X POST http://localhost:3000/api/ai/enhance \
+curl -X POST http://localhost:3005/api/ai/enhance \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{"action":"translate","content":"Hello World","target":"Chinese"}'
@@ -599,7 +599,7 @@ pnpm prisma db seed
 ```bash
 #!/bin/bash
 
-BASE_URL="http://localhost:3000"
+BASE_URL="http://localhost:3005"
 COOKIE_FILE="cookies.txt"
 
 echo "=== WhiteNote API E2E Test ==="

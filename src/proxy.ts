@@ -2,7 +2,10 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 export function proxy(request: NextRequest) {
-  const isLoggedIn = request.cookies.get("next-auth.session-token") ||
+  // NextAuth v5 uses authjs.session-token (dev) or __secure-authjs.session-token (prod)
+  const isLoggedIn = request.cookies.get("authjs.session-token") ||
+                     request.cookies.get("__Secure-authjs.session-token") ||
+                     request.cookies.get("next-auth.session-token") ||
                      request.cookies.get("__Secure-next-auth.session-token")
 
   const isAuthPage = request.nextUrl.pathname.startsWith("/login") ||

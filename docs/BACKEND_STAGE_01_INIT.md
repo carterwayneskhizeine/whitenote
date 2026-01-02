@@ -80,7 +80,7 @@ DATABASE_URL="postgresql://postgres:your_password@localhost:5432/whitenote?schem
 # ========================================
 # NextAuth 配置
 # ========================================
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="http://localhost:3005"
 NEXTAUTH_SECRET="your-super-secret-key-change-this-in-production"
 
 # ========================================
@@ -203,7 +203,7 @@ export default prisma
 
 ```env
 DATABASE_URL="postgresql://postgres:password@localhost:5432/whitenote?schema=public"
-NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_URL="http://localhost:3005"
 NEXTAUTH_SECRET=""
 OPENAI_BASE_URL=""
 OPENAI_API_KEY=""
@@ -226,7 +226,7 @@ pnpm build
 # 2. 启动开发服务器
 pnpm dev
 
-# 3. 访问 http://localhost:3000 确认页面正常显示
+# 3. 访问 http://localhost:3005 确认页面正常显示
 ```
 
 ---
