@@ -1,10 +1,18 @@
 "use client"
 
+import { usePathname } from "next/navigation"
 import { LeftSidebar } from "./LeftSidebar"
 import { RightSidebar } from "./RightSidebar"
 import { MobileNav } from "./MobileNav"
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register")
+
+  if (isAuthPage) {
+    return <>{children}</>
+  }
+
   return (
     <div className="flex min-h-screen justify-center w-full bg-background text-foreground">
       <div className="flex w-full max-w-[1350px] justify-center relative gap-0 md:pl-10">
