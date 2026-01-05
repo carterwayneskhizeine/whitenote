@@ -58,14 +58,26 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
         {/* Logo (Desktop only here, MobileNav has its own) */}
         {!isMobile && !collapsed && (
           <Link href="/" className="flex items-center gap-2 px-4 py-2 w-min hover:bg-secondary/50 rounded-full transition-colors mb-1">
-            <div className="h-10 w-10 bg-foreground rounded-full" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 512 512"
+              className="h-10 w-10 fill-foreground"
+            >
+              <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93"/>
+            </svg>
           </Link>
         )}
 
         {/* Logo for collapsed mode */}
         {!isMobile && collapsed && (
           <Link href="/" className="flex items-center justify-center w-14 h-14 hover:bg-secondary/50 rounded-full transition-colors mb-1 mx-auto">
-            <div className="h-10 w-10 bg-foreground rounded-full" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 512 512"
+              className="h-10 w-10 fill-foreground"
+            >
+              <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93"/>
+            </svg>
           </Link>
         )}
 
