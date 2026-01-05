@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  Home, Bell, Tag, Network, Settings,
+  Home as LucideHome, Bell, Tag, Network, Settings as LucideSettings,
   MoreHorizontal, PenLine
 } from "lucide-react"
 
@@ -16,12 +16,58 @@ interface LeftSidebarProps {
   collapsed?: boolean
 }
 
+const HomeIcon = ({ size = 24, className, strokeWidth, ...props }: any) => {
+  const isFilled = className?.includes("fill-current") || className?.includes("fill-foreground");
+  if (isFilled) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className={className}
+        {...props}
+      >
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10H9z"
+        />
+      </svg>
+    );
+  }
+  return <LucideHome size={size} className={className} strokeWidth={strokeWidth} {...props} />;
+};
+
+const SettingsIcon = ({ size = 24, className, strokeWidth, ...props }: any) => {
+  const isFilled = className?.includes("fill-current") || className?.includes("fill-foreground");
+  if (isFilled) {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className={className}
+        {...props}
+      >
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84a.481.481 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.487.487 0 0 0-.59.22L3.06 7.95a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.27.41.48.41h3.84c.21 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.03-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5zM12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+        />
+      </svg>
+    );
+  }
+  return <LucideSettings size={size} className={className} strokeWidth={strokeWidth} {...props} />;
+};
+
 const navItems = [
-  { icon: Home, label: "Home", href: "/" },
+  { icon: HomeIcon, label: "Home", href: "/" },
   { icon: Bell, label: "Notifications", href: "/notifications" },
   { icon: Tag, label: "Tags", href: "/tags" },
   { icon: Network, label: "Graph", href: "/graph" },
-  { icon: Settings, label: "Settings", href: "/settings" },
+  { icon: SettingsIcon, label: "Settings", href: "/settings" },
 ]
 
 const UserInfo = () => (
@@ -63,7 +109,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
               viewBox="0 0 512 512"
               className="h-10 w-10 fill-foreground"
             >
-              <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93"/>
+              <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93" />
             </svg>
           </Link>
         )}
@@ -76,7 +122,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
               viewBox="0 0 512 512"
               className="h-10 w-10 fill-foreground"
             >
-              <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93"/>
+              <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93" />
             </svg>
           </Link>
         )}
