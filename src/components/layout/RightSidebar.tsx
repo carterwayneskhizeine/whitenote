@@ -14,13 +14,13 @@ export function RightSidebar() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary" />
           <Input
             placeholder="Search"
-            className="pl-12 h-12 rounded-full bg-secondary border-none focus-visible:ring-1 focus-visible:ring-primary focus-visible:bg-black placeholder:text-muted-foreground"
+            className="pl-12 h-12 rounded-full bg-secondary border-none focus-visible:ring-1 focus-visible:ring-primary placeholder:text-muted-foreground"
           />
         </div>
       </div>
 
       {/* Subscribe Card */}
-      <Card className="shadow-none border border-border bg-black rounded-2xl overflow-hidden">
+      <Card className="shadow-none border border-border bg-card rounded-2xl overflow-hidden">
         <CardHeader>
           <CardTitle className="text-xl font-extrabold">Subscribe to Premium</CardTitle>
         </CardHeader>
@@ -31,7 +31,7 @@ export function RightSidebar() {
       </Card>
 
       {/* What's Happening (Trends) */}
-      <Card className="shadow-none border border-border bg-black rounded-2xl overflow-hidden pt-2">
+      <Card className="shadow-none border border-border bg-card rounded-2xl overflow-hidden pt-2">
         <CardHeader className="pb-2">
           <CardTitle className="text-xl font-extrabold">What's happening</CardTitle>
         </CardHeader>
