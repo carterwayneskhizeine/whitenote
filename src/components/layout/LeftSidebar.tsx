@@ -79,20 +79,22 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
                 key={item.href}
                 variant="ghost"
                 className={cn(
-                  "justify-start h-14 rounded-full hover:bg-secondary/50 transition-colors",
-                  collapsed ? "w-14 px-0 mx-auto" : "gap-5 text-xl px-4 w-min lg:w-full",
+                  "h-14 rounded-full hover:bg-secondary/50 transition-colors",
+                  collapsed ? "justify-center w-14 px-0 mx-auto" : "justify-start gap-3 text-xl px-4 w-min lg:w-full",
                   isActive && "font-bold",
                   isMobile && "w-full text-lg"
                 )}
                 asChild
               >
-                <Link href={item.href} className={cn("flex items-center", collapsed && "justify-center")}>
-                  <item.icon
-                    size={25}
-                    className={cn("shrink-0", isActive && "fill-current")}
-                    strokeWidth={isActive ? 3 : 2}
-                    style={{ width: '25px', height: '25px', minWidth: '25px', minHeight: '25px' }}
-                  />
+                <Link href={item.href} className="flex items-center">
+                  <div className="flex w-10 items-center justify-center">
+                    <item.icon
+                      size={25}
+                      className={cn("shrink-0", isActive && "fill-current")}
+                      strokeWidth={isActive ? 3 : 2}
+                      style={{ width: '25px', height: '25px', minWidth: '25px', minHeight: '25px' }}
+                    />
+                  </div>
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               </Button>
