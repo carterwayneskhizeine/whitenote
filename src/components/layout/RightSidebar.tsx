@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button"
 
 export function RightSidebar() {
   return (
-    <aside className="sticky top-0 h-screen w-[350px] flex-col gap-4 px-4 py-4 hidden desktop:flex overflow-y-auto no-scrollbar">
+    <aside className="sticky top-0 h-screen w-[350px] flex-col gap-4 px-4 pt-0 pb-4 hidden desktop:flex overflow-y-auto no-scrollbar">
       {/* Search */}
-      <div className="sticky top-0 bg-background z-10 pb-2">
+      <div className="sticky top-0 bg-background z-10 pt-[5px] pb-2">
         <div className="relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary" />
           <Input
             placeholder="Search"
-            className="pl-12 h-12 rounded-full bg-secondary border-none focus-visible:ring-1 focus-visible:ring-primary placeholder:text-muted-foreground"
+            className="pl-12 h-12 rounded-full bg-background dark:bg-background border border-border focus-visible:ring-1 focus-visible:ring-primary placeholder:text-muted-foreground"
           />
         </div>
       </div>
@@ -30,10 +30,10 @@ export function RightSidebar() {
         </CardContent>
       </Card>
 
-      {/* What's Happening (Trends) */}
+      {/* What&apos;s Happening (Trends) */}
       <Card className="shadow-none border border-border bg-card rounded-2xl overflow-hidden pt-2">
         <CardHeader className="pb-2">
-          <CardTitle className="text-xl font-extrabold">What's happening</CardTitle>
+          <CardTitle className="text-xl font-extrabold">What&apos;s happening</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-0 px-0">
           {['#ReactJS', '#NextJS', '#AI Revolution', 'Design Systems'].map((tag, i) => (

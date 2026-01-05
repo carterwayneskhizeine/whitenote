@@ -24,25 +24,25 @@ const navItems = [
   { icon: Settings, label: "Settings", href: "/settings" },
 ]
 
+const UserInfo = () => (
+  <div className="flex flex-col px-4 py-2 gap-3">
+    <Avatar className="h-10 w-10">
+      <AvatarImage src="https://github.com/shadcn.png" />
+      <AvatarFallback>CN</AvatarFallback>
+    </Avatar>
+    <div className="flex flex-col">
+      <span className="font-bold text-base leading-tight">User Name</span>
+      <span className="text-muted-foreground text-sm">@username</span>
+    </div>
+    <div className="flex gap-4 text-sm">
+      <span className="text-muted-foreground"><span className="font-bold text-foreground">123</span> Following</span>
+      <span className="text-muted-foreground"><span className="font-bold text-foreground">45</span> Followers</span>
+    </div>
+  </div>
+)
+
 export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
   const pathname = usePathname()
-
-  const UserInfo = () => (
-    <div className="flex flex-col px-4 py-2 gap-3">
-      <Avatar className="h-10 w-10">
-        <AvatarImage src="https://github.com/shadcn.png" />
-        <AvatarFallback>CN</AvatarFallback>
-      </Avatar>
-      <div className="flex flex-col">
-        <span className="font-bold text-base leading-tight">User Name</span>
-        <span className="text-muted-foreground text-sm">@username</span>
-      </div>
-      <div className="flex gap-4 text-sm">
-        <span className="text-muted-foreground"><span className="font-bold text-foreground">123</span> Following</span>
-        <span className="text-muted-foreground"><span className="font-bold text-foreground">45</span> Followers</span>
-      </div>
-    </div>
-  )
 
   return (
     <aside className={cn(
@@ -85,7 +85,6 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
         <nav className="flex flex-col gap-1">
           {navItems.map((item) => {
             const isActive = pathname === item.href
-            const isHome = item.label === "Home"
             return (
               <Button
                 key={item.href}
