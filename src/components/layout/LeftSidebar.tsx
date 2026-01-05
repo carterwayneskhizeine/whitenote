@@ -48,8 +48,8 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
     <aside className={cn(
       "sticky top-0 h-screen flex flex-col justify-between px-2 py-2",
       isMobile ? "w-full overflow-y-auto bg-black" :
-      collapsed ? "w-[88px]" :
-      "w-[275px]"
+        collapsed ? "w-[88px]" :
+          "w-[275px]"
     )}>
       <div className="flex flex-col gap-2">
         {/* Mobile Header */}
@@ -58,14 +58,14 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
         {/* Logo (Desktop only here, MobileNav has its own) */}
         {!isMobile && !collapsed && (
           <Link href="/" className="flex items-center gap-2 px-4 py-2 w-min hover:bg-secondary/50 rounded-full transition-colors mb-1">
-            <div className="h-8 w-8 bg-foreground rounded-full" />
+            <div className="h-10 w-10 bg-foreground rounded-full" />
           </Link>
         )}
 
         {/* Logo for collapsed mode */}
         {!isMobile && collapsed && (
-          <Link href="/" className="flex items-center justify-center px-2 py-2 w-min hover:bg-secondary/50 rounded-full transition-colors mb-1">
-            <div className="h-8 w-8 bg-foreground rounded-full" />
+          <Link href="/" className="flex items-center justify-center w-14 h-14 hover:bg-secondary/50 rounded-full transition-colors mb-1 mx-auto">
+            <div className="h-10 w-10 bg-foreground rounded-full" />
           </Link>
         )}
 
@@ -80,14 +80,19 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
                 variant="ghost"
                 className={cn(
                   "justify-start h-14 rounded-full hover:bg-secondary/50 transition-colors",
-                  collapsed ? "w-16 px-3" : "gap-5 text-xl px-4 w-min lg:w-full",
+                  collapsed ? "w-14 px-0 mx-auto" : "gap-5 text-xl px-4 w-min lg:w-full",
                   isActive && "font-bold",
                   isMobile && "w-full text-lg"
                 )}
                 asChild
               >
                 <Link href={item.href} className={cn("flex items-center", collapsed && "justify-center")}>
-                  <item.icon className={cn("h-7 w-7", isActive && "fill-current")} strokeWidth={isActive ? 3 : 2} />
+                  <item.icon
+                    size={25}
+                    className={cn("shrink-0", isActive && "fill-current")}
+                    strokeWidth={isActive ? 3 : 2}
+                    style={{ width: '25px', height: '25px', minWidth: '25px', minHeight: '25px' }}
+                  />
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               </Button>
@@ -103,8 +108,8 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
 
         {/* Collapsed Post button */}
         {!isMobile && collapsed && (
-          <Button size="icon" className="mt-4 rounded-full h-12 w-12 mx-auto bg-foreground hover:bg-foreground/90 text-background shadow-lg">
-            <PenLine className="h-5 w-5" strokeWidth={2.5} />
+          <Button size="icon" className="mt-4 rounded-full h-14 w-14 mx-auto bg-foreground hover:bg-foreground/90 text-background shadow-lg">
+            <PenLine size={40} strokeWidth={2.5} />
           </Button>
         )}
       </div>
@@ -131,7 +136,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
       {/* Collapsed user avatar */}
       {!isMobile && collapsed && (
         <div className="mt-auto mb-4">
-          <Button variant="ghost" className="w-full justify-center h-12 rounded-full px-2 hover:bg-secondary/50 transition-colors">
+          <Button variant="ghost" className="w-14 h-14 justify-center rounded-full px-0 hover:bg-secondary/50 transition-colors mx-auto">
             <Avatar className="h-10 w-10">
               <AvatarImage src="https://github.com/shadcn.png" />
               <AvatarFallback>CN</AvatarFallback>
