@@ -49,7 +49,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
       "sticky top-0 h-screen flex flex-col justify-between px-2 py-2",
       isMobile ? "w-full overflow-y-auto bg-black" :
         collapsed ? "w-[88px]" :
-          "w-[240px]"
+          "w-[250px]"
     )}>
       <div className="flex flex-col gap-2">
         {/* Mobile Header */}

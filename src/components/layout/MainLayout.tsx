@@ -9,7 +9,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen justify-center w-full bg-background text-foreground">
       <div className="flex w-full max-w-[1300px] justify-center relative gap-0">
         {/* LeftSidebar - 层级1: 完整 (xl+), 层级2-3: 折叠 (md+), 层级4: 隐藏 (移动端) */}
-        <div className="hidden xl:flex shrink-0 mr-7">
+        <div className="hidden xl:flex shrink-0 mr-3">
           <LeftSidebar />
         </div>
         <div className="hidden md:flex xl:hidden shrink-0">
