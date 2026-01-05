@@ -4,7 +4,6 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Button } from "@/components/ui/button"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Image as ImageIcon, Smile, Paperclip } from "lucide-react"
 
 export function InputMachine() {
@@ -26,11 +25,6 @@ export function InputMachine() {
 
   return (
     <div className="border-b px-4 py-4 flex gap-4">
-      <Avatar className="h-10 w-10">
-        <AvatarImage src="https://github.com/shadcn.png" />
-        <AvatarFallback>CN</AvatarFallback>
-      </Avatar>
-
       <div className="flex-1 flex flex-col gap-4">
         <EditorContent editor={editor} className="w-full" />
 
