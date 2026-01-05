@@ -7,12 +7,12 @@ import { MobileNav } from "./MobileNav"
 export function MainLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen justify-center w-full bg-background text-foreground">
-      <div className="flex w-full max-w-[1300px] justify-center relative gap-0">
+      <div className="flex w-full max-w-[1350px] justify-center relative gap-0 md:pl-10">
         {/* LeftSidebar - 层级1: 完整 (xl+), 层级2-3: 折叠 (md+), 层级4: 隐藏 (移动端) */}
         <div className="hidden xl:flex shrink-0 mr-3 -ml-17">
           <LeftSidebar />
         </div>
-        <div className="hidden md:flex xl:hidden shrink-0 -ml-17">
+        <div className="hidden md:flex xl:hidden shrink-0">
           <LeftSidebar collapsed />
         </div>
 
