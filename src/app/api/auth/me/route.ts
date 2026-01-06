@@ -51,12 +51,36 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const { name, avatar } = body
 
+    // Build update data - only include fields that are provided
+    const updateData: { name?: string; avatar?: string | null } = {}
+
+    // Only update name if it's provided and not empty string
+    if (typeof name === 'string' && name.trim()) {
+      updateData.name = name.trim()
+    }
+
+    // Handle avatar - allow clearing (empty string sets to null)
+    if (typeof avatar === 'string') {
+      updateData.avatar = avatar.trim() || null
+    }
+
+    // Don't update if no changes
+    if (Object.keys(updateData).length === 0) {
+      const currentUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatar: true,
+        },
+      })
+      return Response.json({ data: currentUser })
+    }
+
     const user = await prisma.user.update({
       where: { id: session.user.id },
-      data: {
-        name: name || undefined,
-        avatar: avatar || undefined,
-      },
+      data: updateData,
       select: {
         id: true,
         email: true,
@@ -67,6 +91,7 @@ export async function PUT(request: NextRequest) {
 
     return Response.json({ data: user })
   } catch (error) {
+    console.error("Update profile error:", error)
     return Response.json(
       { error: "Failed to update profile" },
       { status: 500 }

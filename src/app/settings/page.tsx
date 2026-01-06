@@ -3,8 +3,9 @@
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { Moon, Sun, Monitor, Sparkles } from "lucide-react"
+import { Moon, Sun, Monitor, Sparkles, User } from "lucide-react"
 import { AIConfigForm } from "@/components/AIConfigForm"
+import { ProfileEditForm } from "@/components/ProfileEditForm"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 export default function SettingsPage() {
@@ -21,8 +22,12 @@ export default function SettingsPage() {
 
       {/* Content */}
       <div className="max-w-2xl mx-auto px-4 py-6">
-        <Tabs defaultValue="ai" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+        <Tabs defaultValue="profile" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsTrigger value="profile">
+              <User className="h-4 w-4 mr-2" />
+              个人资料
+            </TabsTrigger>
             <TabsTrigger value="ai">
               <Sparkles className="h-4 w-4 mr-2" />
               AI 配置
@@ -32,6 +37,11 @@ export default function SettingsPage() {
               外观
             </TabsTrigger>
           </TabsList>
+
+          {/* Profile Tab */}
+          <TabsContent value="profile">
+            <ProfileEditForm />
+          </TabsContent>
 
           {/* AI Configuration Tab */}
           <TabsContent value="ai">

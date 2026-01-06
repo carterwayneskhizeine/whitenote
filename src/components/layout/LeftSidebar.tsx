@@ -6,7 +6,7 @@ import { signOut, useSession } from "next-auth/react"
 import { useState } from "react"
 import {
   Home, Hash, Bell, Bookmark, User,
-  MoreHorizontal, PenLine, LogOut, Settings
+  MoreHorizontal, PenLine, LogOut, Settings, UserCircle
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -77,7 +77,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
   const user = session?.user
   const userName = user?.name || "User Name"
   const userEmail = user?.email ? `@${user.email.split("@")[0]}` : "@username"
-  const userAvatar = user?.image || "https://github.com/shadcn.png"
+  const userAvatar = user?.image || ""
   const userInitials = userName?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "CN"
 
   return (
@@ -172,7 +172,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
           >
             <div className="flex items-center gap-3 truncate">
               <Avatar className="h-10 w-10 shrink-0">
-                <AvatarImage src={userAvatar} />
+                {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               {!collapsed && (
@@ -189,11 +189,16 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
           {showMenu && (
             <div className="absolute bottom-[80px] left-0 w-[300px] shadow-2xl rounded-2xl bg-background border border-border p-2 z-50 overflow-hidden ring-1 ring-border">
               <div className="flex flex-col gap-1">
+                <Button variant="ghost" className="w-full justify-start font-bold h-12" onClick={() => router.push('/settings')}>
+                  <UserCircle className="h-5 w-5 mr-3" />
+                  编辑资料
+                </Button>
                 <Button variant="ghost" className="w-full justify-start font-bold h-12" onClick={() => router.push('/profile')}>
                   添加现有账号
                 </Button>
                 <div className="h-px bg-border my-1" />
                 <Button variant="ghost" className="w-full justify-start font-bold h-12" onClick={handleSignOut}>
+                  <LogOut className="h-5 w-5 mr-3" />
                   退出 {userEmail}
                 </Button>
               </div>
