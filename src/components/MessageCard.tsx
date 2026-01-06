@@ -360,7 +360,8 @@ export function MessageCard({
       <ReplyDialog
         open={showReplyDialog}
         onOpenChange={setShowReplyDialog}
-        message={message}
+        target={message}
+        messageId={message.id}
         onSuccess={() => {
           onUpdate?.()
         }}

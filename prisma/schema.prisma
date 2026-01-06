@@ -170,8 +170,11 @@ model Comment {
   isAIBot   Boolean  @default(false)
   messageId String
   authorId  String?
+  parentId  String?
   author    User?    @relation(fields: [authorId], references: [id])
   message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  parent    Comment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
 
   @@index([messageId, createdAt])
 }

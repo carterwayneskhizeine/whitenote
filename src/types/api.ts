@@ -107,11 +107,13 @@ export interface Comment {
     avatar: string | null
     email: string | null
   }
+  parentId?: string | null
 }
 
 export interface CreateCommentInput {
   content: string
   messageId: string
+  parentId?: string
 }
 
 export interface CommentsResponse {

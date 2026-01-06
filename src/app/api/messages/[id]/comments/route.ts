@@ -2,10 +2,6 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { NextRequest } from "next/server"
 
-interface RouteParams {
-  params: { id: string }
-}
-
 /**
  * GET /api/messages/[id]/comments
  * 获取消息的评论列表
@@ -52,7 +48,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
   try {
     const body = await request.json()
-    const { content } = body
+    const { content, parentId } = body
 
     if (!content || content.trim() === "") {
       return Response.json({ error: "Content is required" }, { status: 400 })
@@ -64,6 +60,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         messageId: id,
         authorId: session.user.id,
         isAIBot: false,
+        parentId: parentId || null,
       },
       include: {
         author: { select: { id: true, name: true, avatar: true, email: true } },

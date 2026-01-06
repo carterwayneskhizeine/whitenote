@@ -25,7 +25,10 @@ export const commentsApi = {
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: data.content }),
+        body: JSON.stringify({
+          content: data.content,
+          parentId: data.parentId
+        }),
       }
     )
     return response.json()

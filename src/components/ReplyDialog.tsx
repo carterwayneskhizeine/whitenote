@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
     Dialog,
     DialogContent,
@@ -10,22 +10,34 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Message } from "@/lib/api/messages"
 import { commentsApi } from "@/lib/api"
 import { Loader2, Image as ImageIcon, Smile, List, Calendar, MapPin, X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { useSession } from "next-auth/react"
 
+interface ReplyTarget {
+    id: string
+    content: string
+    createdAt: string
+    author: {
+        name: string | null
+        avatar: string | null
+        email: string | null
+    }
+}
+
 interface ReplyDialogProps {
-    message: Message | null
+    target: ReplyTarget | null
+    messageId: string
     open: boolean
     onOpenChange: (open: boolean) => void
     onSuccess?: () => void
 }
 
 export function ReplyDialog({
-    message,
+    target,
+    messageId,
     open,
     onOpenChange,
     onSuccess,
@@ -34,16 +46,31 @@ export function ReplyDialog({
     const [content, setContent] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
 
-    if (!message) return null
+    // Reset content and pre-fill mention if replying to a comment
+    useEffect(() => {
+        if (open && target) {
+            const handle = target.author.email?.split('@')[0] || "user"
+            // If it's a comment (different from messageId), pre-fill the handle
+            // Actually, in Twitter, you always reply to someone.
+            // For now, let's just pre-fill if it's not the same as messageId or just always focus.
+            setContent("")
+        }
+    }, [open, target, messageId])
+
+    if (!target) return null
 
     const handleReply = async () => {
         if (!content.trim() || isSubmitting) return
 
         setIsSubmitting(true)
         try {
+            // Determine parentId: if target.id is not messageId, it's a comment reply
+            const parentId = target.id !== messageId ? target.id : undefined
+
             const result = await commentsApi.createComment({
                 content: content.trim(),
-                messageId: message.id,
+                messageId: messageId,
+                parentId: parentId,
             })
 
             if (result.data) {
@@ -79,11 +106,13 @@ export function ReplyDialog({
         }
     }
 
+    const targetHandle = target.author.email?.split('@')[0] || "user"
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[600px] p-0 gap-0 border-none bg-background overflow-hidden flex flex-col max-h-[90vh]">
                 <DialogHeader className="flex flex-row items-center justify-between px-4 py-2 border-b">
-                    <DialogTitle className="sr-only">回复消息</DialogTitle>
+                    <DialogTitle className="sr-only">回复</DialogTitle>
                     <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full">
                         <X className="h-5 w-5" />
                     </Button>
@@ -97,30 +126,30 @@ export function ReplyDialog({
                         <div className="absolute left-[15px] top-10 bottom-0 w-0.5 bg-border" />
 
                         <Avatar className="h-8 w-8 shrink-0 z-10">
-                            <AvatarImage src={message.author.avatar || undefined} />
+                            <AvatarImage src={target.author.avatar || undefined} />
                             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                                {getInitials(message.author.name)}
+                                {getInitials(target.author.name)}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1 text-sm">
                                 <span className="font-bold text-foreground">
-                                    {message.author.name || "Anonymous"}
+                                    {target.author.name || "Anonymous"}
                                 </span>
                                 <span className="text-muted-foreground truncate">
-                                    @{message.author.email?.split('@')[0] || "user"}
+                                    @{targetHandle}
                                 </span>
                                 <span className="text-muted-foreground px-1">·</span>
                                 <span className="text-muted-foreground">
-                                    {formatTime(message.createdAt)}
+                                    {formatTime(target.createdAt)}
                                 </span>
                             </div>
                             <div
-                                className="mt-1 text-[15px] leading-normal whitespace-pre-wrap break-words"
-                                dangerouslySetInnerHTML={{ __html: message.content }}
+                                className="mt-1 text-[15px] leading-normal whitespace-pre-wrap break-words prose prose-sm dark:prose-invert"
+                                dangerouslySetInnerHTML={{ __html: target.content }}
                             />
                             <div className="mt-3 text-sm text-muted-foreground">
-                                回复给 <span className="text-primary">@{message.author.email?.split('@')[0] || "user"}</span>
+                                回复给 <span className="text-primary">@{targetHandle}</span>
                             </div>
                         </div>
                     </div>
