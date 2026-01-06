@@ -37,7 +37,6 @@ import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { CommentsList } from "@/components/CommentsList"
 import { ReplyDialog } from "@/components/ReplyDialog"
-import { EditDialog } from "@/components/EditDialog"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 
@@ -60,7 +59,6 @@ export function MessageCard({
   const [starCount, setStarCount] = useState(0) // Mock count or real if available
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [showEditDialog, setShowEditDialog] = useState(false)
   const [showReplyDialog, setShowReplyDialog] = useState(false)
   const router = useRouter()
   const [isExpanded, setIsExpanded] = useState(false)
@@ -102,17 +100,6 @@ export function MessageCard({
     } catch {
       return ""
     }
-  }
-
-  // Extract hashtags from content
-  const extractTags = (html: string): string[] => {
-    // Create a temporary div to extract text from HTML
-    const tmp = document.createElement('div')
-    tmp.innerHTML = html
-    const text = tmp.textContent || tmp.innerText || ''
-
-    const matches = text.match(/#[\w\u4e00-\u9fa5]+/g)
-    return matches ? matches.map(t => t.slice(1)) : []
   }
 
   // Handle star (Like) toggle
@@ -165,25 +152,11 @@ export function MessageCard({
     setShowReplyDialog(true)
   }
 
-  // Handle save from edit dialog
-  const handleSaveFromDialog = async (content: string) => {
-    const tags = extractTags(content)
-
-    const result = await messagesApi.updateMessage(message.id, {
-      content,
-      tags,
-    })
-
-    if (result.data) {
-      onUpdate?.()
-    }
-  }
-
   return (
     <>
       <div
         className="p-4 border-b border-border hover:bg-muted/10 transition-colors cursor-pointer"
-        onClick={() => { if (!isEditing) { router.push(`/status/${message.id}`) } }}
+        onClick={() => { router.push(`/status/${message.id}`) }}
       >
         <div className="flex gap-3">
           {/* Avatar Column - h-8 to match reply as standard */}
@@ -234,7 +207,7 @@ export function MessageCard({
                   <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={(e) => {
                       e.stopPropagation()
-                      setShowEditDialog(true)
+                      router.push(`/status/${message.id}/edit`)
                     }}>
                       <Edit2 className="h-4 w-4 mr-2" />
                       编辑
@@ -363,15 +336,6 @@ export function MessageCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Edit Dialog */}
-      <EditDialog
-        open={showEditDialog}
-        onOpenChange={setShowEditDialog}
-        initialContent={message.content}
-        onSave={handleSaveFromDialog}
-        title="编辑消息"
-      />
     </>
   )
 }
