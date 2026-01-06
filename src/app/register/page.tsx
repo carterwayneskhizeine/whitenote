@@ -2,6 +2,9 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -28,7 +31,6 @@ export default function RegisterPage() {
       if (!res.ok) {
         setError(data.error || "注册失败")
       } else {
-        // 注册成功，跳转到登录页
         router.push("/login?registered=true")
       }
     } catch (err) {
@@ -39,81 +41,92 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-lg shadow-md p-8">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 512 512"
+            className="h-16 w-16 fill-foreground"
+          >
+            <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93" />
+          </svg>
+        </div>
+
+        <div className="bg-card border border-border rounded-2xl shadow-lg p-8">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-zinc-900">WhiteNote</h1>
-            <p className="text-zinc-600 mt-2">创建你的知识库账号</p>
+            <h1 className="text-3xl font-bold text-foreground">WhiteNote</h1>
+            <p className="text-muted-foreground mt-2">创建你的知识库账号</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-zinc-700 mb-1">
+              <label htmlFor="name" className="block text-sm font-medium text-foreground mb-1.5">
                 用户名
               </label>
-              <input
+              <Input
                 id="name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Your Name"
+                className="h-11"
               />
             </div>
 
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1.5">
                 邮箱地址
               </label>
-              <input
+              <Input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="your@email.com"
+                className="h-11"
               />
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-zinc-700 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1.5">
                 密码
               </label>
-              <input
+              <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-3 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="至少 6 位字符"
+                className="h-11"
               />
             </div>
 
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            <button
+            <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-11 rounded-full font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {loading ? "注册中..." : "注册"}
-            </button>
+            </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-zinc-600">
+          <div className="mt-6 text-center text-sm text-muted-foreground">
             已有账号？{" "}
-            <a href="/login" className="text-blue-600 hover:underline">
+            <Link href="/login" className="text-primary hover:underline font-medium">
               立即登录
-            </a>
+            </Link>
           </div>
         </div>
       </div>

@@ -1,10 +1,12 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
+import { signOut, useSession } from "next-auth/react"
+import { useState } from "react"
 import {
   Home as LucideHome, Bell, Tag, Network, Settings as LucideSettings,
-  MoreHorizontal, PenLine
+  MoreHorizontal, PenLine, LogOut
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -89,6 +91,19 @@ const UserInfo = () => (
 
 export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
   const pathname = usePathname()
+  const { data: session } = useSession()
+  const router = useRouter()
+  const [showMenu, setShowMenu] = useState(false)
+
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: "/login" })
+  }
+
+  const user = session?.user
+  const userName = user?.name || "User Name"
+  const userEmail = user?.email ? `@${user.email.split("@")[0]}` : "@username"
+  const userAvatar = user?.image || "https://github.com/shadcn.png"
+  const userInitials = userName?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "CN"
 
   return (
     <aside className={cn(
@@ -175,32 +190,68 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
 
       {/* Desktop User Profile at bottom */}
       {!isMobile && !collapsed && (
-        <div className="mt-auto mb-1">
-          <Button variant="ghost" className="w-full justify-between h-16 rounded-full px-4 hover:bg-secondary/50 transition-colors">
+        <div className="mt-auto mb-1 relative">
+          <Button
+            variant="ghost"
+            className="w-full justify-between h-16 rounded-full px-4 hover:bg-secondary/50 transition-colors"
+            onClick={() => setShowMenu(!showMenu)}
+          >
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
-                <AvatarImage src="https://github.com/shadcn.png" />
-                <AvatarFallback>CN</AvatarFallback>
+                <AvatarImage src={userAvatar} />
+                <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               <div className="hidden lg:flex flex-col items-start text-sm">
-                <span className="font-bold">User Name</span>
-                <span className="text-muted-foreground">@username</span>
+                <span className="font-bold">{userName}</span>
+                <span className="text-muted-foreground">{userEmail}</span>
               </div>
             </div>
             <MoreHorizontal className="h-5 w-5 hidden lg:block" />
           </Button>
+
+          {/* Dropdown menu for logout */}
+          {showMenu && (
+            <div className="absolute bottom-full left-0 right-0 mb-2 bg-background border border-border rounded-xl shadow-lg overflow-hidden">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 h-12 px-4 hover:bg-secondary/50 transition-colors text-red-500 hover:text-red-600"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-5 w-5" />
+                <span>退出登录</span>
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
       {/* Collapsed user avatar */}
       {!isMobile && collapsed && (
-        <div className="mt-auto mb-0">
-          <Button variant="ghost" className="w-14 h-14 justify-center rounded-full px-0 hover:bg-secondary/50 transition-colors mx-auto">
+        <div className="mt-auto mb-0 relative">
+          <Button
+            variant="ghost"
+            className="w-14 h-14 justify-center rounded-full px-0 hover:bg-secondary/50 transition-colors mx-auto"
+            onClick={() => setShowMenu(!showMenu)}
+          >
             <Avatar className="h-10 w-10">
-              <AvatarImage src="https://github.com/shadcn.png" />
-              <AvatarFallback>CN</AvatarFallback>
+              <AvatarImage src={userAvatar} />
+              <AvatarFallback>{userInitials}</AvatarFallback>
             </Avatar>
           </Button>
+
+          {/* Dropdown menu for logout */}
+          {showMenu && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-background border border-border rounded-xl shadow-lg overflow-hidden min-w-[160px]">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 h-12 px-4 hover:bg-secondary/50 transition-colors text-red-500 hover:text-red-600"
+                onClick={handleSignOut}
+              >
+                <LogOut className="h-5 w-5" />
+                <span>退出登录</span>
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </aside>
