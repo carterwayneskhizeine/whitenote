@@ -93,9 +93,9 @@ export default function EditMessagePage() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-background fixed inset-0 z-50">
+    <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border bg-background/95 backdrop-blur px-4 h-[53px] shrink-0">
+      <div className="flex items-center justify-between border-b border-border bg-background/95 backdrop-blur px-4 py-3 sticky top-0 z-10">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -127,13 +127,13 @@ export default function EditMessagePage() {
       </div>
 
       {/* Editor */}
-      <div className="flex-1 w-full min-h-0 overflow-hidden">
+      <div className="flex-1 min-h-125">
         <TipTapEditor
           content={content}
           onChange={setContent}
           placeholder="输入内容..."
-          className="h-full w-full border-0 rounded-none"
-          editorContentClassName="h-full w-full px-4 py-4"
+          className="h-full min-h-125 border-0"
+          editorContentClassName="h-full min-h-125 px-4 py-4"
         />
       </div>
     </div>
