@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
 import { useState, useEffect } from "react"
 import {
-  Home, Hash, Bell, Bookmark, User,
-  MoreHorizontal, PenLine, LogOut, Settings, UserCircle
+  Hash, Bell, Bookmark, User,
+  MoreHorizontal, PenLine, LogOut, UserCircle
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -210,7 +210,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
             <div className="flex items-center gap-3 truncate">
               <Avatar className="h-10 w-10 shrink-0">
                 {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
-                <AvatarFallback>{userInitials}</AvatarFallback>
+                <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">{userInitials}</AvatarFallback>
               </Avatar>
               {!collapsed && (
                 <div className="flex flex-col items-start text-sm truncate">
