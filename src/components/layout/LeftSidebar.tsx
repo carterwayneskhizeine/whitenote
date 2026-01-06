@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
 import { useState } from "react"
 import {
-  Home, Search, Bell, Bookmark, User,
+  Home, Hash, Bell, Bookmark, User,
   MoreHorizontal, PenLine, LogOut, Settings
 } from "lucide-react"
 
@@ -23,7 +23,7 @@ const XHome = ({ isActive, ...props }: any) => (
   <Home {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
 )
 const XExplore = ({ isActive, ...props }: any) => (
-  <Search {...props} size={28} strokeWidth={isActive ? 3 : 2} />
+  <Hash {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
 )
 const XNotifications = ({ isActive, ...props }: any) => (
   <Bell {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
@@ -40,7 +40,7 @@ const XMore = ({ isActive, ...props }: any) => (
 
 const navItems = [
   { icon: XHome, label: "首页", href: "/" },
-  { icon: XExplore, label: "探索", href: "/tags" },
+  { icon: XExplore, label: "Tags", href: "/tags" },
   { icon: XNotifications, label: "通知", href: "/notifications" },
   { icon: XBookmarks, label: "收藏", href: "/favorites" },
   { icon: XProfile, label: "个人资料", href: "/profile" },

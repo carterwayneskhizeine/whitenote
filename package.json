@@ -6,9 +6,9 @@
     "seed": "tsx prisma/seed.ts"
   },
   "scripts": {
-    "dev": "next dev -p 3005",
+    "dev": "tsx server.ts",
     "build": "next build",
-    "start": "next start -p 3005",
+    "start": "NODE_ENV=production tsx server.ts",
     "worker": "tsx scripts/worker.ts",
     "lint": "eslint"
   },
@@ -32,6 +32,7 @@
     "bullmq": "^5.66.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cookie": "^1.1.1",
     "date-fns": "^4.1.0",
     "ioredis": "^5.8.2",
     "lucide-react": "^0.562.0",
@@ -42,6 +43,8 @@
     "prisma": "^7.2.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.9"
   },
@@ -49,6 +52,7 @@
     "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.19",
     "@types/bcryptjs": "^3.0.0",
+    "@types/cookie": "^1.0.0",
     "@types/dotenv": "^8.2.3",
     "@types/node": "^20",
     "@types/pg": "^8.16.0",

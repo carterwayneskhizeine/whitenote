@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
-  Heart,
+  Bookmark,
+  BookmarkCheck,
   Repeat2,
   Share,
   MoreVertical,
@@ -104,6 +105,12 @@ export function MessageCard({
     }
   }
 
+  // Extract hashtags from content
+  const extractTags = (text: string): string[] => {
+    const matches = text.match(/#[\w\u4e00-\u9fa5]+/g)
+    return matches ? matches.map(t => t.slice(1)) : []
+  }
+
   // Handle star (Like) toggle
   const handleToggleStar = async (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -157,8 +164,12 @@ export function MessageCard({
   const handleUpdate = async () => {
     setIsUpdating(true)
     try {
+      // Extract tags from content
+      const tags = extractTags(editContent)
+
       const result = await messagesApi.updateMessage(message.id, {
         content: editContent,
+        tags: tags,
       })
       if (result.data) {
         setIsEditing(false)
@@ -190,19 +201,30 @@ export function MessageCard({
 
           {/* Content Column */}
           <div className="flex-1 min-w-0">
-            {/* Header: Name @handle · Time */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 text-sm leading-5 truncate">
+            {/* Header: Name @handle · Time #Tags */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5 text-sm leading-5">
                 <span className="font-bold text-foreground hover:underline">
                   {message.author.name || "Anonymous"}
                 </span>
-                <span className="text-muted-foreground truncate">
+                <span className="text-muted-foreground">
                   @{message.author.email?.split('@')[0] || "user"}
                 </span>
                 <span className="text-muted-foreground px-1">·</span>
                 <span className="text-muted-foreground hover:underline">
                   {formatTime(message.createdAt)}
                 </span>
+
+                {/* Tags displayed after user info */}
+                {message.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {message.tags.map(({ tag }) => (
+                      <span key={tag.id} className="text-primary hover:underline cursor-pointer">
+                        #{tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-center">
                 {message.isPinned && <Pin className="h-4 w-4 text-muted-foreground fill-current mr-2" />}
@@ -290,17 +312,6 @@ export function MessageCard({
               </div>
             )}
 
-            {/* Tags (if any) */}
-            {message.tags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2 text-primary">
-                {message.tags.map(({ tag }) => (
-                  <span key={tag.id} className="text-sm hover:underline">
-                    #{tag.name}
-                  </span>
-                ))}
-              </div>
-            )}
-
             {/* Action Bar (Footer) */}
             <div className="mt-3 flex items-center justify-between max-w-[425px]">
               {/* 1. Reply */}
@@ -323,19 +334,15 @@ export function MessageCard({
                 </div>
               </div>
 
-              {/* 3. Like (Heart) */}
+              {/* 3. Bookmark */}
               <div onClick={handleToggleStar} className="group flex items-center cursor-pointer">
-                <div className="p-2 rounded-full group-hover:bg-pink-500/10 transition-colors">
-                  <Heart
-                    className={cn(
-                      "h-[18px] w-[18px] transition-colors",
-                      isStarred ? "text-pink-600 fill-pink-600" : "text-muted-foreground group-hover:text-pink-500"
-                    )}
-                  />
+                <div className="p-2 rounded-full group-hover:bg-yellow-500/10 transition-colors">
+                  {isStarred ? (
+                    <BookmarkCheck className="h-[18px] w-[18px] text-yellow-600 fill-yellow-600 transition-colors" />
+                  ) : (
+                    <Bookmark className="h-[18px] w-[18px] text-muted-foreground group-hover:text-yellow-600 transition-colors" />
+                  )}
                 </div>
-                {isStarred && (
-                  <span className="text-xs text-pink-600">{starCount > 0 ? starCount : 1}</span>
-                )}
               </div>
 
               {/* 4. Views (Stat) */}

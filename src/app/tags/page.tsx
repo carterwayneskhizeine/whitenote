@@ -97,7 +97,7 @@ export default function TagsPage() {
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 py-3">
         <div className="max-w-2xl mx-auto">
-          <h1 className="text-xl font-bold mb-4">标签</h1>
+          <h1 className="text-xl font-bold mb-4">Tags</h1>
 
           {/* Search bar */}
           <div className="relative">
