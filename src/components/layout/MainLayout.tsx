@@ -8,6 +8,7 @@ import { MobileNav } from "./MobileNav"
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register")
+  const isSettingsPage = pathname?.startsWith("/settings")
 
   if (isAuthPage) {
     return <>{children}</>
@@ -25,15 +26,17 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* MainLayout - 始终保持 max-w-[600px] */}
-        <main className="flex-1 border-x border-border min-h-screen flex flex-col max-w-[600px] shrink-0">
+        <main className={`flex-1 border-x border-border min-h-screen flex flex-col ${isSettingsPage ? 'max-w-[600px] xl:max-w-[1000px]' : 'max-w-[600px]'} shrink-0`}>
           <MobileNav />
           {children}
         </main>
 
-        {/* RightSidebar - 层级1-2: 显示 (lg+), 层级3-4: 隐藏 */}
-        <div className="hidden lg:flex shrink-0 ml-3.75">
-          <RightSidebar />
-        </div>
+        {/* RightSidebar - 层级1-2: 显示 (lg+), 层级3-4: 隐藏, hidden on settings page */}
+        {!isSettingsPage && (
+          <div className="hidden lg:flex shrink-0 ml-3.75">
+            <RightSidebar />
+          </div>
+        )}
       </div>
     </div>
   )
