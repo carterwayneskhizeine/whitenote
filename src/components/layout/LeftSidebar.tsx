@@ -5,8 +5,8 @@ import { usePathname, useRouter } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
 import { useState } from "react"
 import {
-  Home as LucideHome, Bell, Tag, Network, Settings as LucideSettings,
-  MoreHorizontal, PenLine, LogOut
+  Home, Search, Bell, Bookmark, User,
+  MoreHorizontal, PenLine, LogOut, Settings
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -18,58 +18,33 @@ interface LeftSidebarProps {
   collapsed?: boolean
 }
 
-const HomeIcon = ({ size = 24, className, strokeWidth, ...props }: any) => {
-  const isFilled = className?.includes("fill-current") || className?.includes("fill-foreground");
-  if (isFilled) {
-    return (
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className={className}
-        {...props}
-      >
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10H9z"
-        />
-      </svg>
-    );
-  }
-  return <LucideHome size={size} className={className} strokeWidth={strokeWidth} {...props} />;
-};
-
-const SettingsIcon = ({ size = 24, className, strokeWidth, ...props }: any) => {
-  const isFilled = className?.includes("fill-current") || className?.includes("fill-foreground");
-  if (isFilled) {
-    return (
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className={className}
-        {...props}
-      >
-        <path
-          fillRule="evenodd"
-          clipRule="evenodd"
-          d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84a.481.481 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.487.487 0 0 0-.59.22L3.06 7.95a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.27.41.48.41h3.84c.21 0 .43-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.48.48 0 0 0-.12-.61l-2.03-1.58zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5zM12 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
-        />
-      </svg>
-    );
-  }
-  return <LucideSettings size={size} className={className} strokeWidth={strokeWidth} {...props} />;
-};
+// Custom Icons that support filling better/bolding
+const XHome = ({ isActive, ...props }: any) => (
+  <Home {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
+)
+const XExplore = ({ isActive, ...props }: any) => (
+  <Search {...props} size={28} strokeWidth={isActive ? 3 : 2} />
+)
+const XNotifications = ({ isActive, ...props }: any) => (
+  <Bell {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
+)
+const XBookmarks = ({ isActive, ...props }: any) => (
+  <Bookmark {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
+)
+const XProfile = ({ isActive, ...props }: any) => (
+  <User {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
+)
+const XMore = ({ isActive, ...props }: any) => (
+  <MoreHorizontal {...props} size={28} strokeWidth={2} />
+)
 
 const navItems = [
-  { icon: HomeIcon, label: "Home", href: "/" },
-  { icon: Bell, label: "Notifications", href: "/notifications" },
-  { icon: Tag, label: "Tags", href: "/tags" },
-  { icon: Network, label: "Graph", href: "/graph" },
-  { icon: SettingsIcon, label: "Settings", href: "/settings" },
+  { icon: XHome, label: "首页", href: "/" },
+  { icon: XExplore, label: "探索", href: "/tags" },
+  { icon: XNotifications, label: "通知", href: "/notifications" },
+  { icon: XBookmarks, label: "收藏", href: "/favorites" },
+  { icon: XProfile, label: "个人资料", href: "/profile" },
+  { icon: XMore, label: "更多", href: "/settings" },
 ]
 
 const UserInfo = () => (
@@ -91,8 +66,8 @@ const UserInfo = () => (
 
 export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
   const pathname = usePathname()
-  const { data: session } = useSession()
   const router = useRouter()
+  const { data: session } = useSession()
   const [showMenu, setShowMenu] = useState(false)
 
   const handleSignOut = async () => {
@@ -107,35 +82,34 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
 
   return (
     <aside className={cn(
-      "sticky top-0 h-screen flex flex-col justify-between py-2",
-      isMobile ? "w-full overflow-y-auto bg-black px-2" :
-        collapsed ? "w-[88px] px-2" :
-          "w-[300px] pl-[40px] pr-2"
+      "sticky top-0 h-screen flex flex-col justify-between py-1 px-2",
+      isMobile ? "w-full overflow-y-auto bg-black" :
+        collapsed ? "w-[88px] items-center" :
+          "w-[275px] items-end"
     )}>
-      <div className="flex flex-col gap-2">
+      {/* 
+         Logic for Vertical Alignment:
+         1. Expand/Collapse states must have the same "right offset" for the icon track.
+         2. Collapsed (88px) centered Icon (50px) gives 19px padding on both sides.
+         3. Expanded (275px) Right-aligned content block with padding-right that matches.
+      */}
+      <div className={cn("flex flex-col gap-1", isMobile ? "w-full" : collapsed ? "w-[52px]" : "w-[250px]")}>
         {/* Mobile Header */}
         {isMobile && <UserInfo />}
 
-        {/* Logo (Desktop only here, MobileNav has its own) */}
-        {!isMobile && !collapsed && (
-          <Link href="/" className="flex items-center gap-2 px-4 py-2 w-min hover:bg-secondary/50 rounded-full transition-colors mb-1">
+        {/* Logo */}
+        {!isMobile && (
+          <Link href="/" className={cn(
+            "flex items-center justify-center w-[52px] h-[52px] hover:bg-secondary/50 rounded-full transition-colors mb-2",
+            // For expanded, we keep it at the start of the 250px block, but the icons below have px-3.
+            // Center of 52px is 26px. 
+            // Nav icons below are in 52px containers (w-full collapsed) or start at px-3.
+            collapsed ? "" : "ml-0"
+          )}>
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 512 512"
-              className="h-10 w-10 fill-foreground"
-            >
-              <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93" />
-            </svg>
-          </Link>
-        )}
-
-        {/* Logo for collapsed mode */}
-        {!isMobile && collapsed && (
-          <Link href="/" className="flex items-center justify-center w-14 h-14 hover:bg-secondary/50 rounded-full transition-colors mb-1 mx-auto">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 512 512"
-              className="h-10 w-10 fill-foreground"
+              className="h-[30px] w-[30px] fill-foreground"
             >
               <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93" />
             </svg>
@@ -147,109 +121,82 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
           {navItems.map((item) => {
             const isActive = pathname === item.href
             return (
-              <Button
+              <Link
                 key={item.href}
-                variant="ghost"
-                className={cn(
-                  "h-14 rounded-full hover:bg-secondary/50 transition-colors",
-                  collapsed ? "justify-center w-14 px-0 mx-auto" : "justify-start gap-3 text-xl px-4 w-min",
-                  isActive && "font-bold",
-                  isMobile && "w-full text-lg"
-                )}
-                asChild
+                href={item.href}
+                className="group flex items-center"
               >
-                <Link href={item.href} className="flex items-center">
-                  <div className="flex w-10 items-center justify-center">
-                    <item.icon
-                      size={25}
-                      className={cn("shrink-0", isActive && "fill-current")}
-                      strokeWidth={isActive ? 3 : 2}
-                      style={{ width: '25px', height: '25px', minWidth: '25px', minHeight: '25px' }}
-                    />
-                  </div>
-                  {!collapsed && <span>{item.label}</span>}
-                </Link>
-              </Button>
+                <div className={cn(
+                  "flex items-center gap-4 rounded-full transition-colors group-hover:bg-secondary/50",
+                  isActive && "font-bold",
+                  collapsed ? "w-[52px] h-[52px] justify-center" : "pr-6 pl-3 py-3"
+                )}>
+                  <item.icon isActive={isActive} className="shrink-0" />
+                  {!collapsed && <span className="text-xl leading-none pt-1">{item.label}</span>}
+                </div>
+              </Link>
             )
           })}
         </nav>
 
-        {!isMobile && !collapsed && (
-          <Button size="lg" className="mt-4 rounded-full font-bold text-lg h-14 w-[calc(100%-30px)] mx-auto bg-foreground hover:bg-foreground/90 text-background shadow-lg">
-            <span>Post</span>
-          </Button>
-        )}
-
-        {/* Collapsed Post button */}
-        {!isMobile && collapsed && (
-          <Button size="icon" className="mt-4 rounded-full h-14 w-14 mx-auto bg-foreground hover:bg-foreground/90 text-background shadow-lg">
-            <PenLine size={40} strokeWidth={2.5} />
-          </Button>
+        {/* Post Button */}
+        {!isMobile && (
+          <div className="my-4">
+            <Button
+              size="lg"
+              className={cn(
+                "rounded-full font-bold text-[17px] shadow-lg bg-white hover:bg-gray-100 text-black transition-all duration-200 border border-border",
+                collapsed ? "w-[52px] h-[52px] p-0" : "w-[225px] h-[52px]"
+              )}
+            >
+              {collapsed ? (
+                <PenLine size={24} />
+              ) : (
+                <span>发布</span>
+              )}
+            </Button>
+          </div>
         )}
       </div>
 
-      {/* Desktop User Profile at bottom */}
-      {!isMobile && !collapsed && (
-        <div className="mt-auto mb-1 relative">
+      {/* User Profile */}
+      {!isMobile && (
+        <div className={cn("mb-3", collapsed ? "w-[64px]" : "w-[255px]")}>
           <Button
             variant="ghost"
-            className="w-full justify-between h-16 rounded-full px-4 hover:bg-secondary/50 transition-colors"
+            className={cn(
+              "rounded-full hover:bg-secondary/50 transition-colors h-[64px]",
+              collapsed ? "w-[64px] h-[64px] p-0 justify-center" : "w-full justify-between px-3"
+            )}
             onClick={() => setShowMenu(!showMenu)}
           >
-            <div className="flex items-center gap-3">
-              <Avatar className="h-10 w-10">
+            <div className="flex items-center gap-3 truncate">
+              <Avatar className="h-10 w-10 shrink-0">
                 <AvatarImage src={userAvatar} />
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
-              <div className="hidden lg:flex flex-col items-start text-sm">
-                <span className="font-bold">{userName}</span>
-                <span className="text-muted-foreground">{userEmail}</span>
+              {!collapsed && (
+                <div className="flex flex-col items-start text-sm truncate">
+                  <span className="font-bold truncate w-full text-left">{userName}</span>
+                  <span className="text-muted-foreground truncate w-full text-left">{userEmail}</span>
+                </div>
+              )}
+            </div>
+            {!collapsed && <MoreHorizontal className="h-5 w-5 shrink-0 ml-2" />}
+          </Button>
+
+          {/* Dropdown menu */}
+          {showMenu && (
+            <div className="absolute bottom-[80px] left-0 w-[300px] shadow-2xl rounded-2xl bg-background border border-border p-2 z-50 overflow-hidden ring-1 ring-border">
+              <div className="flex flex-col gap-1">
+                <Button variant="ghost" className="w-full justify-start font-bold h-12" onClick={() => router.push('/profile')}>
+                  添加现有账号
+                </Button>
+                <div className="h-px bg-border my-1" />
+                <Button variant="ghost" className="w-full justify-start font-bold h-12" onClick={handleSignOut}>
+                  退出 {userEmail}
+                </Button>
               </div>
-            </div>
-            <MoreHorizontal className="h-5 w-5 hidden lg:block" />
-          </Button>
-
-          {/* Dropdown menu for logout */}
-          {showMenu && (
-            <div className="absolute bottom-full left-0 right-0 mb-2 bg-background border border-border rounded-xl shadow-lg overflow-hidden">
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 h-12 px-4 hover:bg-secondary/50 transition-colors text-red-500 hover:text-red-600"
-                onClick={handleSignOut}
-              >
-                <LogOut className="h-5 w-5" />
-                <span>退出登录</span>
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Collapsed user avatar */}
-      {!isMobile && collapsed && (
-        <div className="mt-auto mb-0 relative">
-          <Button
-            variant="ghost"
-            className="w-14 h-14 justify-center rounded-full px-0 hover:bg-secondary/50 transition-colors mx-auto"
-            onClick={() => setShowMenu(!showMenu)}
-          >
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={userAvatar} />
-              <AvatarFallback>{userInitials}</AvatarFallback>
-            </Avatar>
-          </Button>
-
-          {/* Dropdown menu for logout */}
-          {showMenu && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-background border border-border rounded-xl shadow-lg overflow-hidden min-w-[160px]">
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 h-12 px-4 hover:bg-secondary/50 transition-colors text-red-500 hover:text-red-600"
-                onClick={handleSignOut}
-              >
-                <LogOut className="h-5 w-5" />
-                <span>退出登录</span>
-              </Button>
             </div>
           )}
         </div>
