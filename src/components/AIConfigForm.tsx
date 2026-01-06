@@ -62,7 +62,7 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
         briefingModel: config.briefingModel,
         briefingTime: config.briefingTime,
         aiPersonality: config.aiPersonality,
-        aiExpertise: config.aiExpertise,
+        aiExpertise: config.aiExpertise ?? undefined,
         enableLinkSuggestion: config.enableLinkSuggestion,
       })
 

@@ -121,10 +121,10 @@ export function RightSidebar() {
         </CardHeader>
         <CardContent className="flex flex-col gap-0 px-0">
           {['学习笔记', 'AI工具', 'React', 'NextJS', '产品设计'].map((tag, i) => (
-            <button
+            <div
               key={tag}
               onClick={() => router.push(`/tags`)}
-              className="flex justify-between items-start px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors text-left"
+              className="flex justify-between items-start px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors"
             >
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-1">
@@ -136,7 +136,7 @@ export function RightSidebar() {
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary">
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
-            </button>
+            </div>
           ))}
         </CardContent>
       </Card>
