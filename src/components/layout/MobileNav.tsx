@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
+import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Home, Search, Bell, Mail, User, Bookmark, List, Settings, PenLine, MoreVertical, LogOut } from "lucide-react"
 import Link from "next/link"
@@ -14,6 +16,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { authApi } from "@/lib/api"
 
 // Helper for X-style icons
 const XIcon = ({ icon: Icon, filled, size = 26, className }: any) => (
@@ -27,8 +30,39 @@ const XIcon = ({ icon: Icon, filled, size = 26, className }: any) => (
 
 export function MobileNav() {
   const pathname = usePathname()
+  const { data: session } = useSession()
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
+  const [userData, setUserData] = useState<{ name: string; email: string; avatar: string } | null>(null)
+
+  // Fetch fresh user data from API
+  useEffect(() => {
+    const loadUserData = async () => {
+      const result = await authApi.getCurrentUser()
+      if (result.data) {
+        setUserData({
+          name: result.data.name || "User Name",
+          email: result.data.email || "",
+          avatar: result.data.avatar || ""
+        })
+      }
+    }
+    loadUserData()
+  }, [])
+
+  // Use API data if available, otherwise fall back to session
+  const userName = userData?.name || session?.user?.name || "User Name"
+  const userEmail = userData?.email
+    ? `@${userData.email.split("@")[0]}`
+    : session?.user?.email
+      ? `@${session.user.email.split("@")[0]}`
+      : "@username"
+  const userAvatar = userData?.avatar || session?.user?.image || ""
+  const userInitials = userName?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "CN"
+
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: "/login" })
+  }
 
   useEffect(() => {
     const controlNavbar = () => {
@@ -65,8 +99,8 @@ export function MobileNav() {
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full p-0 h-8 w-8">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="https://github.com/shadcn.png" />
-                  <AvatarFallback>CN</AvatarFallback>
+                  {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
+                  <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
                 </Avatar>
               </Button>
             </SheetTrigger>
@@ -78,12 +112,12 @@ export function MobileNav() {
               {/* Drawer Header */}
               <div className="p-4 flex flex-col gap-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src="https://github.com/shadcn.png" />
-                  <AvatarFallback>CN</AvatarFallback>
+                  {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
+                  <AvatarFallback>{userInitials}</AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col">
-                  <span className="font-bold text-lg leading-tight">User Name</span>
-                  <span className="text-muted-foreground text-sm">@username</span>
+                  <span className="font-bold text-lg leading-tight">{userName}</span>
+                  <span className="text-muted-foreground text-sm">{userEmail}</span>
                 </div>
                 <div className="flex gap-4 text-sm pt-1">
                   <span className="text-muted-foreground"><span className="font-bold text-foreground">123</span> Following</span>
@@ -115,7 +149,7 @@ export function MobileNav() {
               <div className="h-px bg-border mx-4" />
 
               <div className="p-4">
-                <Button variant="ghost" className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold text-red-500">
+                <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold text-red-500">
                   <LogOut className="h-6 w-6" />
                   退出登录
                 </Button>

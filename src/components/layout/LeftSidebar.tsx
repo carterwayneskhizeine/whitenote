@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   Home, Hash, Bell, Bookmark, User,
   MoreHorizontal, PenLine, LogOut, Settings, UserCircle
@@ -12,6 +12,7 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { authApi } from "@/lib/api"
 
 interface LeftSidebarProps {
   isMobile?: boolean
@@ -69,15 +70,35 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
   const router = useRouter()
   const { data: session } = useSession()
   const [showMenu, setShowMenu] = useState(false)
+  const [userData, setUserData] = useState<{ name: string; email: string; avatar: string } | null>(null)
+
+  // Fetch fresh user data from API
+  useEffect(() => {
+    const loadUserData = async () => {
+      const result = await authApi.getCurrentUser()
+      if (result.data) {
+        setUserData({
+          name: result.data.name || "User Name",
+          email: result.data.email || "",
+          avatar: result.data.avatar || ""
+        })
+      }
+    }
+    loadUserData()
+  }, [])
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: "/login" })
   }
 
-  const user = session?.user
-  const userName = user?.name || "User Name"
-  const userEmail = user?.email ? `@${user.email.split("@")[0]}` : "@username"
-  const userAvatar = user?.image || ""
+  // Use API data if available, otherwise fall back to session
+  const userName = userData?.name || session?.user?.name || "User Name"
+  const userEmail = userData?.email
+    ? `@${userData.email.split("@")[0]}`
+    : session?.user?.email
+      ? `@${session.user.email.split("@")[0]}`
+      : "@username"
+  const userAvatar = userData?.avatar || session?.user?.image || ""
   const userInitials = userName?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "CN"
 
   return (
