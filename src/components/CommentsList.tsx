@@ -19,7 +19,6 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
   const [posting, setPosting] = useState(false)
-  const [aiChatting, setAiChatting] = useState(false)
   const [newComment, setNewComment] = useState("")
 
   // Fetch comments
@@ -54,6 +53,26 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
 
       if (result.data) {
         setComments([...comments, result.data])
+
+        // Check if comment contains @goldierill and trigger AI reply
+        if (newComment.includes('@goldierill')) {
+          try {
+            const question = newComment.replace('@goldierill', '').trim()
+            const aiResult = await aiApi.chat({
+              messageId,
+              content: question || '请回复这条评论',
+            })
+            if (aiResult.data?.comment) {
+              const aiComment = aiResult.data.comment
+              setComments(prev => [...prev, aiComment])
+              onCommentAdded?.()
+            }
+          } catch (aiError) {
+            console.error("Failed to get AI reply:", aiError)
+            // Don't fail the comment if AI fails
+          }
+        }
+
         setNewComment("")
         onCommentAdded?.()
       }
@@ -61,29 +80,6 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
       console.error("Failed to post comment:", error)
     } finally {
       setPosting(false)
-    }
-  }
-
-  // AI chat
-  const handleAIChat = async () => {
-    if (!newComment.trim() || aiChatting) return
-
-    setAiChatting(true)
-    try {
-      const result = await aiApi.chat({
-        messageId,
-        content: newComment.trim(),
-      })
-
-      if (result.data?.comment) {
-        setComments([...comments, result.data.comment])
-        setNewComment("")
-        onCommentAdded?.()
-      }
-    } catch (error) {
-      console.error("Failed to chat with AI:", error)
-    } finally {
-      setAiChatting(false)
     }
   }
 
@@ -166,7 +162,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
       <div className="p-4 border-t">
         <div className="flex gap-2">
           <Input
-            placeholder="写评论... 点击 🤖 按钮让 AI 回复"
+            placeholder="写评论... 输入 @goldierill 让 AI 回复"
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             onKeyDown={(e) => {
@@ -175,14 +171,14 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
                 handlePostComment()
               }
             }}
-            disabled={posting || aiChatting}
+            disabled={posting}
             className="flex-1"
           />
           <Button
             size="icon"
             variant="ghost"
             className="shrink-0"
-            disabled={!newComment.trim() || posting || aiChatting}
+            disabled={!newComment.trim() || posting}
             onClick={handlePostComment}
             title="发送评论"
           >
@@ -192,23 +188,6 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
               <Send className="h-4 w-4" />
             )}
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            className="shrink-0 text-primary"
-            disabled={!newComment.trim() || posting || aiChatting}
-            onClick={handleAIChat}
-            title="AI 回复"
-          >
-            {aiChatting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Bot className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-        <div className="mt-2 text-xs text-muted-foreground text-center">
-          💡 提示：按 Enter 发送评论，点击 🤖 按钮让 AI 回复
         </div>
       </div>
     </div>
