@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Image as ImageIcon, Smile, Paperclip, Loader2, FileText } from "lucide-react"
 import { messagesApi } from "@/lib/api/messages"
 import { templatesApi } from "@/lib/api/templates"
+import { aiApi } from "@/lib/api"
 import { useSession } from "next-auth/react"
 import {
   DropdownMenu,
@@ -71,20 +72,39 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     if (!editor || isPosting || !hasContent) return
 
     const content = editor.getHTML()
+    const textContent = editor.getText() // Get plain text for @goldierill detection
 
     setIsPosting(true)
     try {
-      await messagesApi.createMessage({
+      // Create the message
+      const result = await messagesApi.createMessage({
         content,
         tags: [], // TODO: Add tag support
       })
 
-      // Clear editor
-      editor.commands.clearContent()
-      setHasContent(false)
+      if (result.data) {
+        // Check if message contains @goldierill and trigger AI reply
+        if (textContent.includes('@goldierill')) {
+          try {
+            const question = textContent.replace('@goldierill', '').trim()
+            await aiApi.chat({
+              messageId: result.data.id,
+              content: question || '请回复这条消息',
+            })
+            // AI comment is automatically created by backend
+          } catch (aiError) {
+            console.error("Failed to get AI reply:", aiError)
+            // Don't fail the post if AI fails
+          }
+        }
 
-      // Call success callback
-      onSuccess?.()
+        // Clear editor
+        editor.commands.clearContent()
+        setHasContent(false)
+
+        // Call success callback
+        onSuccess?.()
+      }
     } catch (error) {
       console.error("Failed to create message:", error)
       // TODO: Show error toast

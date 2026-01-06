@@ -20,6 +20,8 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
+  // Session storage for user-inputted API keys (not persisted to backend as "***")
+  const [sessionApiKeys, setSessionApiKeys] = useState<{ openai?: string; ragflow?: string }>({})
 
   // Fetch config
   const fetchConfig = async () => {
@@ -67,7 +69,17 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
       })
 
       if (result.data) {
-        setConfig(result.data)
+        // Update session API keys with what user just input
+        setSessionApiKeys({
+          openai: config.openaiApiKey && config.openaiApiKey !== "***" ? config.openaiApiKey : sessionApiKeys.openai,
+          ragflow: config.ragflowApiKey && config.ragflowApiKey !== "***" ? config.ragflowApiKey : sessionApiKeys.ragflow,
+        })
+        // 保留用户输入的敏感字段，只更新其他字段
+        setConfig({
+          ...result.data,
+          openaiApiKey: config.openaiApiKey, // 保留用户输入
+          ragflowApiKey: config.ragflowApiKey, // 保留用户输入
+        })
         showMessage("success", "配置保存成功！更改立即生效")
         onSuccess?.()
       } else if (result.error) {
@@ -154,16 +166,16 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
             <label className="text-sm font-medium mb-1 block">API Key</label>
             <Input
               type="password"
-              value={
-                config.openaiApiKey && config.openaiApiKey !== "***"
-                  ? config.openaiApiKey
-                  : ""
-              }
-              onChange={(e) =>
+              value={sessionApiKeys.openai || ""}
+              onChange={(e) => {
                 setConfig({ ...config, openaiApiKey: e.target.value })
-              }
-              placeholder="sk-..."
+                setSessionApiKeys({ ...sessionApiKeys, openai: e.target.value })
+              }}
+              placeholder={config.openaiApiKey === "***" ? "已配置 (留空保持不变)" : "sk-..."}
             />
+            {config.openaiApiKey === "***" && !sessionApiKeys.openai && (
+              <p className="text-xs text-muted-foreground mt-1">✓ API Key 已配置</p>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">模型</label>
@@ -237,16 +249,16 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
             <label className="text-sm font-medium mb-1 block">API Key</label>
             <Input
               type="password"
-              value={
-                config.ragflowApiKey && config.ragflowApiKey !== "***"
-                  ? config.ragflowApiKey
-                  : ""
-              }
-              onChange={(e) =>
+              value={sessionApiKeys.ragflow || ""}
+              onChange={(e) => {
                 setConfig({ ...config, ragflowApiKey: e.target.value })
-              }
-              placeholder="ragflow-..."
+                setSessionApiKeys({ ...sessionApiKeys, ragflow: e.target.value })
+              }}
+              placeholder={config.ragflowApiKey === "***" ? "已配置 (留空保持不变)" : "ragflow-..."}
             />
+            {config.ragflowApiKey === "***" && !sessionApiKeys.ragflow && (
+              <p className="text-xs text-muted-foreground mt-1">✓ API Key 已配置</p>
+            )}
           </div>
           <div>
             <label className="text-sm font-medium mb-1 block">Chat ID</label>

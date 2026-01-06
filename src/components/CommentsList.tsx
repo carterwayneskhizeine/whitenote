@@ -132,9 +132,9 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
               <div className="flex gap-3">
                 {/* Avatar */}
                 <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarImage src={comment.author.avatar || undefined} />
+                  <AvatarImage src={comment.author?.avatar || undefined} />
                   <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                    {getInitials(comment.author.name)}
+                    {getInitials(comment.author?.name)}
                   </AvatarFallback>
                 </Avatar>
 
@@ -142,7 +142,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-sm">
-                      {comment.author.name || "Anonymous"}
+                      {comment.author?.name || "Anonymous"}
                     </span>
                     {comment.isAIBot && (
                       <Bot className="h-3.5 w-3.5 text-primary" />
@@ -166,7 +166,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
       <div className="p-4 border-t">
         <div className="flex gap-2">
           <Input
-            placeholder="写评论... (Enter 发送，Shift+Enter 换行)"
+            placeholder="写评论... 点击 🤖 按钮让 AI 回复"
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             onKeyDown={(e) => {
@@ -184,6 +184,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
             className="shrink-0"
             disabled={!newComment.trim() || posting || aiChatting}
             onClick={handlePostComment}
+            title="发送评论"
           >
             {posting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -197,6 +198,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
             className="shrink-0 text-primary"
             disabled={!newComment.trim() || posting || aiChatting}
             onClick={handleAIChat}
+            title="AI 回复"
           >
             {aiChatting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -204,6 +206,9 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
               <Bot className="h-4 w-4" />
             )}
           </Button>
+        </div>
+        <div className="mt-2 text-xs text-muted-foreground text-center">
+          💡 提示：按 Enter 发送评论，点击 🤖 按钮让 AI 回复
         </div>
       </div>
     </div>
