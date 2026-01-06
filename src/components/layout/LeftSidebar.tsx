@@ -209,7 +209,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
           >
             <div className="flex items-center gap-3 truncate">
               <Avatar className="h-10 w-10 shrink-0">
-                {userAvatar && <AvatarImage src={userAvatar} className="object-cover opacity-0" />}
+                {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
                 <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
               {!collapsed && (
