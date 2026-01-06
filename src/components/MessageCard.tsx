@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   Star,
-  StarOff,
   Pin,
   PinOff,
   MoreVertical,
@@ -13,7 +12,6 @@ import {
   Edit2,
   MessageCircle,
   ArrowBigRight,
-  ArrowBigDown,
 } from "lucide-react"
 import { Message, messagesApi } from "@/lib/api/messages"
 import {
@@ -34,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { CommentsList } from "@/components/CommentsList"
 
 interface MessageCardProps {
   message: Message
@@ -55,6 +54,7 @@ export function MessageCard({
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [showComments, setShowComments] = useState(false)
 
   // Get user initials from name or email
   const getInitials = (name: string | null) => {
@@ -124,11 +124,17 @@ export function MessageCard({
   // Handle reply
   const handleReply = () => {
     onReply?.()
+    setShowComments(true)
+  }
+
+  // Toggle comments
+  const toggleComments = () => {
+    setShowComments(!showComments)
   }
 
   return (
     <>
-      <div className="p-4 border-b hover:bg-muted/20 transition-colors cursor-pointer">
+      <div className="p-4 border-b hover:bg-muted/20 transition-colors">
         <div className="flex gap-3">
           {/* Avatar */}
           <Avatar className="h-10 w-10 shrink-0">
@@ -176,12 +182,12 @@ export function MessageCard({
             {/* Action buttons */}
             <div className="mt-3 flex items-center justify-between max-w-md">
               <div className="flex items-center gap-1">
-                {/* Reply button */}
+                {/* Reply/Comments button */}
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full"
-                  onClick={handleReply}
+                  onClick={toggleComments}
                 >
                   <MessageCircle className="h-4 w-4" />
                   {message._count.comments > 0 && (
@@ -280,6 +286,23 @@ export function MessageCard({
           </div>
         </div>
       </div>
+
+      {/* Comments section */}
+      {showComments && (
+        <CommentsList
+          messageId={message.id}
+          onCommentAdded={() => {
+            onUpdate?.()
+            fetch(`/api/messages/${message.id}`)
+              .then((r) => r.json())
+              .then((data) => {
+                if (data.data) {
+                  // Update comment count
+                }
+              })
+          }}
+        />
+      )}
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

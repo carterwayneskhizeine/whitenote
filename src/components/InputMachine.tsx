@@ -1,14 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Image as ImageIcon, Smile, Paperclip, Loader2 } from "lucide-react"
+import { Image as ImageIcon, Smile, Paperclip, Loader2, FileText } from "lucide-react"
 import { messagesApi } from "@/lib/api/messages"
+import { templatesApi } from "@/lib/api/templates"
 import { useSession } from "next-auth/react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Template } from "@/types/api"
 
 interface InputMachineProps {
   onSuccess?: () => void
@@ -18,6 +26,23 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
   const { data: session } = useSession()
   const [isPosting, setIsPosting] = useState(false)
   const [hasContent, setHasContent] = useState(false)
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [showTemplates, setShowTemplates] = useState(false)
+
+  // Fetch templates
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      try {
+        const result = await templatesApi.getTemplates()
+        if (result.data) {
+          setTemplates(result.data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch templates:", error)
+      }
+    }
+    fetchTemplates()
+  }, [])
 
   const editor = useEditor({
     extensions: [
@@ -79,6 +104,14 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
       .slice(0, 2)
   }
 
+  // Apply template
+  const applyTemplate = (template: Template) => {
+    if (!editor) return
+    editor.commands.setContent(template.content)
+    setShowTemplates(false)
+    setHasContent(true)
+  }
+
   return (
     <div className="border-b px-4 py-4">
       <div className="flex gap-3">
@@ -96,6 +129,34 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
 
           <div className="flex items-center justify-between border-t border-border pt-3">
             <div className="flex gap-1 text-primary">
+              {/* Templates */}
+              {templates.length > 0 && (
+                <DropdownMenu open={showTemplates} onOpenChange={setShowTemplates}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 text-primary hover:bg-primary/10 rounded-full">
+                      <FileText className="h-5 w-5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    {templates.map((template) => (
+                      <DropdownMenuItem
+                        key={template.id}
+                        onClick={() => applyTemplate(template)}
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{template.name}</span>
+                          {template.description && (
+                            <span className="text-xs text-muted-foreground">
+                              {template.description}
+                            </span>
+                          )}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
               <Button variant="ghost" size="icon" className="h-9 w-9 text-primary hover:bg-primary/10 rounded-full">
                 <ImageIcon className="h-5 w-5" />
               </Button>
