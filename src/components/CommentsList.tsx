@@ -12,6 +12,9 @@ import {
   MessageCircle,
   Repeat2,
   Share,
+  Edit2,
+  Trash2,
+  MoreVertical,
 } from "lucide-react"
 import { commentsApi, aiApi } from "@/lib/api"
 import { Comment } from "@/types/api"
@@ -20,6 +23,22 @@ import { zhCN } from "date-fns/locale"
 import { useSession } from "next-auth/react"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { ReplyDialog } from "@/components/ReplyDialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
 import { cn } from "@/lib/utils"
 
@@ -40,6 +59,9 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
   const [replyTarget, setReplyTarget] = useState<Comment | null>(null)
   const [showRetweetDialog, setShowRetweetDialog] = useState(false)
   const [retweetTarget, setRetweetTarget] = useState<Comment | null>(null)
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
 
   // Fetch comments (only top-level)
   const fetchComments = async () => {
@@ -67,6 +89,31 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
     e.stopPropagation()
     setRetweetTarget(comment)
     setShowRetweetDialog(true)
+  }
+
+  // Handle delete comment
+  const handleDeleteClick = (comment: Comment, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setCommentToDelete(comment)
+    setShowDeleteDialog(true)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!commentToDelete) return
+    setDeletingCommentId(commentToDelete.id)
+    try {
+      const result = await commentsApi.deleteComment(commentToDelete.id)
+      if (result.success) {
+        setComments(comments.filter(c => c.id !== commentToDelete.id))
+        onCommentAdded?.()
+      }
+    } catch (error) {
+      console.error("Failed to delete comment:", error)
+    } finally {
+      setDeletingCommentId(null)
+      setShowDeleteDialog(false)
+      setCommentToDelete(null)
+    }
   }
 
   // Post new comment
@@ -220,20 +267,52 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <span className="font-bold text-sm hover:underline">
-                      {comment.author?.name || "Anonymous"}
-                    </span>
-                    <span className="text-muted-foreground text-sm">
-                      @{comment.author?.email?.split('@')[0] || "user"}
-                    </span>
-                    <span className="text-muted-foreground text-sm">·</span>
-                    <span className="text-muted-foreground text-sm hover:underline">
-                      {formatTime(comment.createdAt)}
-                    </span>
-                    {comment.isAIBot && (
-                      <Bot className="h-3.5 w-3.5 text-primary ml-1" />
-                    )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <span className="font-bold text-sm hover:underline">
+                        {comment.author?.name || "Anonymous"}
+                      </span>
+                      <span className="text-muted-foreground text-sm">
+                        @{comment.author?.email?.split('@')[0] || "user"}
+                      </span>
+                      <span className="text-muted-foreground text-sm">·</span>
+                      <span className="text-muted-foreground text-sm hover:underline">
+                        {formatTime(comment.createdAt)}
+                      </span>
+                      {comment.isAIBot && (
+                        <Bot className="h-3.5 w-3.5 text-primary ml-1" />
+                      )}
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:bg-primary/10 hover:text-primary rounded-full"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/status/${messageId}/comment/${comment.id}/edit`)
+                          }}
+                        >
+                          <Edit2 className="h-4 w-4 mr-2" />
+                          编辑
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={(e) => handleDeleteClick(comment, e)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          删除
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                   <div className="mt-1 text-[15px] leading-normal wrap-break-word">
                     <TipTapViewer content={comment.content} />
@@ -306,6 +385,28 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
           router.push('/')
         }}
       />
+
+      {/* Delete Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>删除评论</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定要删除这条评论吗？此操作无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletingCommentId !== null}
+            >
+              {deletingCommentId ? "删除中..." : "删除"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

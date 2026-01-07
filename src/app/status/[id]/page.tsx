@@ -4,12 +4,28 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Message, messagesApi } from "@/lib/api/messages"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, MoreHorizontal, MessageCircle, Repeat2, Share, Bookmark, Loader2 } from "lucide-react"
+import { ArrowLeft, MoreHorizontal, MessageCircle, Repeat2, Share, Bookmark, Loader2, Edit2, Pin, PinOff, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { CommentsList } from "@/components/CommentsList"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { Separator } from "@/components/ui/separator"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
@@ -24,6 +40,8 @@ export default function StatusPage() {
     const [showReplyDialog, setShowReplyDialog] = useState(false)
     const [replyTarget, setReplyTarget] = useState<any>(null)
     const [showRetweetDialog, setShowRetweetDialog] = useState(false)
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     useEffect(() => {
         const fetchMessage = async () => {
@@ -46,6 +64,34 @@ export default function StatusPage() {
             fetchMessage()
         }
     }, [id])
+
+    const handleTogglePin = async () => {
+        if (!message) return
+        try {
+            const result = await messagesApi.togglePin(message.id)
+            if (result.data) {
+                setMessage({ ...message, isPinned: result.data.isPinned })
+            }
+        } catch (error) {
+            console.error("Failed to toggle pin:", error)
+        }
+    }
+
+    const handleDelete = async () => {
+        if (!message) return
+        setIsDeleting(true)
+        try {
+            const result = await messagesApi.deleteMessage(message.id)
+            if (result.success) {
+                router.push('/')
+            }
+        } catch (error) {
+            console.error("Failed to delete message:", error)
+        } finally {
+            setIsDeleting(false)
+            setShowDeleteDialog(false)
+        }
+    }
 
     if (isLoading) {
         return (
@@ -91,9 +137,27 @@ export default function StatusPage() {
                             @{message.author.email?.split('@')[0] || "user"}
                         </span>
                     </div>
-                    <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground">
-                        <MoreHorizontal className="h-5 w-5" />
-                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary">
+                                <MoreHorizontal className="h-5 w-5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => router.push(`/status/${message.id}/edit`)}>
+                                <Edit2 className="h-4 w-4 mr-2" />
+                                编辑
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={handleTogglePin}>
+                                {message.isPinned ? <PinOff className="h-4 w-4 mr-2" /> : <Pin className="h-4 w-4 mr-2" />}
+                                {message.isPinned ? "取消置顶" : "置顶"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setShowDeleteDialog(true)} className="text-destructive">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                删除
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
 
                 <div className="mt-4 text-[22px] leading-normal wrap-break-word">
@@ -190,6 +254,28 @@ export default function StatusPage() {
                     router.push('/')
                 }}
             />
+
+            {/* Delete Dialog */}
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>删除消息</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            确定要删除这条消息吗？此操作无法撤销。
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? "删除中..." : "删除"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     )
 }

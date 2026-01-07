@@ -67,4 +67,14 @@ export const commentsApi = {
     })
     return response.json()
   },
+
+  /**
+   * Delete comment
+   */
+  async deleteComment(commentId: string): Promise<{ success: boolean; error?: string }> {
+    const response = await fetch(`${API_BASE}/comments/${commentId}`, {
+      method: 'DELETE',
+    })
+    return response.json()
+  },
 }

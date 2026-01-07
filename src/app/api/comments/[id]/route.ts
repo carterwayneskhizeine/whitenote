@@ -48,3 +48,37 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   return Response.json({ data: commentWithRetweetInfo })
 }
+
+/**
+ * DELETE /api/comments/[id]
+ * 删除评论
+ */
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { id } = await params
+
+  // 检查评论是否存在以及用户是否有权限删除
+  const comment = await prisma.comment.findUnique({
+    where: { id },
+  })
+
+  if (!comment) {
+    return Response.json({ error: "Comment not found" }, { status: 404 })
+  }
+
+  // 只有作者可以删除自己的评论
+  if (comment.authorId !== session.user.id) {
+    return Response.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  // 删除评论（级联删除子评论）
+  await prisma.comment.delete({
+    where: { id },
+  })
+
+  return Response.json({ success: true })
+}
