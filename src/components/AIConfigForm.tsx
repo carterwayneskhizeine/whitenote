@@ -49,13 +49,12 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
 
     setSaving(true)
     try {
-      const result = await configApi.updateConfig({
+      // 构建更新数据，如果 API Key 是 "***" 则不发送（保持后端已有的值）
+      const updateData: any = {
         openaiBaseUrl: config.openaiBaseUrl,
-        openaiApiKey: config.openaiApiKey,
         openaiModel: config.openaiModel,
         enableRag: config.enableRag,
         ragflowBaseUrl: config.ragflowBaseUrl,
-        ragflowApiKey: config.ragflowApiKey,
         ragflowChatId: config.ragflowChatId,
         ragflowDatasetId: config.ragflowDatasetId,
         enableAutoTag: config.enableAutoTag,
@@ -66,7 +65,17 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
         aiPersonality: config.aiPersonality,
         aiExpertise: config.aiExpertise ?? undefined,
         enableLinkSuggestion: config.enableLinkSuggestion,
-      })
+      }
+
+      // 只有在 API Key 不是遮蔽值时才发送
+      if (config.openaiApiKey && config.openaiApiKey !== "***") {
+        updateData.openaiApiKey = config.openaiApiKey
+      }
+      if (config.ragflowApiKey && config.ragflowApiKey !== "***") {
+        updateData.ragflowApiKey = config.ragflowApiKey
+      }
+
+      const result = await configApi.updateConfig(updateData)
 
       if (result.data) {
         // Update session API keys with what user just input
