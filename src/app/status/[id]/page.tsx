@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Message, messagesApi } from "@/lib/api/messages"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, MoreHorizontal, MessageCircle, Repeat2, Share, Bookmark, Loader2, Edit2, Pin, PinOff, Trash2 } from "lucide-react"
+import { ArrowLeft, MoreVertical, MessageCircle, Repeat2, Share, Bookmark, Loader2, Edit2, Pin, PinOff, Trash2 } from "lucide-react"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { CommentsList } from "@/components/CommentsList"
@@ -140,7 +140,7 @@ export default function StatusPage() {
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary">
-                                <MoreHorizontal className="h-5 w-5" />
+                                <MoreVertical className="h-5 w-5" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
