@@ -4,14 +4,16 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Message, messagesApi } from "@/lib/api/messages"
 import { TipTapEditor } from "@/components/TipTapEditor"
+import { TagInput } from "@/components/TagInput"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Tag } from "lucide-react"
 
 export default function EditMessagePage() {
   const { id } = useParams() as { id: string }
   const router = useRouter()
   const [message, setMessage] = useState<Message | null>(null)
   const [content, setContent] = useState("")
+  const [tags, setTags] = useState<string[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -23,6 +25,8 @@ export default function EditMessagePage() {
         if (result.data) {
           setMessage(result.data)
           setContent(result.data.content)
+          // 提取现有标签
+          setTags(result.data.tags.map(({ tag }) => tag.name))
         } else if (result.error) {
           setError(result.error)
         }
@@ -44,9 +48,10 @@ export default function EditMessagePage() {
 
     setIsSaving(true)
     try {
-      // 只更新内容，保留现有标签（不发送 tags 字段）
+      // 更新内容和标签
       const result = await messagesApi.updateMessage(message.id, {
         content,
+        tags,
       })
 
       if (result.data) {
@@ -92,7 +97,7 @@ export default function EditMessagePage() {
   return (
     <div className="flex flex-col min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border bg-background/95 backdrop-blur px-4 py-3 sticky top-0 z-10">
+      <div className="flex items-center justify-between border-b border-border bg-background/95 backdrop-blur px-4 py-3 sticky top-0 z-50">
         <div className="flex items-center gap-2">
           <Button
             variant="ghost"
@@ -121,6 +126,19 @@ export default function EditMessagePage() {
             {isSaving ? "保存中..." : "保存"}
           </Button>
         </div>
+      </div>
+
+      {/* Tags Section */}
+      <div className="px-4 py-3 border-b border-border bg-muted/30">
+        <div className="flex items-center gap-2 mb-2">
+          <Tag className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">标签</span>
+        </div>
+        <TagInput
+          tags={tags}
+          onChange={setTags}
+          placeholder="输入标签后按回车添加..."
+        />
       </div>
 
       {/* Editor */}
