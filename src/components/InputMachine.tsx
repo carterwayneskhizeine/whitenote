@@ -129,9 +129,10 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     ],
     immediatelyRender: false,
     content: '',
+    editable: !isProcessingAI,
     editorProps: {
       attributes: {
-        class: 'prose prose-sm dark:prose-invert focus:outline-none min-h-[50px] w-full bg-transparent text-lg leading-6 placeholder:text-muted-foreground/60',
+        class: `prose prose-sm dark:prose-invert focus:outline-none min-h-[50px] w-full bg-transparent text-lg leading-6 placeholder:text-muted-foreground/60 ${isProcessingAI ? 'opacity-50 cursor-wait' : ''}`,
       },
     },
     onUpdate: ({ editor }) => {
@@ -142,6 +143,13 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
       setHasContent(!isEmpty)
     },
   })
+
+  // Update editor editable state when isProcessingAI changes
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(!isProcessingAI)
+    }
+  }, [isProcessingAI, editor])
 
   // Auto-resize is handled by TipTap/HTML contenteditable nature usually, but min-h helps.
 
@@ -218,8 +226,18 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
 
         {/* Input area */}
         <div className="flex-1 flex flex-col gap-3">
-          <div className="py-2">
+          <div className="relative py-2">
             <EditorContent editor={editor} className="w-full" />
+
+            {/* AI Processing Overlay */}
+            {isProcessingAI && (
+              <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center rounded-md z-10">
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">AI 正在处理...</span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between border-t border-border pt-3 -ml-2">
