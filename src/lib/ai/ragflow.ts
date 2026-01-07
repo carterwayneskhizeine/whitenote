@@ -91,25 +91,52 @@ export async function syncToRAGFlow(userId: string, messageId: string, content: 
   }
 
   try {
+    // 使用 FormData 上传文件（RAGFlow API 要求 multipart/form-data）
+    const formData = new FormData()
+    const blob = new Blob([content], { type: 'text/markdown' })
+    formData.append('file', blob, `message_${messageId}.md`)
+
     const response = await fetch(
       `${config.ragflowBaseUrl}/api/v1/datasets/${config.ragflowDatasetId}/documents`,
       {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           "Authorization": `Bearer ${config.ragflowApiKey}`,
+          // 注意：不手动设置 Content-Type，让浏览器自动设置并添加 boundary
         },
-        body: JSON.stringify({
-          name: `message_${messageId}.md`,
-          content,
-        }),
+        body: formData,
       }
     )
 
     if (!response.ok) {
-      console.error("Failed to sync to RAGFlow:", await response.text())
+      const errorText = await response.text()
+      console.error("[RAGFlow] Failed to sync message:", messageId, "Error:", errorText)
+      throw new Error(`RAGFlow sync failed: ${errorText}`)
+    }
+
+    const result = await response.json()
+    console.log("[RAGFlow] Successfully synced message:", messageId, "Document:", result.data?.[0]?.id)
+
+    // 触发文档解析（自动生成 chunks）
+    if (result.data?.[0]?.id) {
+      const documentId = result.data[0].id
+      await fetch(
+        `${config.ragflowBaseUrl}/api/v1/datasets/${config.ragflowDatasetId}/chunks`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${config.ragflowApiKey}`,
+          },
+          body: JSON.stringify({
+            document_ids: [documentId],
+          }),
+        }
+      )
+      console.log("[RAGFlow] Triggered parsing for document:", documentId)
     }
   } catch (error) {
-    console.error("RAGFlow sync error:", error)
+    console.error("[RAGFlow] Sync error for message:", messageId, error)
+    throw error
   }
 }
