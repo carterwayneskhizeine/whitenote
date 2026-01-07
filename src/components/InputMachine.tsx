@@ -25,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Template } from "@/types/api"
+import { SlashCommand } from "@/lib/editor/extensions/slash-command"
 
 interface InputMachineProps {
   onSuccess?: () => void
@@ -34,6 +35,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
   const { data: session } = useSession()
   const [isPosting, setIsPosting] = useState(false)
   const [hasContent, setHasContent] = useState(false)
+  const [isProcessingAI, setIsProcessingAI] = useState(false)
   const [templates, setTemplates] = useState<Template[]>([])
 
   // Fetch templates
@@ -50,6 +52,50 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     }
     fetchTemplates()
   }, [])
+
+  // Handle AI command selection
+  const handleAICommand = async (action: string, editor: any) => {
+    if (!editor || isProcessingAI) return
+
+    // Get current text content
+    const content = editor.getText().trim()
+    if (!content) {
+      // If no content, show a hint
+      return
+    }
+
+    setIsProcessingAI(true)
+    try {
+      // Call AI enhance API
+      const response = await fetch('/api/ai/enhance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          content,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('AI request failed')
+      }
+
+      const data = await response.json()
+
+      if (data.data?.result) {
+        // Replace editor content with AI result
+        editor.commands.setContent(data.data.result)
+        setHasContent(true)
+      }
+    } catch (error) {
+      console.error('AI enhance error:', error)
+      // You might want to show a toast notification here
+    } finally {
+      setIsProcessingAI(false)
+    }
+  }
 
   // Create lowlight instance for syntax highlighting
   const lowlight = createLowlight(common)
@@ -76,6 +122,9 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
       }),
       Placeholder.configure({
         placeholder: "发生了什么？",
+      }),
+      SlashCommand.configure({
+        onCommandSelect: (action: string, editor: any) => handleAICommand(action, editor),
       }),
     ],
     immediatelyRender: false,
