@@ -77,4 +77,16 @@ export const commentsApi = {
     })
     return response.json()
   },
+
+  /**
+   * Update comment
+   */
+  async updateComment(commentId: string, data: { content: string }): Promise<CommentResponse> {
+    const response = await fetch(`${API_BASE}/comments/${commentId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    return response.json()
+  },
 }

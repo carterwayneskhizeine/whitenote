@@ -82,3 +82,56 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
   return Response.json({ success: true })
 }
+
+/**
+ * PATCH /api/comments/[id]
+ * 更新评论
+ */
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const { id } = await params
+
+  try {
+    const body = await request.json()
+    const { content } = body
+
+    if (!content || typeof content !== 'string') {
+      return Response.json({ error: "Content is required" }, { status: 400 })
+    }
+
+    // 检查评论是否存在以及用户是否有权限编辑
+    const comment = await prisma.comment.findUnique({
+      where: { id },
+    })
+
+    if (!comment) {
+      return Response.json({ error: "Comment not found" }, { status: 404 })
+    }
+
+    // 只有作者可以编辑自己的评论
+    if (comment.authorId !== session.user.id) {
+      return Response.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    // 更新评论
+    const updatedComment = await prisma.comment.update({
+      where: { id },
+      data: { content },
+      include: {
+        author: { select: { id: true, name: true, avatar: true, email: true } },
+        _count: {
+          select: { replies: true, retweets: true }
+        },
+      },
+    })
+
+    return Response.json({ data: updatedComment })
+  } catch (error) {
+    console.error("Failed to update comment:", error)
+    return Response.json({ error: "Failed to update comment" }, { status: 500 })
+  }
+}
