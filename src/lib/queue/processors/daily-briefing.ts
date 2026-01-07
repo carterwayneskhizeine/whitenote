@@ -82,6 +82,25 @@ ${contentSummary}
         model: config.briefingModel,
       })
 
+      // 取消之前的晨报道顶（查找带有 DailyReview 标签的置顶消息）
+      const dailyReviewTag = await prisma.tag.findUnique({
+        where: { name: "DailyReview" },
+      })
+
+      if (dailyReviewTag) {
+        await prisma.message.updateMany({
+          where: {
+            authorId: user.id,
+            isPinned: true,
+            tags: {
+              some: { tagId: dailyReviewTag.id },
+            },
+          },
+          data: { isPinned: false },
+        })
+        console.log(`[DailyBriefing] Unpinned previous briefings for user: ${user.email}`)
+      }
+
       // 创建晨报消息
       const yesterdayStr = yesterday.toLocaleDateString("zh-CN")
       const briefing = await prisma.message.create({
