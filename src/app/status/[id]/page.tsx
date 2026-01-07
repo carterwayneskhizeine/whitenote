@@ -130,8 +130,8 @@ export default function StatusPage() {
                         onClick={async () => {
                             const result = await messagesApi.toggleRetweet(message.id)
                             if (result.data) {
-                                setRetweetCount(result.data.retweetCount)
-                                setIsRetweeted(result.data.isRetweeted)
+                                setRetweetCount(result.data.retweetCount ?? 0)
+                                setIsRetweeted(result.data.isRetweeted ?? false)
                             }
                         }}
                     >

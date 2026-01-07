@@ -12,6 +12,7 @@ import {
   Trash2,
   Edit2,
   MessageCircle,
+  Repeat2,
   Pin,
   PinOff
 } from "lucide-react"
@@ -144,8 +145,8 @@ export function MessageCard({
     try {
       const result = await messagesApi.toggleRetweet(message.id)
       if (result.data) {
-        setIsRetweeted(result.data.isRetweeted)
-        setRetweetCount(result.data.retweetCount)
+        setIsRetweeted(result.data.isRetweeted ?? false)
+        setRetweetCount(result.data.retweetCount ?? 0)
         onUpdate?.()
       }
     } catch (error) {

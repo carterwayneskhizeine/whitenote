@@ -134,11 +134,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             deleteMany: {},
             create: await Promise.all(
               // 去重标签数组
-              [...new Set(tags)]
-                .map(async (tagName: string) => {
+              [...new Set(tags as string[])]
+                .map(async (tagName) => {
                   const tag = await prisma.tag.upsert({
-                    where: { name: tagName.trim() },
-                    create: { name: tagName.trim() },
+                    where: { name: (tagName as string).trim() },
+                    create: { name: (tagName as string).trim() },
                     update: {},
                   })
                   return { tagId: tag.id }
