@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { buildSystemPrompt, callOpenAI } from "@/lib/ai/openai"
 import { callRAGFlow } from "@/lib/ai/ragflow"
+import { getAiConfig } from "@/lib/ai/config"
 import { NextRequest } from "next/server"
 
 export const runtime = 'nodejs'
@@ -27,29 +28,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 获取消息上下文
+    // 获取消息上下文（数据隔离：用户只能对自己创建的消息使用 AI）
     const message = await prisma.message.findUnique({
-      where: { id: messageId, authorId: session.user.id },  // 数据隔离
-      include: {
-        comments: {
-          orderBy: { createdAt: "asc" },
-          take: 20,
-        },
-      },
+      where: { id: messageId, authorId: session.user.id },
     })
 
     if (!message) {
       return Response.json({ error: "Message not found" }, { status: 404 })
     }
 
-    // 获取最新配置 (热更新)
-    const config = await prisma.aiConfig.findUnique({
-      where: { userId: session.user.id },
-    })
-
-    if (!config) {
-      return Response.json({ error: "AI configuration not found" }, { status: 404 })
-    }
+    // 获取最新配置 (热更新，如果不存在会自动创建默认配置)
+    const config = await getAiConfig(session.user.id)
 
     let aiResponse: string
     let references: Array<{ content: string; source: string }> | undefined
@@ -70,15 +59,12 @@ export async function POST(request: NextRequest) {
       aiResponse = await callOpenAI({ userId: session.user.id, messages })
     }
 
-    // 保存 AI 回复
+    // 保存 AI 回复（AI 评论的 authorId 为 null）
     const comment = await prisma.comment.create({
       data: {
         content: aiResponse,
         messageId,
         isAIBot: true,
-      },
-      include: {
-        author: { select: { id: true, name: true, avatar: true } },
       },
     })
 

@@ -25,7 +25,7 @@ interface RetweetTarget {
         name: string | null
         avatar: string | null
         email: string | null
-    }
+    } | null
 }
 
 interface RetweetDialogProps {
@@ -107,7 +107,7 @@ export function RetweetDialog({
         }
     }
 
-    const targetHandle = target.author.email?.split('@')[0] || "user"
+    const targetHandle = target.author?.email?.split('@')[0] || "user"
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -124,15 +124,15 @@ export function RetweetDialog({
                 <div className="flex-1 overflow-y-auto p-4">
                     <div className="flex gap-3 mb-4">
                         <Avatar className="h-8 w-8 shrink-0">
-                            <AvatarImage src={target.author.avatar || undefined} />
+                            <AvatarImage src={target.author?.avatar || undefined} />
                             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                                {getInitials(target.author.name)}
+                                {getInitials(target.author?.name || null)}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1 text-sm">
                                 <span className="font-bold text-foreground">
-                                    {target.author.name || "Anonymous"}
+                                    {target.author?.name || "Anonymous"}
                                 </span>
                                 <span className="text-muted-foreground truncate">
                                     @{targetHandle}

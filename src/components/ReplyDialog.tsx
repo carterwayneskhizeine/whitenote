@@ -10,7 +10,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { commentsApi } from "@/lib/api"
+import { commentsApi, aiApi } from "@/lib/api"
 import { Loader2, Image as ImageIcon, Smile, List, Calendar, MapPin, X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -25,7 +25,7 @@ interface ReplyTarget {
         name: string | null
         avatar: string | null
         email: string | null
-    }
+    } | null
 }
 
 interface ReplyDialogProps {
@@ -50,7 +50,7 @@ export function ReplyDialog({
     // Reset content and pre-fill mention if replying to a comment
     useEffect(() => {
         if (open && target) {
-            const handle = target.author.email?.split('@')[0] || "user"
+            const handle = target.author?.email?.split('@')[0] || "user"
             // If it's a comment (different from messageId), pre-fill the handle
             // Actually, in Twitter, you always reply to someone.
             // For now, let's just pre-fill if it's not the same as messageId or just always focus.
@@ -75,6 +75,19 @@ export function ReplyDialog({
             })
 
             if (result.data) {
+                // Check if comment contains @goldierill and trigger AI reply
+                if (content.includes('@goldierill')) {
+                    try {
+                        const question = content.replace('@goldierill', '').trim()
+                        await aiApi.chat({
+                            messageId: messageId,
+                            content: question || '请回复这条评论',
+                        })
+                    } catch (aiError) {
+                        console.error("Failed to get AI reply:", aiError)
+                    }
+                }
+
                 setContent("")
                 onOpenChange(false)
                 onSuccess?.()
@@ -107,7 +120,7 @@ export function ReplyDialog({
         }
     }
 
-    const targetHandle = target.author.email?.split('@')[0] || "user"
+    const targetHandle = target.author?.email?.split('@')[0] || "user"
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
@@ -127,15 +140,15 @@ export function ReplyDialog({
                         <div className="absolute left-[15px] top-10 bottom-0 w-0.5 bg-border" />
 
                         <Avatar className="h-8 w-8 shrink-0 z-10">
-                            <AvatarImage src={target.author.avatar || undefined} />
+                            <AvatarImage src={target.author?.avatar || undefined} />
                             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                                {getInitials(target.author.name)}
+                                {getInitials(target.author?.name || null)}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1 text-sm">
                                 <span className="font-bold text-foreground">
-                                    {target.author.name || "Anonymous"}
+                                    {target.author?.name || "Anonymous"}
                                 </span>
                                 <span className="text-muted-foreground truncate">
                                     @{targetHandle}
