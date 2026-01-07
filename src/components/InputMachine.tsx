@@ -230,9 +230,9 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
         </Avatar>
 
         {/* Input area */}
-        <div className="flex-1 flex flex-col gap-3">
-          <div className="relative py-2">
-            <EditorContent editor={editor} className="w-full" />
+        <div className="flex-1 flex flex-col gap-3 min-w-0">
+          <div className="relative py-2 min-w-0">
+            <EditorContent editor={editor} className="w-full max-w-full" />
 
             {/* AI Processing Overlay */}
             {isProcessingAI && (
