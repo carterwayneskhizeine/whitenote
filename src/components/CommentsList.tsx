@@ -1,29 +1,25 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   Loader2,
-  Send,
   Bot,
   Image as ImageIcon,
   Smile,
-  List,
-  Calendar,
-  MapPin,
   MessageCircle,
   Repeat2,
   Heart,
   BarChart2,
-  Share
+  Share,
 } from "lucide-react"
 import { commentsApi, aiApi } from "@/lib/api"
 import { Comment } from "@/types/api"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { useSession } from "next-auth/react"
-import { ReplyDialog } from "@/components/ReplyDialog"
 import { TipTapViewer } from "@/components/TipTapViewer"
 
 interface CommentsListProps {
@@ -32,21 +28,22 @@ interface CommentsListProps {
 }
 
 export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
+  const router = useRouter()
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
   const [posting, setPosting] = useState(false)
   const [newComment, setNewComment] = useState("")
   const { data: session } = useSession()
-  const [showReplyDialog, setShowReplyDialog] = useState(false)
-  const [replyTarget, setReplyTarget] = useState<Comment | null>(null)
 
-  // Fetch comments
+  // Fetch comments (only top-level)
   const fetchComments = async () => {
     setLoading(true)
     try {
       const result = await commentsApi.getComments(messageId)
       if (result.data) {
-        setComments(result.data)
+        // 只显示顶级评论（parentId 为 null）
+        const topLevelComments = result.data.filter(c => !c.parentId)
+        setComments(topLevelComments)
       }
     } catch (error) {
       console.error("Failed to fetch comments:", error)
@@ -124,6 +121,11 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
     }
   }
 
+  // 获取评论的子评论数量
+  const getReplyCount = (comment: Comment) => {
+    return comment._count?.replies || 0
+  }
+
   if (loading) {
     return (
       <div className="p-4 flex items-center justify-center">
@@ -181,7 +183,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
         </div>
       </div>
 
-      {/* Comments list */}
+      {/* Comments list - Flat (Top-level only) */}
       <div className="flex flex-col">
         {comments.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-sm">
@@ -189,7 +191,11 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
           </div>
         ) : (
           comments.map((comment) => (
-            <div key={comment.id} className="p-4 border-b hover:bg-muted/5 transition-colors cursor-pointer">
+            <div
+              key={comment.id}
+              className="p-4 border-b hover:bg-muted/5 transition-colors cursor-pointer"
+              onClick={() => router.push(`/status/${messageId}/comment/${comment.id}`)}
+            >
               <div className="flex gap-3">
                 {/* Avatar */}
                 <Avatar className="h-9 w-9 shrink-0">
@@ -221,18 +227,14 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
                   </div>
 
                   {/* Action row for comments */}
-                  <div className="mt-3 flex items-center justify-between max-w-[300px] text-muted-foreground">
-                    <div
-                      className="group flex items-center cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setReplyTarget(comment);
-                        setShowReplyDialog(true);
-                      }}
-                    >
+                  <div className="mt-3 flex items-center justify-between max-w-75 text-muted-foreground">
+                    <div className="group flex items-center">
                       <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                         <MessageCircle className="h-4 w-4" />
                       </div>
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        {getReplyCount(comment)}
+                      </span>
                     </div>
                     <div className="group flex items-center cursor-pointer">
                       <div className="p-2 rounded-full group-hover:bg-green-500/10 group-hover:text-green-500 transition-colors">
@@ -261,17 +263,6 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
           ))
         )}
       </div>
-
-      <ReplyDialog
-        open={showReplyDialog}
-        onOpenChange={setShowReplyDialog}
-        target={replyTarget}
-        messageId={messageId}
-        onSuccess={() => {
-          fetchComments();
-          onCommentAdded?.();
-        }}
-      />
     </div>
   )
 }

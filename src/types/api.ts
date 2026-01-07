@@ -108,6 +108,9 @@ export interface Comment {
     email: string | null
   }
   parentId?: string | null
+  _count?: {
+    replies: number
+  }
 }
 
 export interface CreateCommentInput {

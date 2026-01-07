@@ -33,4 +33,28 @@ export const commentsApi = {
     )
     return response.json()
   },
+
+  /**
+   * Get comment by ID
+   */
+  async getComment(commentId: string): Promise<CommentResponse> {
+    const response = await fetch(`${API_BASE}/comments/${commentId}`)
+    return response.json()
+  },
+
+  /**
+   * Get comment path (ancestors chain)
+   */
+  async getCommentPath(commentId: string): Promise<CommentsResponse> {
+    const response = await fetch(`${API_BASE}/comments/${commentId}/path`)
+    return response.json()
+  },
+
+  /**
+   * Get child comments (replies) of a comment
+   */
+  async getChildComments(parentId: string): Promise<CommentsResponse> {
+    const response = await fetch(`${API_BASE}/comments/${parentId}/children`)
+    return response.json()
+  },
 }

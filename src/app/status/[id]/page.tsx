@@ -67,7 +67,7 @@ export default function StatusPage() {
                     variant="ghost"
                     size="icon"
                     className="mr-4 rounded-full"
-                    onClick={() => router.back()}
+                    onClick={() => router.push('/')}
                 >
                     <ArrowLeft className="h-5 w-5" />
                 </Button>

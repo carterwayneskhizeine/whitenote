@@ -1,0 +1,372 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { commentsApi, aiApi } from "@/lib/api"
+import { Button } from "@/components/ui/button"
+import { MessageCircle, Repeat2, Heart, Share, BarChart2, Bot, Loader2, Image as ImageIcon, Smile } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
+import { zhCN } from "date-fns/locale"
+import { TipTapViewer } from "@/components/TipTapViewer"
+import { CommentBreadcrumb } from "@/components/CommentBreadcrumb"
+import { Comment } from "@/types/api"
+import { useSession } from "next-auth/react"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { ReplyDialog } from "@/components/ReplyDialog"
+
+export default function CommentDetailPage() {
+  const { id, commentId } = useParams() as { id: string; commentId: string }
+  const router = useRouter()
+  const { data: session } = useSession()
+
+  const [comment, setComment] = useState<Comment | null>(null)
+  const [childComments, setChildComments] = useState<Comment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  const [showReplyDialog, setShowReplyDialog] = useState(false)
+  const [newReply, setNewReply] = useState("")
+  const [posting, setPosting] = useState(false)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true)
+
+        // 并行获取数据
+        const [commentResult, childrenResult] = await Promise.all([
+          commentsApi.getComment(commentId),
+          commentsApi.getChildComments(commentId),
+        ])
+
+        if (commentResult.data) {
+          setComment(commentResult.data)
+        } else {
+          setError(commentResult.error || "Comment not found")
+        }
+
+        if (childrenResult.data) {
+          setChildComments(childrenResult.data)
+        }
+      } catch (err) {
+        console.error("Failed to fetch comment data:", err)
+        setError("Failed to load comment")
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    if (commentId) {
+      fetchData()
+    }
+  }, [commentId])
+
+  const handlePostReply = async () => {
+    if (!newReply.trim() || posting) return
+
+    setPosting(true)
+    try {
+      const result = await commentsApi.createComment({
+        content: newReply.trim(),
+        messageId: id,
+        parentId: commentId,
+      })
+
+      if (result.data) {
+        setChildComments([...childComments, result.data])
+
+        // Check if comment contains @goldierill and trigger AI reply
+        if (newReply.includes('@goldierill')) {
+          try {
+            const question = newReply.replace('@goldierill', '').trim()
+            const aiResult = await aiApi.chat({
+              messageId: id,
+              content: question || '请回复这条评论',
+            })
+            if (aiResult.data?.comment) {
+              const aiComment = aiResult.data.comment
+              setChildComments(prev => [...prev, aiComment])
+            }
+          } catch (aiError) {
+            console.error("Failed to get AI reply:", aiError)
+          }
+        }
+
+        setNewReply("")
+      }
+    } catch (error) {
+      console.error("Failed to post reply:", error)
+    } finally {
+      setPosting(false)
+    }
+  }
+
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return "U"
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
+  const formatTime = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), {
+        addSuffix: true,
+        locale: zhCN,
+      })
+    } catch {
+      return ""
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error || !comment) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-muted-foreground mb-4">{error || "Comment not found"}</p>
+        <Button onClick={() => router.back()}>返回</Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      {/* Header with Breadcrumb */}
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
+        <CommentBreadcrumb
+          messageId={id}
+          parentId={comment.parentId}
+          onNavigateBack={(targetId) => {
+            // 检查是否是主消息ID
+            if (targetId === id) {
+              router.push(`/status/${id}`)
+            } else {
+              router.push(`/status/${id}/comment/${targetId}`)
+            }
+          }}
+        />
+      </div>
+
+      {/* Comment Content */}
+      <div className="p-4">
+        <div className="flex gap-3">
+          {/* Avatar */}
+          <Avatar className="h-12 w-12 shrink-0">
+            <AvatarImage src={comment.author?.avatar || undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+              {getInitials(comment.author?.name)}
+            </AvatarFallback>
+          </Avatar>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="font-bold text-base hover:underline">
+                {comment.author?.name || "Anonymous"}
+              </span>
+              <span className="text-muted-foreground text-sm">
+                @{comment.author?.email?.split('@')[0] || "user"}
+              </span>
+              <span className="text-muted-foreground text-sm">·</span>
+              <span className="text-muted-foreground text-sm hover:underline">
+                {formatTime(comment.createdAt)}
+              </span>
+              {comment.isAIBot && (
+                <Bot className="h-4 w-4 text-primary ml-1" />
+              )}
+            </div>
+
+            <div className="mt-2 text-[15px] leading-normal wrap-break-word">
+              <TipTapViewer content={comment.content} />
+            </div>
+
+            {/* Action Row */}
+            <div className="mt-3 flex items-center justify-between max-w-75 text-muted-foreground">
+              <div
+                className="group flex items-center cursor-pointer"
+                onClick={() => setShowReplyDialog(true)}
+              >
+                <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
+                  <MessageCircle className="h-4 w-4" />
+                </div>
+                <span className="ml-1 text-sm">{childComments.length}</span>
+              </div>
+              <div className="group flex items-center cursor-pointer">
+                <div className="p-2 rounded-full group-hover:bg-green-500/10 group-hover:text-green-500 transition-colors">
+                  <Repeat2 className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="group flex items-center cursor-pointer">
+                <div className="p-2 rounded-full group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-colors">
+                  <Heart className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="group flex items-center cursor-pointer">
+                <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
+                  <BarChart2 className="h-4 w-4" />
+                </div>
+              </div>
+              <div className="group flex items-center cursor-pointer">
+                <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors text-right">
+                  <Share className="h-4 w-4" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Reply Input */}
+      <div className="p-4 border-b">
+        <div className="flex gap-3">
+          <Avatar className="h-9 w-9 shrink-0">
+            <AvatarImage src={session?.user?.image || undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+              {getInitials(session?.user?.name)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 flex flex-col gap-2">
+            <textarea
+              placeholder="发布你的回复"
+              className="w-full bg-transparent border-none focus:outline-none text-lg resize-none min-h-10 py-1 placeholder:text-muted-foreground"
+              value={newReply}
+              onChange={(e) => {
+                setNewReply(e.target.value)
+                e.target.style.height = 'auto'
+                e.target.style.height = e.target.scrollHeight + 'px'
+              }}
+              disabled={posting}
+              rows={1}
+            />
+            <div className="flex justify-between items-center mt-2">
+              <div className="flex gap-1 text-primary">
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-primary hover:bg-primary/10">
+                  <ImageIcon className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-primary hover:bg-primary/10">
+                  <Smile className="h-4 w-4" />
+                </Button>
+              </div>
+              <Button
+                className="rounded-full px-5 font-bold h-9 bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
+                disabled={!newReply.trim() || posting}
+                onClick={handlePostReply}
+              >
+                {posting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "回复"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Child Comments List */}
+      <div className="border-t">
+        {childComments.length === 0 ? (
+          <div className="p-8 text-center text-muted-foreground text-sm">
+            暂无回复，来说点什么吧
+          </div>
+        ) : (
+          childComments.map((childComment) => (
+            <div
+              key={childComment.id}
+              className="p-4 border-b hover:bg-muted/5 transition-colors cursor-pointer"
+              onClick={() => router.push(`/status/${id}/comment/${childComment.id}`)}
+            >
+              <div className="flex gap-3">
+                <Avatar className="h-9 w-9 shrink-0">
+                  <AvatarImage src={childComment.author?.avatar || undefined} />
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                    {getInitials(childComment.author?.name)}
+                  </AvatarFallback>
+                </Avatar>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1 flex-wrap">
+                    <span className="font-bold text-sm hover:underline">
+                      {childComment.author?.name || "Anonymous"}
+                    </span>
+                    <span className="text-muted-foreground text-sm">
+                      @{childComment.author?.email?.split('@')[0] || "user"}
+                    </span>
+                    <span className="text-muted-foreground text-sm">·</span>
+                    <span className="text-muted-foreground text-sm hover:underline">
+                      {formatTime(childComment.createdAt)}
+                    </span>
+                    {childComment.isAIBot && (
+                      <Bot className="h-3.5 w-3.5 text-primary ml-1" />
+                    )}
+                  </div>
+                  <div className="mt-1 text-[15px] leading-normal wrap-break-word">
+                    <TipTapViewer content={childComment.content} />
+                  </div>
+
+                  {/* Action Row for Child Comments */}
+                  <div className="mt-3 flex items-center justify-between max-w-75 text-muted-foreground">
+                    <div className="group flex items-center">
+                      <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
+                        <MessageCircle className="h-4 w-4" />
+                      </div>
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        {childComment._count?.replies || 0}
+                      </span>
+                    </div>
+                    <div className="group flex items-center cursor-pointer">
+                      <div className="p-2 rounded-full group-hover:bg-green-500/10 group-hover:text-green-500 transition-colors">
+                        <Repeat2 className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div className="group flex items-center cursor-pointer">
+                      <div className="p-2 rounded-full group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-colors">
+                        <Heart className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div className="group flex items-center cursor-pointer">
+                      <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
+                        <BarChart2 className="h-4 w-4" />
+                      </div>
+                    </div>
+                    <div className="group flex items-center cursor-pointer">
+                      <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors text-right">
+                        <Share className="h-4 w-4" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Reply Dialog */}
+      <ReplyDialog
+        open={showReplyDialog}
+        onOpenChange={setShowReplyDialog}
+        target={comment}
+        messageId={id}
+        onSuccess={() => {
+          // 刷新子评论列表
+          commentsApi.getChildComments(commentId).then((result) => {
+            if (result.data) {
+              setChildComments(result.data)
+            }
+          })
+        }}
+      />
+    </div>
+  )
+}

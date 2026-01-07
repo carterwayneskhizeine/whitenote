@@ -18,6 +18,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     where: { messageId: id },
     include: {
       author: { select: { id: true, name: true, avatar: true, email: true } },
+      _count: {
+        select: { replies: true }
+      }
     },
     orderBy: { createdAt: "asc" },
   })
