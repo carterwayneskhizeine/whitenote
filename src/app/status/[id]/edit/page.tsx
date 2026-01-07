@@ -39,24 +39,14 @@ export default function EditMessagePage() {
     }
   }, [id])
 
-  // Extract hashtags from content
-  const extractTags = (html: string): string[] => {
-    const tmp = document.createElement('div')
-    tmp.innerHTML = html
-    const text = tmp.textContent || tmp.innerText || ''
-    const matches = text.match(/#[\w\u4e00-\u9fa5]+/g)
-    return matches ? matches.map(t => t.slice(1)) : []
-  }
-
   const handleSave = async () => {
     if (isSaving || !message) return
 
     setIsSaving(true)
     try {
-      const tags = extractTags(content)
+      // 只更新内容，保留现有标签（不发送 tags 字段）
       const result = await messagesApi.updateMessage(message.id, {
         content,
-        tags,
       })
 
       if (result.data) {
