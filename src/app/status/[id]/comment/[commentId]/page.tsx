@@ -25,6 +25,7 @@ export default function CommentDetailPage() {
   const [error, setError] = useState<string | null>(null)
 
   const [showReplyDialog, setShowReplyDialog] = useState(false)
+  const [replyTarget, setReplyTarget] = useState<Comment | null>(null)
   const [newReply, setNewReply] = useState("")
   const [posting, setPosting] = useState(false)
 
@@ -194,7 +195,11 @@ export default function CommentDetailPage() {
             <div className="mt-3 flex items-center justify-between max-w-75 text-muted-foreground">
               <div
                 className="group flex items-center cursor-pointer"
-                onClick={() => setShowReplyDialog(true)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setReplyTarget(comment)
+                  setShowReplyDialog(true)
+                }}
               >
                 <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                   <MessageCircle className="h-4 w-4" />
@@ -316,7 +321,14 @@ export default function CommentDetailPage() {
 
                   {/* Action Row for Child Comments */}
                   <div className="mt-3 flex items-center justify-between max-w-75 text-muted-foreground">
-                    <div className="group flex items-center">
+                    <div
+                      className="group flex items-center cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setReplyTarget(childComment)
+                        setShowReplyDialog(true)
+                      }}
+                    >
                       <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                         <MessageCircle className="h-4 w-4" />
                       </div>
@@ -356,7 +368,7 @@ export default function CommentDetailPage() {
       <ReplyDialog
         open={showReplyDialog}
         onOpenChange={setShowReplyDialog}
-        target={comment}
+        target={replyTarget || comment}
         messageId={id}
         onSuccess={() => {
           // 刷新子评论列表

@@ -21,6 +21,7 @@ import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { useSession } from "next-auth/react"
 import { TipTapViewer } from "@/components/TipTapViewer"
+import { ReplyDialog } from "@/components/ReplyDialog"
 
 interface CommentsListProps {
   messageId: string
@@ -34,6 +35,9 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
   const [posting, setPosting] = useState(false)
   const [newComment, setNewComment] = useState("")
   const { data: session } = useSession()
+
+  const [showReplyDialog, setShowReplyDialog] = useState(false)
+  const [replyTarget, setReplyTarget] = useState<Comment | null>(null)
 
   // Fetch comments (only top-level)
   const fetchComments = async () => {
@@ -228,7 +232,14 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
 
                   {/* Action row for comments */}
                   <div className="mt-3 flex items-center justify-between max-w-75 text-muted-foreground">
-                    <div className="group flex items-center">
+                    <div
+                      className="group flex items-center cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setReplyTarget(comment)
+                        setShowReplyDialog(true)
+                      }}
+                    >
                       <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                         <MessageCircle className="h-4 w-4" />
                       </div>
@@ -263,6 +274,19 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
           ))
         )}
       </div>
+
+      {/* Reply Dialog */}
+      <ReplyDialog
+        open={showReplyDialog}
+        onOpenChange={setShowReplyDialog}
+        target={replyTarget}
+        messageId={messageId}
+        onSuccess={() => {
+          // Refresh comments list
+          fetchComments()
+          onCommentAdded?.()
+        }}
+      />
     </div>
   )
 }

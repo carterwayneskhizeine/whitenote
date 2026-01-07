@@ -11,6 +11,7 @@ import { CommentsList } from "@/components/CommentsList"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { ReplyDialog } from "@/components/ReplyDialog"
 
 export default function StatusPage() {
     const { id } = useParams() as { id: string }
@@ -18,6 +19,9 @@ export default function StatusPage() {
     const [message, setMessage] = useState<Message | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+
+    const [showReplyDialog, setShowReplyDialog] = useState(false)
+    const [replyTarget, setReplyTarget] = useState<any>(null)
 
     useEffect(() => {
         const fetchMessage = async () => {
@@ -105,7 +109,13 @@ export default function StatusPage() {
 
                 {/* Stats Row */}
                 <div className="flex items-center justify-between px-2 text-muted-foreground">
-                    <div className="flex items-center gap-1 group cursor-pointer">
+                    <div
+                        className="flex items-center gap-1 group cursor-pointer"
+                        onClick={() => {
+                            setReplyTarget(message)
+                            setShowReplyDialog(true)
+                        }}
+                    >
                         <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                             <MessageCircle className="h-[22px] w-[22px]" />
                         </div>
@@ -144,6 +154,18 @@ export default function StatusPage() {
                 messageId={message.id}
                 onCommentAdded={() => {
                     // Refresh page or list
+                    window.location.reload()
+                }}
+            />
+
+            {/* Reply Dialog */}
+            <ReplyDialog
+                open={showReplyDialog}
+                onOpenChange={setShowReplyDialog}
+                target={replyTarget}
+                messageId={message.id}
+                onSuccess={() => {
+                    // Refresh page
                     window.location.reload()
                 }}
             />
