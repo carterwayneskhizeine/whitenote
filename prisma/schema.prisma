@@ -59,31 +59,35 @@ model VerificationToken {
 }
 
 model Message {
-  id            String           @id @default(cuid())
-  title         String?
-  content       String
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  isStarred     Boolean          @default(false)
-  isPinned      Boolean          @default(false)
-  authorId      String
-  parentId      String?
-  comments      Comment[]
-  medias        Media[]
-  author        User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  parent        Message?         @relation("Thread", fields: [parentId], references: [id])
-  children      Message[]        @relation("Thread")
-  aliases       MessageAlias[]
-  outgoingLinks MessageLink[]    @relation("OutgoingLinks")
-  incomingLinks MessageLink[]    @relation("IncomingLinks")
-  tags          MessageTag[]
-  versions      MessageVersion[]
-  reminders     Reminder[]
-  retweets      Retweet[]
+  id              String           @id @default(cuid())
+  title           String?
+  content         String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  isStarred       Boolean          @default(false)
+  isPinned        Boolean          @default(false)
+  authorId        String
+  parentId        String?
+  quotedMessageId String?
+  comments        Comment[]
+  medias          Media[]
+  author          User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent          Message?         @relation("Thread", fields: [parentId], references: [id])
+  children        Message[]        @relation("Thread")
+  quotedMessage   Message?         @relation("QuoteRetweet", fields: [quotedMessageId], references: [id])
+  quoteRetweets   Message[]        @relation("QuoteRetweet")
+  aliases         MessageAlias[]
+  outgoingLinks   MessageLink[]    @relation("OutgoingLinks")
+  incomingLinks   MessageLink[]    @relation("IncomingLinks")
+  tags            MessageTag[]
+  versions        MessageVersion[]
+  reminders       Reminder[]
+  retweets        Retweet[]
 
   @@index([authorId])
   @@index([createdAt(sort: Desc)])
   @@index([isPinned, createdAt(sort: Desc)])
+  @@index([quotedMessageId])
 }
 
 model Tag {

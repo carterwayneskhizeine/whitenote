@@ -38,6 +38,7 @@ import { zhCN } from "date-fns/locale"
 import { CommentsList } from "@/components/CommentsList"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
+import { QuotedMessageCard } from "@/components/QuotedMessageCard"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { TipTapViewer } from "@/components/TipTapViewer"
@@ -284,6 +285,11 @@ export function MessageCard({
                 >
                   显示更多
                 </button>
+              )}
+
+              {/* Quoted Message Card */}
+              {message.quotedMessage && (
+                <QuotedMessageCard message={message.quotedMessage} />
               )}
             </div>
 

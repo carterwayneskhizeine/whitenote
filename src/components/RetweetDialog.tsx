@@ -61,11 +61,10 @@ export function RetweetDialog({
 
         setIsSubmitting(true)
         try {
-            // 1. 创建一条新的主消息，包含引用的内容
-            const quotedContent = `\n\n---\n\n转发 @${target.author.email?.split('@')[0] || "user"} 的消息:\n${target.content.substring(0, 200)}${target.content.length > 200 ? '...' : ''}`
-
+            // 1. 创建一条新的主消息，使用 quotedMessageId 引用原消息
             const result = await messagesApi.createMessage({
-                content: (content.trim() + quotedContent).trim(),
+                content: content.trim(), // 只保存用户评论，不包含引用的文本
+                quotedMessageId: target.id, // 使用 quotedMessageId 引用原消息
             })
 
             if (result.data) {

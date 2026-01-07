@@ -8,6 +8,18 @@ export interface Message {
   isPinned: boolean
   authorId: string
   parentId: string | null
+  quotedMessageId?: string | null
+  quotedMessage?: {
+    id: string
+    content: string
+    createdAt: string
+    author: {
+      id: string
+      name: string | null
+      avatar: string | null
+      email: string | null
+    }
+  } | null
   author: {
     id: string
     name: string | null
@@ -32,6 +44,7 @@ export interface Message {
 export interface CreateMessageInput {
   content: string
   parentId?: string
+  quotedMessageId?: string
   tags?: string[]
 }
 

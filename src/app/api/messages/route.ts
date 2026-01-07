@@ -52,6 +52,16 @@ export async function GET(request: NextRequest) {
         author: {
           select: { id: true, name: true, avatar: true, email: true },
         },
+        quotedMessage: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            author: {
+              select: { id: true, name: true, avatar: true, email: true },
+            },
+          },
+        },
         tags: {
           include: {
             tag: { select: { id: true, name: true, color: true } },
@@ -105,7 +115,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { content, title, parentId, tags } = body
+    const { content, title, parentId, tags, quotedMessageId } = body
 
     if (!content || content.trim() === "") {
       return Response.json(
@@ -127,6 +137,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 验证引用消息存在 (如果指定)
+    if (quotedMessageId) {
+      const quotedMessage = await prisma.message.findUnique({
+        where: { id: quotedMessageId },
+      })
+      if (!quotedMessage) {
+        return Response.json(
+          { error: "Quoted message not found" },
+          { status: 404 }
+        )
+      }
+    }
+
     // 创建消息
     const message = await prisma.message.create({
       data: {
@@ -134,6 +157,7 @@ export async function POST(request: NextRequest) {
         content: content.trim(),
         authorId: session.user.id,
         parentId: parentId || null,
+        quotedMessageId: quotedMessageId || null,
         // 创建或关联标签
         tags: tags?.length
           ? {
@@ -153,6 +177,16 @@ export async function POST(request: NextRequest) {
       include: {
         author: {
           select: { id: true, name: true, avatar: true, email: true },
+        },
+        quotedMessage: {
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            author: {
+              select: { id: true, name: true, avatar: true, email: true },
+            },
+          },
         },
         tags: {
           include: {
