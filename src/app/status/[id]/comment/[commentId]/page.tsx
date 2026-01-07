@@ -231,6 +231,11 @@ export default function CommentDetailPage() {
                 <div className="p-2 rounded-full group-hover:bg-green-500/10 transition-colors">
                   <Repeat2 className="h-4 w-4 transition-colors group-hover:text-green-500" />
                 </div>
+                {(typeof comment?.retweetCount === 'number' && comment.retweetCount > 0) && (
+                  <span className="ml-1 text-sm text-foreground/60 group-hover:text-green-600 transition-colors">
+                    {comment.retweetCount}
+                  </span>
+                )}
               </div>
               <div className="group flex items-center cursor-pointer">
                 <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors text-right">
@@ -354,6 +359,11 @@ export default function CommentDetailPage() {
                       <div className="p-2 rounded-full group-hover:bg-green-500/10 transition-colors">
                         <Repeat2 className="h-4 w-4 transition-colors group-hover:text-green-500" />
                       </div>
+                      {(typeof childComment.retweetCount === 'number' && childComment.retweetCount > 0) && (
+                        <span className="ml-1 text-xs text-foreground/60 group-hover:text-green-600 transition-colors">
+                          {childComment.retweetCount}
+                        </span>
+                      )}
                     </div>
                     <div className="group flex items-center cursor-pointer">
                       <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors text-right">

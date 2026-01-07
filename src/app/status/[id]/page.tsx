@@ -130,7 +130,9 @@ export default function StatusPage() {
                         <div className="p-2 rounded-full group-hover:bg-green-500/10 group-hover:text-green-500 transition-colors">
                             <Repeat2 className="h-[22px] w-[22px]" />
                         </div>
-                        <span className="text-sm">转发</span>
+                        {(typeof message.retweetCount === 'number' && message.retweetCount > 0) && (
+                            <span className="text-sm text-foreground/60 group-hover:text-green-600 transition-colors">{message.retweetCount}</span>
+                        )}
                     </div>
                     <div
                         className="flex items-center gap-1 group cursor-pointer"
