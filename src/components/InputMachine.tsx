@@ -85,8 +85,13 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
       const data = await response.json()
 
       if (data.data?.result) {
-        // Replace editor content with AI result
-        editor.commands.setContent(data.data.result)
+        // Replace editor content with AI result as Markdown
+        editor.commands.setContent(data.data.result, {
+          contentType: 'markdown',
+          parseOptions: {
+            preserveWhitespace: 'full',
+          },
+        })
         setHasContent(true)
       }
     } catch (error) {
