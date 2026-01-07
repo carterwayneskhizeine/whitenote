@@ -5,6 +5,22 @@ interface RAGFlowMessage {
   content: string
 }
 
+/**
+ * 清理消息内容，移除 AI 助手提及
+ * 如果清理后内容为空，返回 "test"
+ */
+function cleanContentForRAGFlow(content: string): string {
+  // 移除所有 @goldierill 和 @GoldieRill 提及（不区分大小写）
+  const cleaned = content.replace(/@goldierill/gi, "").trim()
+
+  // 如果清理后内容为空，返回 "test"
+  if (cleaned.length === 0) {
+    return "test"
+  }
+
+  return cleaned
+}
+
 interface RAGFlowResponse {
   choices: Array<{
     message: {
@@ -91,9 +107,12 @@ export async function syncToRAGFlow(userId: string, messageId: string, content: 
   }
 
   try {
+    // 清理内容：移除 AI 助手提及
+    const cleanedContent = cleanContentForRAGFlow(content)
+
     // 使用 FormData 上传文件（RAGFlow API 要求 multipart/form-data）
     const formData = new FormData()
-    const blob = new Blob([content], { type: 'text/markdown' })
+    const blob = new Blob([cleanedContent], { type: 'text/markdown' })
     formData.append('file', blob, `message_${messageId}.md`)
 
     const response = await fetch(
@@ -231,9 +250,12 @@ export async function updateRAGFlow(userId: string, messageId: string, content: 
     // 1. 先删除旧文档
     await deleteFromRAGFlow(userId, messageId)
 
-    // 2. 上传新文档（复用同步逻辑）
+    // 2. 清理内容：移除 AI 助手提及
+    const cleanedContent = cleanContentForRAGFlow(content)
+
+    // 3. 上传新文档（复用同步逻辑）
     const formData = new FormData()
-    const blob = new Blob([content], { type: 'text/markdown' })
+    const blob = new Blob([cleanedContent], { type: 'text/markdown' })
     formData.append('file', blob, `message_${messageId}.md`)
 
     const response = await fetch(
