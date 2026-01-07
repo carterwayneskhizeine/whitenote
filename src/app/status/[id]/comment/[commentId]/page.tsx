@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { commentsApi, aiApi } from "@/lib/api"
 import { Button } from "@/components/ui/button"
-import { MessageCircle, Repeat2, Heart, Share, BarChart2, Bot, Loader2, Image as ImageIcon, Smile } from "lucide-react"
+import { MessageCircle, Repeat2, Share, Bot, Loader2, Image as ImageIcon, Smile } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { TipTapViewer } from "@/components/TipTapViewer"
@@ -212,16 +212,6 @@ export default function CommentDetailPage() {
                 </div>
               </div>
               <div className="group flex items-center cursor-pointer">
-                <div className="p-2 rounded-full group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-colors">
-                  <Heart className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="group flex items-center cursor-pointer">
-                <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
-                  <BarChart2 className="h-4 w-4" />
-                </div>
-              </div>
-              <div className="group flex items-center cursor-pointer">
                 <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors text-right">
                   <Share className="h-4 w-4" />
                 </div>
@@ -339,16 +329,6 @@ export default function CommentDetailPage() {
                     <div className="group flex items-center cursor-pointer">
                       <div className="p-2 rounded-full group-hover:bg-green-500/10 group-hover:text-green-500 transition-colors">
                         <Repeat2 className="h-4 w-4" />
-                      </div>
-                    </div>
-                    <div className="group flex items-center cursor-pointer">
-                      <div className="p-2 rounded-full group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-colors">
-                        <Heart className="h-4 w-4" />
-                      </div>
-                    </div>
-                    <div className="group flex items-center cursor-pointer">
-                      <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
-                        <BarChart2 className="h-4 w-4" />
                       </div>
                     </div>
                     <div className="group flex items-center cursor-pointer">

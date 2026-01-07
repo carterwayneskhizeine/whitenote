@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Message, messagesApi } from "@/lib/api/messages"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, MoreHorizontal, MessageCircle, Repeat2, Heart, Share, BarChart2, Bookmark, Loader2 } from "lucide-react"
+import { ArrowLeft, MoreHorizontal, MessageCircle, Repeat2, Share, Bookmark, Loader2 } from "lucide-react"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { CommentsList } from "@/components/CommentsList"
@@ -126,12 +126,6 @@ export default function StatusPage() {
                             <Repeat2 className="h-[22px] w-[22px]" />
                         </div>
                         <span className="text-sm">11</span>
-                    </div>
-                    <div className="flex items-center gap-1 group cursor-pointer">
-                        <div className="p-2 rounded-full group-hover:bg-pink-500/10 group-hover:text-pink-500 transition-colors">
-                            <Heart className={cn("h-[22px] w-[22px]", message.isStarred && "text-pink-600 fill-pink-600")} />
-                        </div>
-                        <span className="text-sm">{message.isStarred ? 43 : 42}</span>
                     </div>
                     <div
                         className="flex items-center gap-1 group cursor-pointer"
