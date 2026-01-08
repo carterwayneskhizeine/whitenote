@@ -6,6 +6,7 @@ import { TipTapViewer } from "@/components/TipTapViewer"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
+import { getHandle } from "@/lib/utils"
 
 interface QuotedMessage {
   id: string
@@ -65,7 +66,7 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
               {message.author.name || "GoldieRill"}
             </span>
             <span className="text-muted-foreground">
-              @{message.author.email?.split('@')[0] || "user"}
+              @{getHandle(message.author?.email || null, !!message.author)}
             </span>
           </>
         ) : (

@@ -41,7 +41,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
-import { cn } from "@/lib/utils"
+import { cn, getHandle } from "@/lib/utils"
 
 interface CommentsListProps {
   messageId: string
@@ -262,7 +262,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
                         {comment.author?.name || "GoldieRill"}
                       </span>
                       <span className="text-muted-foreground text-sm">
-                        @{comment.author?.email?.split('@')[0] || "user"}
+                        @{getHandle(comment.author?.email || null, !!comment.author)}
                       </span>
                       <span className="text-muted-foreground text-sm">·</span>
                       <span className="text-muted-foreground text-sm hover:underline">

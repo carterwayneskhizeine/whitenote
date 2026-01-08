@@ -17,6 +17,7 @@ import { zhCN } from "date-fns/locale"
 import { useSession } from "next-auth/react"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
+import { getHandle } from "@/lib/utils"
 
 interface RetweetTarget {
     id: string
@@ -98,7 +99,7 @@ export function RetweetDialog({
         }
     }
 
-    const targetHandle = target.author?.email?.split('@')[0] || "user"
+    const targetHandle = getHandle(target.author?.email || null, !!target.author)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

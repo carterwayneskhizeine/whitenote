@@ -39,7 +39,7 @@ import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
 import { QuotedMessageCard } from "@/components/QuotedMessageCard"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
-import { cn } from "@/lib/utils"
+import { cn, getHandle } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { TipTapViewer } from "@/components/TipTapViewer"
 
@@ -203,7 +203,7 @@ export function MessageCard({
                       {message.author.name || "GoldieRill"}
                     </span>
                     <span className="text-muted-foreground">
-                      @{message.author.email?.split('@')[0] || "user"}
+                      @{getHandle(message.author?.email || null, !!message.author)}
                     </span>
                   </>
                 ) : (

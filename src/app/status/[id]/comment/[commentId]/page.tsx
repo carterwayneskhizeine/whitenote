@@ -29,6 +29,7 @@ import { Comment } from "@/types/api"
 import { useSession } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
+import { getHandle } from "@/lib/utils"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
 
@@ -225,7 +226,7 @@ export default function CommentDetailPage() {
                   {comment.author?.name || "GoldieRill"}
                 </span>
                 <span className="text-muted-foreground text-sm">
-                  @{comment.author?.email?.split('@')[0] || "user"}
+                  @{getHandle(comment.author?.email || null, !!comment.author)}
                 </span>
                 <span className="text-muted-foreground text-sm">·</span>
                 <span className="text-muted-foreground text-sm hover:underline">
@@ -379,7 +380,7 @@ export default function CommentDetailPage() {
                         {childComment.author?.name || "GoldieRill"}
                       </span>
                       <span className="text-muted-foreground text-sm">
-                        @{childComment.author?.email?.split('@')[0] || "user"}
+                        @{getHandle(childComment.author?.email || null, !!childComment.author)}
                       </span>
                       <span className="text-muted-foreground text-sm">·</span>
                       <span className="text-muted-foreground text-sm hover:underline">

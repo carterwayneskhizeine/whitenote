@@ -17,6 +17,7 @@ import { zhCN } from "date-fns/locale"
 import { useSession } from "next-auth/react"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
+import { getHandle } from "@/lib/utils"
 
 interface ReplyTarget {
     id: string
@@ -51,7 +52,7 @@ export function ReplyDialog({
     // Reset content and pre-fill mention if replying to a comment
     useEffect(() => {
         if (open && target) {
-            const handle = target.author?.email?.split('@')[0] || "user"
+            const handle = getHandle(target.author?.email || null, !!target.author)
             // If it's a comment (different from messageId), pre-fill the handle
             // Actually, in Twitter, you always reply to someone.
             // For now, let's just pre-fill if it's not the same as messageId or just always focus.
@@ -111,7 +112,7 @@ export function ReplyDialog({
         }
     }
 
-    const targetHandle = target.author?.email?.split('@')[0] || "user"
+    const targetHandle = getHandle(target.author?.email || null, !!target.author)
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>

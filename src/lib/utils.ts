@@ -28,3 +28,15 @@ export function getAvatarUrl(name: string | null, avatar: string | null): string
 export function isGoldieRill(name: string | null): boolean {
   return !name || name === "GoldieRill"
 }
+
+/**
+ * 获取用户 handle (@username)
+ * @param email 用户邮箱
+ * @param hasAuthor 是否有作者
+ * @returns handle（不包含 @ 符号）
+ */
+export function getHandle(email: string | null, hasAuthor: boolean): string {
+  if (!hasAuthor) return "AI"
+  if (!email) return "user"
+  return email.split('@')[0]
+}

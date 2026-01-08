@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { cn } from "@/lib/utils"
+import { cn, getHandle } from "@/lib/utils"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
 
@@ -137,16 +137,16 @@ export default function StatusPage() {
                                     {message.author.name || "GoldieRill"}
                                 </span>
                                 <span className="text-muted-foreground text-sm leading-tight">
-                                    @{message.author.email?.split('@')[0] || "user"}
+                                    @{getHandle(message.author?.email || null, !!message.author)}
                                 </span>
                             </>
                         ) : (
                             <>
                                 <span className="font-bold text-purple-600 leading-tight hover:underline cursor-pointer">
-                                    AI 助手
+                                    GoldieRill
                                 </span>
                                 <span className="text-muted-foreground text-sm leading-tight">
-                                    @assistant
+                                    @AI
                                 </span>
                             </>
                         )}
