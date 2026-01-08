@@ -28,6 +28,7 @@ import {
 import { Comment } from "@/types/api"
 import { useSession } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
 
@@ -125,16 +126,6 @@ export default function CommentDetailPage() {
     }
   }
 
-  const getInitials = (name: string | null | undefined) => {
-    if (!name) return "U"
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
-  }
-
   const formatTime = (dateString: string) => {
     try {
       return formatDistanceToNow(new Date(dateString), {
@@ -220,12 +211,11 @@ export default function CommentDetailPage() {
       <div className="p-4">
         <div className="flex gap-3">
           {/* Avatar */}
-          <Avatar className="h-12 w-12 shrink-0">
-            <AvatarImage src={comment.author?.avatar || undefined} />
-            <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
-              {getInitials(comment.author?.name)}
-            </AvatarFallback>
-          </Avatar>
+          <GoldieAvatar
+            name={comment.author?.name || null}
+            avatar={comment.author?.avatar || null}
+            size="xl"
+          />
 
           {/* Content */}
           <div className="flex-1 min-w-0">
@@ -321,7 +311,7 @@ export default function CommentDetailPage() {
           <Avatar className="h-9 w-9 shrink-0">
             <AvatarImage src={session?.user?.image || undefined} />
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-              {getInitials(session?.user?.name)}
+              {session?.user?.name?.slice(0, 2) || "U"}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 flex flex-col gap-2">
@@ -376,12 +366,11 @@ export default function CommentDetailPage() {
               onClick={() => router.push(`/status/${id}/comment/${childComment.id}`)}
             >
               <div className="flex gap-3">
-                <Avatar className="h-9 w-9 shrink-0">
-                  <AvatarImage src={childComment.author?.avatar || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                    {getInitials(childComment.author?.name)}
-                  </AvatarFallback>
-                </Avatar>
+                <GoldieAvatar
+                  name={childComment.author?.name || null}
+                  avatar={childComment.author?.avatar || null}
+                  size="lg"
+                />
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">

@@ -16,6 +16,7 @@ import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { useSession } from "next-auth/react"
 import { TipTapViewer } from "@/components/TipTapViewer"
+import { GoldieAvatar } from "@/components/GoldieAvatar"
 
 interface ReplyTarget {
     id: string
@@ -99,16 +100,6 @@ export function ReplyDialog({
         }
     }
 
-    const getInitials = (name: string | null) => {
-        if (!name) return "U"
-        return name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")
-            .toUpperCase()
-            .slice(0, 2)
-    }
-
     const formatTime = (dateString: string) => {
         try {
             return formatDistanceToNow(new Date(dateString), {
@@ -139,12 +130,11 @@ export function ReplyDialog({
                         {/* Thread line */}
                         <div className="absolute left-[15px] top-10 bottom-0 w-0.5 bg-border" />
 
-                        <Avatar className="h-8 w-8 shrink-0 z-10">
-                            <AvatarImage src={target.author?.avatar || undefined} />
-                            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                                {getInitials(target.author?.name || null)}
-                            </AvatarFallback>
-                        </Avatar>
+                        <GoldieAvatar
+                            name={target.author?.name || null}
+                            avatar={target.author?.avatar || null}
+                            size="md"
+                        />
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1 text-sm">
                                 <span className="font-bold text-foreground">
@@ -171,7 +161,7 @@ export function ReplyDialog({
                         <Avatar className="h-8 w-8 shrink-0">
                             <AvatarImage src={session?.user?.image || undefined} />
                             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                                {getInitials(session?.user?.name ?? null)}
+                                {session?.user?.name?.slice(0, 2) || "U"}
                             </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 flex flex-col min-w-0">

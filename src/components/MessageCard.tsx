@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
   Bookmark,
@@ -39,6 +38,7 @@ import { CommentsList } from "@/components/CommentsList"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
 import { QuotedMessageCard } from "@/components/QuotedMessageCard"
+import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { TipTapViewer } from "@/components/TipTapViewer"
@@ -89,17 +89,6 @@ export function MessageCard({
       clearTimeout(timer2)
     }
   }, [message.content])
-
-  // Get user initials from name or email
-  const getInitials = (name: string | null) => {
-    if (!name) return "U"
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
-  }
 
   // Format relative time
   const formatTime = (dateString: string) => {
@@ -195,20 +184,12 @@ export function MessageCard({
         <div className="flex gap-3">
           {/* Avatar Column - h-8 to match reply as standard */}
           <div className="shrink-0">
-            <Avatar className="h-8 w-8">
-              {message.author ? (
-                <>
-                  <AvatarImage src={message.author.avatar || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                    {getInitials(message.author.name)}
-                  </AvatarFallback>
-                </>
-              ) : (
-                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-semibold">
-                  AI
-                </AvatarFallback>
-              )}
-            </Avatar>
+            <GoldieAvatar
+              name={message.author?.name || null}
+              avatar={message.author?.avatar || null}
+              size="md"
+              isAI={!message.author}
+            />
           </div>
 
           {/* Content Column */}

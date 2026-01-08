@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import { GoldieAvatar } from "@/components/GoldieAvatar"
 import {
   Loader2,
   Bot,
@@ -158,17 +159,6 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
     }
   }
 
-  // Get user initials
-  const getInitials = (name: string | null | undefined) => {
-    if (!name) return "U"
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2)
-  }
-
   // Format time
   const formatTime = (dateString: string) => {
     try {
@@ -202,7 +192,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
           <Avatar className="h-9 w-9 shrink-0">
             <AvatarImage src={session?.user?.image || undefined} />
             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-              {getInitials(session?.user?.name)}
+              {session?.user?.name?.slice(0, 2) || "U"}
             </AvatarFallback>
           </Avatar>
           <div className="flex-1 flex flex-col gap-2">
@@ -258,12 +248,11 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
             >
               <div className="flex gap-3">
                 {/* Avatar */}
-                <Avatar className="h-9 w-9 shrink-0">
-                  <AvatarImage src={comment.author?.avatar || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                    {getInitials(comment.author?.name)}
-                  </AvatarFallback>
-                </Avatar>
+                <GoldieAvatar
+                  name={comment.author?.name || null}
+                  avatar={comment.author?.avatar || null}
+                  size="lg"
+                />
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
