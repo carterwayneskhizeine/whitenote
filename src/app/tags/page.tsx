@@ -126,7 +126,7 @@ export default function TagsPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b px-4 py-3">
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b px-4 py-3">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-xl font-bold mb-4">Tags</h1>
 

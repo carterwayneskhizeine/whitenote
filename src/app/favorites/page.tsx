@@ -9,7 +9,7 @@ export default function FavoritesPage() {
 
   return (
     <>
-      <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b p-4">
+      <div className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b p-4">
         <h1 className="text-xl font-bold">收藏</h1>
       </div>
       <MessagesList filters={filters} />
