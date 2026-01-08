@@ -76,7 +76,7 @@ export function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex" suppressHydrationWarning>
       {/* Left side - Logo */}
       <div className="hidden lg:flex lg:w-1/2 bg-black items-center justify-center p-12">
         <svg
