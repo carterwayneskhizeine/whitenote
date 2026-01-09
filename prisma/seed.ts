@@ -13,8 +13,6 @@ const adapter = new PrismaPg(pool)
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
-  console.log('🌱 Starting database seeding...')
-
   // 1. 创建默认用户 (Owner)
   const passwordHash = await hash('admin123', 12)
 
@@ -27,8 +25,6 @@ async function main() {
       name: 'Owner',
     },
   })
-
-  console.log('✅ Created owner user:', owner.email)
 
   // 2. 为用户创建默认 AI 配置
   const aiConfig = await prisma.aiConfig.upsert({
@@ -48,41 +44,18 @@ async function main() {
     },
   })
 
-  console.log('✅ Created AI config for user:', owner.email)
+  // 3. 删除所有旧的内置模板
+  await prisma.template.deleteMany({
+    where: { isBuiltIn: true },
+  })
 
-  // 3. 创建内置模板
+  // 4. 创建新的内置模板
   const templates = [
     {
-      id: 'daily-journal',
-      name: 'Daily Journal',
-      description: '每日日记模板',
-      content: `# 📅 ${new Date().toLocaleDateString('zh-CN')}
-
-## 今日心情
-<!-- 用 emoji 表达今天的心情 -->
-
-## 今日待办
-- [ ]
-
-## 今日收获
-<!-- 今天学到了什么？ -->
-
-## 明日计划
-<!-- 明天要做什么？ -->
-`,
-      isBuiltIn: true,
-    },
-    {
-      id: 'quick-idea',
-      name: 'Quick Idea',
-      description: '快速记录灵感',
-      content: `💡 **灵感速记**
-
----
-
-<!-- 快速记录你的想法 -->
-
-`,
+      id: 'goldierill',
+      name: 'GoldieRill',
+      description: 'AI 助手快速调用',
+      content: `· @goldierill ·`,
       isBuiltIn: true,
     },
   ]
@@ -102,9 +75,7 @@ async function main() {
     })
   }
 
-  console.log('✅ Created built-in templates:', templates.length)
-
-  // 4. 创建一些示例标签
+  // 5. 创建一些示例标签
   const tags = ['Idea', 'Journal', 'React', 'Note', 'Todo']
   for (const tagName of tags) {
     await prisma.tag.upsert({
@@ -113,14 +84,11 @@ async function main() {
       create: { name: tagName },
     })
   }
-  console.log('✅ Created sample tags:', tags.length)
-
-  console.log('🎉 Database seeding completed!')
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seeding failed:', e)
+    console.error(e)
     process.exit(1)
   })
   .finally(async () => {

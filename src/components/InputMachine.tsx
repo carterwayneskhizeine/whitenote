@@ -325,6 +325,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     extensions: [
       StarterKit.configure({
         codeBlock: false, // Disable default code block, use CodeBlockLowlight instead
+        link: false, // Disable automatic link conversion completely
       }),
       Table.configure({
         resizable: true,
@@ -430,7 +431,12 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
   // Apply template
   const applyTemplate = (template: Template) => {
     if (!editor) return
-    editor.commands.setContent(template.content)
+    editor.commands.setContent(template.content, {
+      contentType: 'markdown',
+      parseOptions: {
+        preserveWhitespace: 'full',
+      },
+    })
     setHasContent(true)
   }
 
