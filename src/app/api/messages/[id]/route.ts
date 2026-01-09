@@ -8,6 +8,36 @@ interface RouteContext {
 }
 
 /**
+ * 构建包含标签的内容（用于 RAGFlow 同步）
+ */
+async function buildContentWithTags(messageId: string): Promise<string> {
+  const message = await prisma.message.findUnique({
+    where: { id: messageId },
+    select: {
+      content: true,
+      tags: {
+        include: {
+          tag: { select: { name: true } },
+        },
+        orderBy: {
+          tag: { name: 'asc' },
+        },
+      },
+    },
+  })
+
+  if (!message) return ''
+
+  // 如果有标签，格式化标签放在内容开头
+  if (message.tags.length > 0) {
+    const tagLine = message.tags.map((t) => `#${t.tag.name}`).join('  ')
+    return `${tagLine}\n\n${message.content}`
+  }
+
+  return message.content
+}
+
+/**
  * GET /api/messages/[id]
  * 获取单条消息详情
  */
@@ -161,8 +191,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     })
 
     // 同步更新 RAGFlow 文档（异步执行，不阻塞响应）
-    if (content && content !== existing.content) {
-      updateRAGFlow(session.user.id, id, content).catch((error) => {
+    // 触发条件：内容变化 或 标签变化
+    const contentChanged = content && content !== existing.content
+    const tagsChanged = tags !== undefined
+
+    if (contentChanged || tagsChanged) {
+      // 获取更新后的完整内容（包含标签）
+      const contentWithTags = await buildContentWithTags(id)
+
+      updateRAGFlow(session.user.id, id, contentWithTags).catch((error) => {
         console.error("Failed to update RAGFlow document:", error)
       })
     }

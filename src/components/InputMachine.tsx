@@ -378,15 +378,52 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
   const handlePost = async () => {
     if (!editor || isPosting || !hasContent) return
 
-    const content = editor.getMarkdown() // Store as Markdown instead of HTML
+    let content = editor.getMarkdown() // Store as Markdown instead of HTML
     const textContent = editor.getText() // Get plain text for @goldierill detection
 
     setIsPosting(true)
     try {
+      // 解析用户输入中的标签（支持 #标签 格式）
+      const tagRegex = /#([\u4e00-\u9fa5a-zA-Z0-9_]+)/g
+      const tags: string[] = []
+
+      // 从纯文本中提取标签
+      const plainTextTags = [...textContent.matchAll(tagRegex)].map(m => m[1])
+
+      // 去重并添加到标签数组
+      plainTextTags.forEach(tag => {
+        if (!tags.includes(tag)) {
+          tags.push(tag)
+        }
+      })
+
+      // 从内容中移除开头的标签（如果标签在内容开头）
+      // 例如：#67\n自动测试 -> 自动测试
+      if (tags.length > 0) {
+        const lines = content.split('\n')
+        let startIndex = 0
+
+        // 检查前面几行是否只包含标签
+        for (let i = 0; i < Math.min(3, lines.length); i++) {
+          const line = lines[i].trim()
+          // 如果这行只包含标签和空格，移除它
+          if (/^#[\u4e00-\u9fa5a-zA-Z0-9_]+(\s+#[\u4e00-\u9fa5a-zA-Z0-9_]+)*\s*$/.test(line)) {
+            startIndex = i + 1
+          } else {
+            break
+          }
+        }
+
+        // 重建内容（移除标签行）
+        if (startIndex > 0) {
+          content = lines.slice(startIndex).join('\n').trim()
+        }
+      }
+
       // Create the message
       const result = await messagesApi.createMessage({
         content,
-        tags: [],
+        tags, // 传递解析出的标签
       })
 
       if (result.data) {
