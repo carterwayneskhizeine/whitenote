@@ -25,8 +25,8 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           <LeftSidebar collapsed />
         </div>
 
-        {/* MainLayout - 始终保持 max-w-[600px] */}
-        <main className={`flex-1 border-x border-border min-h-screen flex flex-col ${isSettingsPage ? 'max-w-[600px] xl:max-w-[1000px]' : 'max-w-[600px]'} shrink-0`}>
+        {/* MainLayout - 移动端全宽,桌面端 max-w-[600px] */}
+        <main className={`flex-1 border-x border-border min-h-screen flex flex-col w-full ${isSettingsPage ? 'md:max-w-[600px] xl:max-w-[1000px]' : 'md:max-w-[600px]'} shrink-0`}>
           <MobileNav />
           {children}
         </main>
