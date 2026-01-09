@@ -521,11 +521,11 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
                 <MapPin className="h-5 w-5" />
               </Button>
 
-              {/* Microphone Button */}
+              {/* Microphone Button - Mobile only */}
               <Button
                 variant="ghost"
                 size="icon"
-                className={`h-[34px] w-[34px] hover:bg-primary/10 rounded-full ${
+                className={`desktop:hidden h-[34px] w-[34px] hover:bg-primary/10 rounded-full ${
                   isRecording ? "bg-red-500 text-white hover:bg-red-600" : "text-primary"
                 }`}
                 disabled={isTranscribing}
