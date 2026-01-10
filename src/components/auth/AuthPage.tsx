@@ -223,19 +223,6 @@ export function AuthPage() {
                 </div>
               </form>
             )}
-
-            {/* Test Account Info - Only show on login mode */}
-            {mode === "login" && (
-              <div className="mt-8 pt-6 border-t border-gray-800">
-                <div className="text-sm text-gray-500 space-y-2">
-                  <p className="font-medium text-gray-400">测试账号：</p>
-                  <div className="bg-neutral-900 p-3 rounded-lg text-xs font-mono space-y-1">
-                    <p>邮箱: owner@whitenote.local</p>
-                    <p>密码: admin123</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Footer links */}

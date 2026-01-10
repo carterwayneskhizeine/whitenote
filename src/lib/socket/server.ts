@@ -1,6 +1,7 @@
 import { Server as SocketIOServer } from "socket.io"
 import { Server as HTTPServer } from "http"
 import { parse } from "cookie"
+import { verifySessionToken } from "./auth"
 
 interface SocketData {
   userId: string
@@ -31,6 +32,7 @@ export function initSocketServer(httpServer: HTTPServer) {
       const cookies = socket.handshake.headers.cookie
 
       if (!cookies) {
+        console.error("[Socket] No cookies provided")
         return next(new Error("No cookies provided"))
       }
 
@@ -39,16 +41,25 @@ export function initSocketServer(httpServer: HTTPServer) {
       const sessionToken = parsed["next-auth.session-token"] || parsed["__Secure-next-auth.session-token"]
 
       if (!sessionToken) {
+        console.error("[Socket] No session token found")
         return next(new Error("No session token found"))
       }
 
-      // In production, you would verify the JWT token here
-      // For now, we'll attach the socket to rooms and use session-based auth
-      socket.data = {
-        userId: socket.id,
-        userName: "GoldieRill",
+      // Verify the JWT token and get user data
+      const userData = await verifySessionToken(sessionToken)
+
+      if (!userData) {
+        console.error("[Socket] Invalid or expired session token")
+        return next(new Error("Invalid or expired session"))
       }
 
+      // Attach verified user data to socket
+      socket.data = {
+        userId: userData.userId,
+        userName: userData.name || userData.email,
+      }
+
+      console.log(`[Socket] User authenticated: ${userData.name || userData.email} (${userData.userId})`)
       next()
     } catch (error) {
       console.error("[Socket] Auth error:", error)
