@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
 import { deleteFromRAGFlow, updateRAGFlow } from "@/lib/ai/ragflow"
 import { NextRequest } from "next/server"
+import { batchUpsertTags } from "@/lib/tag-utils"
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -170,22 +171,12 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       data: {
         title: title !== undefined ? title.trim() || null : existing.title,
         content: content?.trim() || existing.content,
-        // 更新标签 (如果提供)
+        // 更新标签 (如果提供) - 优化后使用批量操作
         tags: tags
           ? {
             deleteMany: {},
-            create: await Promise.all(
-              // 去重标签数组
-              [...new Set(tags as string[])]
-                .map(async (tagName) => {
-                  const tag = await prisma.tag.upsert({
-                    where: { name: (tagName as string).trim() },
-                    create: { name: (tagName as string).trim() },
-                    update: {},
-                  })
-                  return { tagId: tag.id }
-                })
-            ),
+            create: (await batchUpsertTags([...new Set(tags as string[])]))
+              .map((tagId) => ({ tagId })),
           }
           : undefined,
       },

@@ -2,6 +2,7 @@ import { Job } from "bullmq"
 import prisma from "@/lib/prisma"
 import { callOpenAI } from "@/lib/ai/openai"
 import { buildSystemPrompt } from "@/lib/ai/openai"
+import { batchUpsertTags, connectTagsToMessage } from "@/lib/tag-utils"
 
 export async function processDailyBriefing(job: Job) {
   console.log(`[DailyBriefing] Starting daily briefing generation`)
@@ -111,16 +112,9 @@ ${contentSummary}
         },
       })
 
-      // 添加 DailyReview 标签
-      const tag = await prisma.tag.upsert({
-        where: { name: "DailyReview" },
-        create: { name: "DailyReview", color: "#FFD700" },
-        update: {},
-      })
-
-      await prisma.messageTag.create({
-        data: { messageId: briefing.id, tagId: tag.id },
-      })
+      // 批量添加 DailyReview 标签
+      const tagIds = await batchUpsertTags(["DailyReview"])
+      await connectTagsToMessage(briefing.id, tagIds)
 
       console.log(`[DailyBriefing] Created briefing for ${user.email}: ${briefing.id}`)
     } catch (error) {

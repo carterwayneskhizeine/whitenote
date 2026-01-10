@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma"
 import { getPaginationParams } from "@/lib/validation"
 import { addTask } from "@/lib/queue"
 import { NextRequest } from "next/server"
+import { batchUpsertTags } from "@/lib/tag-utils"
 
 /**
  * GET /api/messages
@@ -159,6 +160,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 批量处理标签（优化：将 N+1 查询减少到最多 3 次查询）
+    let tagIds: string[] = []
+    if (tags?.length > 0) {
+      tagIds = await batchUpsertTags(tags)
+    }
+
     // 创建消息
     const message = await prisma.message.create({
       data: {
@@ -167,19 +174,10 @@ export async function POST(request: NextRequest) {
         authorId: session.user.id,
         parentId: parentId || null,
         quotedMessageId: quotedMessageId || null,
-        // 创建或关联标签
-        tags: tags?.length
+        // 批量关联标签（使用优化后的批量查询）
+        tags: tagIds.length > 0
           ? {
-            create: await Promise.all(
-              tags.map(async (tagName: string) => {
-                const tag = await prisma.tag.upsert({
-                  where: { name: tagName },
-                  create: { name: tagName },
-                  update: {},
-                })
-                return { tagId: tag.id }
-              })
-            ),
+            create: tagIds.map((tagId) => ({ tagId })),
           }
           : undefined,
       },

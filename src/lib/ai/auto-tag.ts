@@ -1,6 +1,7 @@
 import { getAiConfig } from "./config"
 import { callOpenAI } from "./openai"
 import prisma from "@/lib/prisma"
+import { batchUpsertTags, connectTagsToMessage } from "@/lib/tag-utils"
 
 /**
  * 自动为消息生成标签
@@ -100,33 +101,9 @@ ${message.content}
 
     console.log(`[AutoTag] Extracted tags for ${messageId}:`, tags)
 
-    // 创建或关联标签
-    for (const tagName of tags) {
-      const tag = await prisma.tag.upsert({
-        where: { name: tagName },
-        create: { name: tagName },
-        update: {},
-      })
-
-      // 检查是否已经关联
-      const existing = await prisma.messageTag.findUnique({
-        where: {
-          messageId_tagId: {
-            messageId,
-            tagId: tag.id,
-          },
-        },
-      })
-
-      if (!existing) {
-        await prisma.messageTag.create({
-          data: {
-            messageId,
-            tagId: tag.id,
-          },
-        })
-      }
-    }
+    // 批量创建或关联标签（优化：将 N+1 查询减少到最多 3 次查询）
+    const tagIds = await batchUpsertTags(tags)
+    await connectTagsToMessage(messageId, tagIds)
 
     console.log(`[AutoTag] Successfully applied tags to message: ${messageId}`)
   } catch (error) {
