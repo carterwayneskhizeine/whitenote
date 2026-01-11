@@ -7,17 +7,14 @@ export const runtime = 'nodejs'
 
 // Fallback prompts for built-in commands (in case database is not available)
 const fallbackPrompts: Record<string, string> = {
-  summarize: '请总结以下内容的要点，用简洁的中文回复：\n\n{content}',
-  translate: '请将以下内容翻译成英文：\n\n{content}',
-  expand: '请扩展以下简短内容，使其更加完整和详细：\n\n{content}',
-  polish: '请润色以下内容，使其更加流畅和专业，保持原意：\n\n{content}',
+  ask: '{content}',
 }
 
 export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth()
     const body = await request.json()
-    const { action, content, target } = body
+    const { action, content } = body
 
     if (!action || !content) {
       return Response.json(
@@ -41,12 +38,7 @@ export async function POST(request: NextRequest) {
     const promptText = promptTemplate?.prompt || fallbackPrompts[action] || `{content}`
 
     // Replace {content} placeholder with actual content
-    let prompt = promptText.replace(/\{content\}/g, content)
-
-    // If target is provided (for translation), append it
-    if (target && action === 'translate') {
-      prompt = prompt.replace(/翻译成.*?[：:]/, `翻译成 ${target}：`)
-    }
+    const prompt = promptText.replace(/\{content\}/g, content)
 
     const result = await callOpenAI({
       userId: session.user.id,

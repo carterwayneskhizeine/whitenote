@@ -32,28 +32,10 @@ export const AICommandList = React.forwardRef<any, AICommandListProps>(
           // Fallback to default commands if API fails
           setCommands([
             {
-              id: 'summarize',
-              label: '总结',
-              description: '总结内容的要点',
-              action: 'summarize',
-            },
-            {
-              id: 'translate',
-              label: '翻译',
-              description: '翻译成其他语言',
-              action: 'translate',
-            },
-            {
-              id: 'expand',
-              label: '扩展',
-              description: '扩展内容使其更完整',
-              action: 'expand',
-            },
-            {
-              id: 'polish',
-              label: '润色',
-              description: '润色文字使其更专业',
-              action: 'polish',
+              id: 'ask',
+              label: 'Ask',
+              description: 'AI Ask',
+              action: 'ask',
             },
           ])
         } finally {
