@@ -30,6 +30,7 @@ import { cn, getHandle } from "@/lib/utils"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
 import { QuotedMessageCard } from "@/components/QuotedMessageCard"
+import { ImageLightbox } from "@/components/ImageLightbox"
 
 export default function StatusPage() {
     const { id } = useParams() as { id: string }
@@ -45,6 +46,8 @@ export default function StatusPage() {
     const [isDeleting, setIsDeleting] = useState(false)
     const [refreshKey, setRefreshKey] = useState(0)
     const [copied, setCopied] = useState(false)
+    const [lightboxOpen, setLightboxOpen] = useState(false)
+    const [lightboxIndex, setLightboxIndex] = useState(0)
 
     useEffect(() => {
         const fetchMessage = async () => {
@@ -109,6 +112,12 @@ export default function StatusPage() {
         } catch (error) {
             console.error("Failed to copy message:", error)
         }
+    }
+
+    const handleImageClick = (index: number, e: React.MouseEvent) => {
+        e.stopPropagation()
+        setLightboxIndex(index)
+        setLightboxOpen(true)
     }
 
     if (isLoading) {
@@ -222,7 +231,8 @@ export default function StatusPage() {
                                         <img
                                             src={media.url}
                                             alt={media.description || ""}
-                                            className="w-full h-full object-cover"
+                                            className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={(e) => handleImageClick(index, e)}
                                         />
                                     ) : media.type === "video" ? (
                                         <video
@@ -362,6 +372,14 @@ export default function StatusPage() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            {/* Image Lightbox */}
+            <ImageLightbox
+                media={message?.medias || []}
+                initialIndex={lightboxIndex}
+                open={lightboxOpen}
+                onClose={() => setLightboxOpen(false)}
+            />
         </div>
     )
 }

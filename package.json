@@ -59,6 +59,7 @@
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.4.0",
     "tippy.js": "^6.3.7",
+    "yet-another-react-lightbox": "^3.28.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {

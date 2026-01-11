@@ -42,6 +42,7 @@ import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { cn, getHandle } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { TipTapViewer } from "@/components/TipTapViewer"
+import { ImageLightbox } from "@/components/ImageLightbox"
 
 interface MessageCardProps {
   message: Message
@@ -68,6 +69,8 @@ export function MessageCard({
   const router = useRouter()
   const [isExpanded, setIsExpanded] = useState(false)
   const [hasMore, setHasMore] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -173,6 +176,13 @@ export function MessageCard({
     } catch (error) {
       console.error("Failed to copy message:", error)
     }
+  }
+
+  // Handle image click to open lightbox
+  const handleImageClick = (index: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setLightboxIndex(index)
+    setLightboxOpen(true)
   }
 
   return (
@@ -316,7 +326,8 @@ export function MessageCard({
                           <img
                             src={media.url}
                             alt={media.description || ""}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                            onClick={(e) => handleImageClick(index, e)}
                           />
                         ) : media.type === "video" ? (
                           <video
@@ -443,6 +454,14 @@ export function MessageCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        media={message.medias || []}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </>
   )
 }

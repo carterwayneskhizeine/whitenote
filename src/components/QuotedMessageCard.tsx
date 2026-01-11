@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { TipTapViewer } from "@/components/TipTapViewer"
@@ -7,6 +8,7 @@ import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { getHandle } from "@/lib/utils"
+import { ImageLightbox } from "@/components/ImageLightbox"
 
 interface QuotedMessage {
   id: string
@@ -34,6 +36,8 @@ interface QuotedMessageCardProps {
 
 export function QuotedMessageCard({ message, className }: QuotedMessageCardProps) {
   const router = useRouter()
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
 
   const formatTime = (dateString: string) => {
     try {
@@ -57,7 +61,14 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
     }
   }
 
+  const handleImageClick = (index: number, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setLightboxIndex(index)
+    setLightboxOpen(true)
+  }
+
   return (
+    <>
     <div
       onClick={handleClick}
       className={cn(
@@ -103,23 +114,51 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
         <TipTapViewer content={message.content} />
       </div>
 
-      {/* Media Display - show first image/video */}
-      {message.medias && message.medias.length > 0 && (
-        <div className="mt-2 rounded-lg overflow-hidden border border-border">
-          {message.medias[0].type === "image" ? (
-            <img
-              src={message.medias[0].url}
-              alt={message.medias[0].description || ""}
-              className="max-h-[200px] w-auto object-cover"
-            />
-          ) : message.medias[0].type === "video" ? (
-            <video
-              src={message.medias[0].url}
-              className="max-h-[200px] w-auto"
-            />
-          ) : null}
-        </div>
-      )}
+      {/* Media Display - grid layout */}
+      {message.medias && message.medias.length > 0 && (() => {
+        const mediaCount = message.medias.length
+        return (
+          <div className={cn(
+            "mt-2 grid gap-1 rounded-lg overflow-hidden",
+            mediaCount === 1 && "grid-cols-1",
+            mediaCount === 2 && "grid-cols-2",
+            mediaCount === 3 && "grid-cols-2",
+            mediaCount === 4 && "grid-cols-2"
+          )}>
+            {message.medias.map((media, index) => (
+              <div key={media.id} className={cn(
+                "relative overflow-hidden",
+                mediaCount === 1 && "aspect-auto",
+                mediaCount !== 1 && "aspect-square",
+                mediaCount === 3 && index === 0 && "col-span-2"
+              )}>
+                {media.type === "image" ? (
+                  <img
+                    src={media.url}
+                    alt={media.description || ""}
+                    className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={(e) => handleImageClick(index, e)}
+                  />
+                ) : media.type === "video" ? (
+                  <video
+                    src={media.url}
+                    className="w-full h-full"
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )
+      })()}
     </div>
+
+    {/* Image Lightbox */}
+    <ImageLightbox
+      media={message.medias || []}
+      initialIndex={lightboxIndex}
+      open={lightboxOpen}
+      onClose={() => setLightboxOpen(false)}
+    />
+  </>
   )
 }

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { messagesApi, commentsApi } from "@/lib/api"
 import { Loader2, Image as ImageIcon, Smile, List, Calendar, MapPin, X } from "lucide-react"
+import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { useSession } from "next-auth/react"
@@ -149,23 +150,41 @@ export function RetweetDialog({
                             <div className="mt-1 text-sm leading-normal text-muted-foreground line-clamp-3">
                                 <TipTapViewer content={target.content} />
                             </div>
-                            {/* Media Display - show first image/video */}
-                            {target.medias && target.medias.length > 0 && (
-                                <div className="mt-2 rounded-lg overflow-hidden border border-border">
-                                    {target.medias[0].type === "image" ? (
-                                        <img
-                                            src={target.medias[0].url}
-                                            alt={target.medias[0].description || ""}
-                                            className="max-h-[200px] w-auto object-cover"
-                                        />
-                                    ) : target.medias[0].type === "video" ? (
-                                        <video
-                                            src={target.medias[0].url}
-                                            className="max-h-[200px] w-auto"
-                                        />
-                                    ) : null}
-                                </div>
-                            )}
+                            {/* Media Display - grid layout */}
+                            {target.medias && target.medias.length > 0 && (() => {
+                                const mediaCount = target.medias.length
+                                return (
+                                    <div className={cn(
+                                        "mt-2 grid gap-1 rounded-lg overflow-hidden",
+                                        mediaCount === 1 && "grid-cols-1",
+                                        mediaCount === 2 && "grid-cols-2",
+                                        mediaCount === 3 && "grid-cols-2",
+                                        mediaCount === 4 && "grid-cols-2"
+                                    )}>
+                                        {target.medias.map((media, index) => (
+                                            <div key={media.id} className={cn(
+                                                "relative overflow-hidden",
+                                                mediaCount === 1 && "aspect-auto",
+                                                mediaCount !== 1 && "aspect-square",
+                                                mediaCount === 3 && index === 0 && "col-span-2"
+                                            )}>
+                                                {media.type === "image" ? (
+                                                    <img
+                                                        src={media.url}
+                                                        alt={media.description || ""}
+                                                        className="w-full h-full object-cover"
+                                                    />
+                                                ) : media.type === "video" ? (
+                                                    <video
+                                                        src={media.url}
+                                                        className="w-full h-full"
+                                                    />
+                                                ) : null}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )
+                            })()}
                         </div>
                     </div>
 
