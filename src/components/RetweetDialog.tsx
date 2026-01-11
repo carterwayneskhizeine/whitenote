@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import {
     Dialog,
     DialogContent,
@@ -11,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { messagesApi, commentsApi } from "@/lib/api"
-import { Loader2, Image as ImageIcon, Smile, List, Calendar, MapPin, X } from "lucide-react"
+import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -19,6 +18,11 @@ import { useSession } from "next-auth/react"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { getHandle } from "@/lib/utils"
+import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
+import { ActionButtons } from "@/components/ActionButtons"
+import { templatesApi } from "@/lib/api/templates"
+import { Template } from "@/types/api"
+import { useState, useEffect, useRef } from "react"
 
 interface RetweetTarget {
     id: string
@@ -55,13 +59,33 @@ export function RetweetDialog({
     const { data: session } = useSession()
     const [content, setContent] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [uploadedMedia, setUploadedMedia] = useState<MediaItem[]>([])
+    const [isUploading, setIsUploading] = useState(false)
+    const [templates, setTemplates] = useState<Template[]>([])
+    const mediaUploaderRef = useRef<MediaUploaderRef>(null)
+
+    // Fetch templates
+    useEffect(() => {
+        const fetchTemplates = async () => {
+            try {
+                const result = await templatesApi.getTemplates()
+                if (result.data) {
+                    setTemplates(result.data)
+                }
+            } catch (error) {
+                console.error("Failed to fetch templates:", error)
+            }
+        }
+        fetchTemplates()
+    }, [])
 
     // Reset content when dialog opens
-    useState(() => {
-        if (open && !content) {
+    useEffect(() => {
+        if (open) {
             setContent("")
+            setUploadedMedia([])
         }
-    })
+    }, [open])
 
     if (!target) return null
 
@@ -71,8 +95,9 @@ export function RetweetDialog({
         setIsSubmitting(true)
         try {
             // 1. 创建一条新的主消息，根据 targetType 使用不同的引用字段
-            const createData: { content: string; quotedMessageId?: string; quotedCommentId?: string } = {
+            const createData: { content: string; quotedMessageId?: string; quotedCommentId?: string; media?: Array<{ url: string; type: string }> } = {
                 content: content.trim(),
+                media: uploadedMedia.map(m => ({ url: m.url, type: m.type })),
             }
 
             if (targetType === 'message') {
@@ -92,6 +117,7 @@ export function RetweetDialog({
                 }
 
                 setContent("")
+                setUploadedMedia([])
                 onOpenChange(false)
                 onSuccess?.()
             }
@@ -100,6 +126,10 @@ export function RetweetDialog({
         } finally {
             setIsSubmitting(false)
         }
+    }
+
+    const applyTemplate = (template: Template) => {
+        setContent(prev => prev + template.content)
     }
 
     const formatTime = (dateString: string) => {
@@ -195,7 +225,7 @@ export function RetweetDialog({
                                 {session?.user?.name?.slice(0, 2) || "U"}
                             </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 flex flex-col min-w-0">
+                        <div className="flex-1 flex flex-col min-w-0 gap-2">
                             <Textarea
                                 placeholder="添加评论（可选）"
                                 className="min-h-[120px] w-full bg-transparent border-none focus-visible:ring-0 text-lg p-0 resize-none placeholder:text-muted-foreground"
@@ -203,40 +233,31 @@ export function RetweetDialog({
                                 onChange={(e) => setContent(e.target.value)}
                                 autoFocus
                             />
+                            <MediaUploader
+                                ref={mediaUploaderRef}
+                                media={uploadedMedia}
+                                onMediaChange={setUploadedMedia}
+                                disabled={isSubmitting}
+                                onUploadingChange={setIsUploading}
+                            />
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 border-t flex items-center justify-between">
-                    <div className="flex gap-1 text-primary">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full">
-                            <ImageIcon className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full">
-                            <span className="font-bold text-[10px] border border-current rounded px-0.5">GIF</span>
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full">
-                            <List className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full">
-                            <Smile className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full">
-                            <Calendar className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full opacity-50 cursor-not-allowed">
-                            <MapPin className="h-4 w-4" />
-                        </Button>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <Button
-                            className="rounded-full px-5 font-bold h-9 bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                            disabled={isSubmitting}
-                            onClick={handleRetweet}
-                        >
-                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "转发"}
-                        </Button>
-                    </div>
+                <div className="p-4 border-t">
+                    <ActionButtons
+                        templates={templates}
+                        onApplyTemplate={applyTemplate}
+                        onSubmit={handleRetweet}
+                        submitDisabled={isSubmitting}
+                        isSubmitting={isSubmitting}
+                        submitText="转发"
+                        hasContent={!!content.trim()}
+                        hasMedia={uploadedMedia.length > 0}
+                        onImageUpload={() => mediaUploaderRef.current?.triggerUpload()}
+                        imageUploading={isUploading}
+                        size="sm"
+                    />
                 </div>
             </DialogContent>
         </Dialog>

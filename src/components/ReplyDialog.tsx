@@ -1,6 +1,5 @@
 "use client"
 
-import { useState, useEffect } from "react"
 import {
     Dialog,
     DialogContent,
@@ -11,13 +10,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { commentsApi, aiApi } from "@/lib/api"
-import { Loader2, Image as ImageIcon, Smile, List, Calendar, MapPin, X } from "lucide-react"
+import { Loader2, X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { useSession } from "next-auth/react"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { getHandle } from "@/lib/utils"
+import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
+import { ActionButtons } from "@/components/ActionButtons"
+import { templatesApi } from "@/lib/api/templates"
+import { Template } from "@/types/api"
+import { useState, useEffect, useRef } from "react"
 
 interface ReplyTarget {
     id: string
@@ -48,22 +52,38 @@ export function ReplyDialog({
     const { data: session } = useSession()
     const [content, setContent] = useState("")
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [uploadedMedia, setUploadedMedia] = useState<MediaItem[]>([])
+    const [isUploading, setIsUploading] = useState(false)
+    const [templates, setTemplates] = useState<Template[]>([])
+    const mediaUploaderRef = useRef<MediaUploaderRef>(null)
 
-    // Reset content and pre-fill mention if replying to a comment
+    // Fetch templates
+    useEffect(() => {
+        const fetchTemplates = async () => {
+            try {
+                const result = await templatesApi.getTemplates()
+                if (result.data) {
+                    setTemplates(result.data)
+                }
+            } catch (error) {
+                console.error("Failed to fetch templates:", error)
+            }
+        }
+        fetchTemplates()
+    }, [])
+
+    // Reset content and media when dialog opens
     useEffect(() => {
         if (open && target) {
-            const handle = getHandle(target.author?.email || null, !!target.author)
-            // If it's a comment (different from messageId), pre-fill the handle
-            // Actually, in Twitter, you always reply to someone.
-            // For now, let's just pre-fill if it's not the same as messageId or just always focus.
             setContent("")
+            setUploadedMedia([])
         }
-    }, [open, target, messageId])
+    }, [open, target])
 
     if (!target) return null
 
     const handleReply = async () => {
-        if (!content.trim() || isSubmitting) return
+        if ((!content.trim() && uploadedMedia.length === 0) || isSubmitting) return
 
         setIsSubmitting(true)
         try {
@@ -74,6 +94,7 @@ export function ReplyDialog({
                 content: content.trim(),
                 messageId: messageId,
                 parentId: parentId,
+                media: uploadedMedia.map(m => ({ url: m.url, type: m.type })),
             })
 
             if (result.data) {
@@ -91,6 +112,7 @@ export function ReplyDialog({
                 }
 
                 setContent("")
+                setUploadedMedia([])
                 onOpenChange(false)
                 onSuccess?.()
             }
@@ -99,6 +121,10 @@ export function ReplyDialog({
         } finally {
             setIsSubmitting(false)
         }
+    }
+
+    const applyTemplate = (template: Template) => {
+        setContent(prev => prev + template.content)
     }
 
     const formatTime = (dateString: string) => {
@@ -165,7 +191,7 @@ export function ReplyDialog({
                                 {session?.user?.name?.slice(0, 2) || "U"}
                             </AvatarFallback>
                         </Avatar>
-                        <div className="flex-1 flex flex-col min-w-0">
+                        <div className="flex-1 flex flex-col min-w-0 gap-2">
                             <Textarea
                                 placeholder="发布你的回复"
                                 className="min-h-[120px] w-full bg-transparent border-none focus-visible:ring-0 text-lg p-0 resize-none placeholder:text-muted-foreground"
@@ -173,40 +199,31 @@ export function ReplyDialog({
                                 onChange={(e) => setContent(e.target.value)}
                                 autoFocus
                             />
+                            <MediaUploader
+                                ref={mediaUploaderRef}
+                                media={uploadedMedia}
+                                onMediaChange={setUploadedMedia}
+                                disabled={isSubmitting}
+                                onUploadingChange={setIsUploading}
+                            />
                         </div>
                     </div>
                 </div>
 
-                <div className="p-4 border-t flex items-center justify-between">
-                    <div className="flex gap-1 text-primary">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full">
-                            <ImageIcon className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full">
-                            <span className="font-bold text-[10px] border border-current rounded px-0.5">GIF</span>
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full">
-                            <List className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full">
-                            <Smile className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full">
-                            <Calendar className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full opacity-50 cursor-not-allowed">
-                            <MapPin className="h-4 w-4" />
-                        </Button>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <Button
-                            className="rounded-full px-5 font-bold h-9 bg-black text-white hover:bg-gray-800 dark:bg-white dark:text-black dark:hover:bg-gray-200"
-                            disabled={!content.trim() || isSubmitting}
-                            onClick={handleReply}
-                        >
-                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "回复"}
-                        </Button>
-                    </div>
+                <div className="p-4 border-t">
+                    <ActionButtons
+                        templates={templates}
+                        onApplyTemplate={applyTemplate}
+                        onSubmit={handleReply}
+                        submitDisabled={!content.trim() && uploadedMedia.length === 0}
+                        isSubmitting={isSubmitting}
+                        submitText="回复"
+                        hasContent={!!content.trim()}
+                        hasMedia={uploadedMedia.length > 0}
+                        onImageUpload={() => mediaUploaderRef.current?.triggerUpload()}
+                        imageUploading={isUploading}
+                        size="sm"
+                    />
                 </div>
             </DialogContent>
         </Dialog>

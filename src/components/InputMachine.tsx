@@ -11,23 +11,23 @@ import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
-import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Image as ImageIcon, List, Loader2, Mic, MicOff, X } from "lucide-react"
-import { messagesApi } from "@/lib/api/messages"
-import { templatesApi } from "@/lib/api/templates"
-import { aiApi } from "@/lib/api"
-import { useSession } from "next-auth/react"
-import { useRef } from "react"
+import { Button } from "@/components/ui/button"
+import { Loader2, Mic, MicOff } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { messagesApi } from "@/lib/api/messages"
+import { templatesApi } from "@/lib/api/templates"
+import { aiApi } from "@/lib/api"
+import { useSession } from "next-auth/react"
+import { useRef } from "react"
 import { Template } from "@/types/api"
 import { SlashCommand } from "@/lib/editor/extensions/slash-command"
-import { cn } from "@/lib/utils"
+import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
 
 interface InputMachineProps {
   onSuccess?: () => void
@@ -42,9 +42,9 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
-  const [uploadedMedia, setUploadedMedia] = useState<Array<{ url: string; type: string; name: string }>>([])
+  const [uploadedMedia, setUploadedMedia] = useState<MediaItem[]>([])
   const [isUploading, setIsUploading] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const mediaUploaderRef = useRef<MediaUploaderRef>(null)
 
   // Fetch templates
   useEffect(() => {
@@ -323,109 +323,6 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     }
   }
 
-  // Handle file selection
-  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files
-    if (!files || files.length === 0) return
-
-    // Check media type constraints
-    const currentHasImage = uploadedMedia.some(m => m.type === "image")
-    const currentHasVideo = uploadedMedia.some(m => m.type === "video")
-    const imageCount = uploadedMedia.filter(m => m.type === "image").length
-
-    // Validate new files
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      const isVideo = file.type.startsWith("video")
-      const isImage = file.type.startsWith("image")
-
-      // Cannot mix images and videos
-      if (isVideo && currentHasImage) {
-        alert("不能同时上传图片和视频")
-        return
-      }
-      if (isImage && currentHasVideo) {
-        alert("不能同时上传视频和图片")
-        return
-      }
-
-      // Limit videos to 1
-      if (isVideo && currentHasVideo) {
-        alert("最多只能上传1个视频")
-        return
-      }
-
-      // Limit images to 4
-      if (isImage && imageCount + ([...files].slice(i).filter(f => f.type.startsWith("image")).length) > 4) {
-        alert("最多只能上传4张图片")
-        return
-      }
-    }
-
-    setIsUploading(true)
-    try {
-      // Upload each file
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i]
-
-        // Double check limits before uploading each file
-        const isVideo = file.type.startsWith("video")
-        const currentImageCount = uploadedMedia.filter(m => m.type === "image").length
-
-        if (isVideo && uploadedMedia.some(m => m.type === "video")) {
-          alert("最多只能上传1个视频")
-          break
-        }
-
-        if (!isVideo && currentImageCount >= 4) {
-          alert("最多只能上传4张图片")
-          break
-        }
-
-        // Create a new FormData for each file
-        const formData = new FormData()
-        formData.append("file", file)
-
-        const response = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        })
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || "Upload failed")
-        }
-
-        const result = await response.json()
-        if (result.data) {
-          setUploadedMedia((prev) => [
-            ...prev,
-            {
-              url: result.data.url,
-              type: result.data.type,
-              name: result.data.originalName,
-            },
-          ])
-        }
-      }
-
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""
-      }
-    } catch (error) {
-      console.error("File upload error:", error)
-      alert(`上传失败: ${error instanceof Error ? error.message : "未知错误"}`)
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  // Remove uploaded media
-  const handleRemoveMedia = (index: number) => {
-    setUploadedMedia((prev) => prev.filter((_, i) => i !== index))
-  }
-
   // Create lowlight instance for syntax highlighting
   const lowlight = createLowlight(common)
 
@@ -627,123 +524,87 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
             )}
           </div>
 
-          {/* Media Previews */}
-          {uploadedMedia.length > 0 && (
-            <div className={cn(
-              "grid gap-2 rounded-lg overflow-hidden",
-              uploadedMedia.length === 1 && "grid-cols-1",
-              uploadedMedia.length === 2 && "grid-cols-2",
-              uploadedMedia.length === 3 && "grid-cols-2",
-              uploadedMedia.length === 4 && "grid-cols-2"
-            )}>
-              {uploadedMedia.map((media, index) => (
-                <div key={index} className={cn(
-                  "relative group aspect-square",
-                  uploadedMedia.length === 3 && index === 0 && "col-span-2"
-                )}>
-                  {media.type === "image" ? (
-                    <img
-                      src={media.url}
-                      alt={media.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <video
-                      src={media.url}
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                  <button
-                    onClick={() => handleRemoveMedia(index)}
-                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Media Previews and Uploader */}
+          <MediaUploader
+            ref={mediaUploaderRef}
+            media={uploadedMedia}
+            onMediaChange={setUploadedMedia}
+            disabled={isPosting}
+            onUploadingChange={setIsUploading}
+          />
 
-          <div className="flex items-center justify-between border-t border-border pt-3 -ml-2">
-            <div className="flex gap-0 text-primary">
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".jpg,.jpeg,.jff,.jpj,.png,.webp,.gif,.mp4,.mov,.m4v"
-                multiple
-                className="hidden"
-                onChange={handleFileSelect}
-                disabled={isUploading}
-              />
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-[34px] w-[34px] text-primary hover:bg-primary/10 rounded-full"
-                onClick={() => fileInputRef.current?.click()}
+          <div className="flex items-center justify-end gap-3 border-t border-border pt-3 -ml-2">
+            {/* Left side: Action buttons */}
+            <div className="flex-1 flex gap-1 text-primary">
+              {/* Image Upload Button */}
+              <button
+                className="h-[34px] w-[34px] text-primary hover:bg-primary/10 rounded-full flex items-center justify-center disabled:opacity-50"
+                onClick={() => mediaUploaderRef.current?.triggerUpload()}
                 disabled={isUploading}
               >
                 {isUploading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
-                  <ImageIcon className="h-5 w-5" />
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                  </svg>
                 )}
-              </Button>
+              </button>
 
-              {/* Templates Dropdown mapped to List icon */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-[34px] w-[34px] text-primary hover:bg-primary/10 rounded-full">
-                    <List className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
-                  {templates.length > 0 ? templates.map((template) => (
-                    <DropdownMenuItem
-                      key={template.id}
-                      onClick={() => applyTemplate(template)}
-                    >
-                      <div className="flex flex-col">
-                        <span className="font-medium">{template.name}</span>
-                      </div>
-                    </DropdownMenuItem>
-                  )) : (
-                    <div className="p-2 text-sm text-muted-foreground">暂无模板</div>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {/* Templates Dropdown */}
+              {templates.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="h-[34px] w-[34px] text-primary hover:bg-primary/10 rounded-full flex items-center justify-center">
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="8" y1="6" x2="21" y2="6"></line>
+                        <line x1="8" y1="12" x2="21" y2="12"></line>
+                        <line x1="8" y1="18" x2="21" y2="18"></line>
+                        <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                        <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                        <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                      </svg>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-56">
+                    {templates.map((template) => (
+                      <DropdownMenuItem
+                        key={template.id}
+                        onClick={() => applyTemplate(template)}
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">{template.name}</span>
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
               {/* Microphone Button - Mobile only */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`desktop:hidden h-[34px] w-[34px] hover:bg-primary/10 rounded-full ${
-                  isRecording ? "bg-red-500 text-white hover:bg-red-600" : "text-primary"
-                }`}
+              <button
+                className="desktop:hidden h-[34px] w-[34px] hover:bg-primary/10 rounded-full flex items-center justify-center disabled:opacity-50 text-primary"
                 disabled={isTranscribing}
                 onClick={isRecording ? stopRecording : startRecording}
               >
-                {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-              </Button>
+                {isRecording ? (
+                  <MicOff className="h-5 w-5" />
+                ) : (
+                  <Mic className="h-5 w-5" />
+                )}
+              </button>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Word Count Circle Placeholder */}
-              {(hasContent || uploadedMedia.length > 0) && (
-                <div className="w-6 h-6 rounded-full border-2 border-primary/30 flex items-center justify-center">
-                  <div className="w-3 h-3 text-[10px] text-primary/50 text-center leading-none">+</div>
-                </div>
-              )}
-
-              <Button
-                className="rounded-full px-5 font-bold bg-white hover:bg-gray-100 text-black shadow-sm transition-opacity border border-border"
-                disabled={(!hasContent && uploadedMedia.length === 0) || isPosting || isUploading}
-                onClick={handlePost}
-              >
-                {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : "发布"}
-              </Button>
-            </div>
+            {/* Right side: Submit button */}
+            <Button
+              className="rounded-full px-5 font-bold bg-white hover:bg-gray-100 text-black shadow-sm transition-opacity border border-border"
+              disabled={(!hasContent && uploadedMedia.length === 0) || isPosting || isUploading}
+              onClick={handlePost}
+            >
+              {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : "发布"}
+            </Button>
           </div>
         </div>
       </div>
