@@ -293,6 +293,29 @@ export function MessageCard({
               {(message.quotedMessage || message.quotedComment) && (
                 <QuotedMessageCard message={message.quotedMessage || message.quotedComment!} />
               )}
+
+              {/* Media Display */}
+              {message.medias && message.medias.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {message.medias.map((media) => (
+                    <div key={media.id} className="rounded-lg overflow-hidden border border-border">
+                      {media.type === "image" ? (
+                        <img
+                          src={media.url}
+                          alt={media.description || ""}
+                          className="max-h-[400px] w-auto object-cover"
+                        />
+                      ) : media.type === "video" ? (
+                        <video
+                          src={media.url}
+                          controls
+                          className="max-h-[400px] w-auto"
+                        />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Action Bar (Footer) */}

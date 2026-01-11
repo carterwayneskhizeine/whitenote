@@ -70,6 +70,9 @@ export async function GET(request: NextRequest) {
             author: {
               select: { id: true, name: true, avatar: true, email: true },
             },
+            medias: {
+              select: { id: true, url: true, type: true, description: true },
+            },
           },
         },
         quotedComment: {
@@ -87,6 +90,9 @@ export async function GET(request: NextRequest) {
           include: {
             tag: { select: { id: true, name: true, color: true } },
           },
+        },
+        medias: {
+          select: { id: true, url: true, type: true, description: true },
         },
         _count: {
           select: { children: true, comments: true, retweets: true },
@@ -136,11 +142,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { content, title, parentId, tags, quotedMessageId, quotedCommentId } = body
+    const { content, title, parentId, tags, quotedMessageId, quotedCommentId, media } = body
 
-    if (!content || content.trim() === "") {
+    // Allow empty content if media is provided
+    if ((!content || content.trim() === "") && (!media || media.length === 0)) {
       return Response.json(
-        { error: "Content is required" },
+        { error: "Content or media is required" },
         { status: 400 }
       )
     }
@@ -194,7 +201,7 @@ export async function POST(request: NextRequest) {
     const message = await prisma.message.create({
       data: {
         title: title?.trim() || null,
-        content: content.trim(),
+        content: content?.trim() || "",
         authorId: session.user.id,
         parentId: parentId || null,
         quotedMessageId: quotedMessageId || null,
@@ -203,6 +210,15 @@ export async function POST(request: NextRequest) {
         tags: tagIds.length > 0
           ? {
             create: tagIds.map((tagId) => ({ tagId })),
+          }
+          : undefined,
+        // 关联媒体文件
+        medias: media && media.length > 0
+          ? {
+            create: media.map((m: { url: string; type: string }) => ({
+              url: m.url,
+              type: m.type,
+            })),
           }
           : undefined,
       },
@@ -217,6 +233,9 @@ export async function POST(request: NextRequest) {
             createdAt: true,
             author: {
               select: { id: true, name: true, avatar: true, email: true },
+            },
+            medias: {
+              select: { id: true, url: true, type: true, description: true },
             },
           },
         },
@@ -235,6 +254,9 @@ export async function POST(request: NextRequest) {
           include: {
             tag: { select: { id: true, name: true, color: true } },
           },
+        },
+        medias: {
+          select: { id: true, url: true, type: true, description: true },
         },
         _count: {
           select: { children: true, comments: true, retweets: true },

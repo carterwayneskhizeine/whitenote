@@ -82,6 +82,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
           tag: { select: { id: true, name: true, color: true } },
         },
       },
+      medias: {
+        select: { id: true, url: true, type: true, description: true },
+      },
       children: {
         include: {
           author: { select: { id: true, name: true, avatar: true, email: true } },

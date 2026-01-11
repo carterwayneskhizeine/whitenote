@@ -13,11 +13,12 @@ import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Image as ImageIcon, List, Loader2, Mic, MicOff } from "lucide-react"
+import { Image as ImageIcon, List, Loader2, Mic, MicOff, X } from "lucide-react"
 import { messagesApi } from "@/lib/api/messages"
 import { templatesApi } from "@/lib/api/templates"
 import { aiApi } from "@/lib/api"
 import { useSession } from "next-auth/react"
+import { useRef } from "react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,6 +41,9 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
+  const [uploadedMedia, setUploadedMedia] = useState<Array<{ url: string; type: string; name: string }>>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Fetch templates
   useEffect(() => {
@@ -318,6 +322,60 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     }
   }
 
+  // Handle file selection
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files
+    if (!files || files.length === 0) return
+
+    setIsUploading(true)
+    try {
+      const formData = new FormData()
+
+      // Upload each file
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
+        formData.append("file", file)
+
+        const response = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Upload failed")
+        }
+
+        const result = await response.json()
+        if (result.data) {
+          setUploadedMedia((prev) => [
+            ...prev,
+            {
+              url: result.data.url,
+              type: result.data.type,
+              name: result.data.originalName,
+            },
+          ])
+        }
+      }
+
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
+      }
+    } catch (error) {
+      console.error("File upload error:", error)
+      alert(`上传失败: ${error instanceof Error ? error.message : "未知错误"}`)
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  // Remove uploaded media
+  const handleRemoveMedia = (index: number) => {
+    setUploadedMedia((prev) => prev.filter((_, i) => i !== index))
+  }
+
   // Create lowlight instance for syntax highlighting
   const lowlight = createLowlight(common)
 
@@ -376,7 +434,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
   // Auto-resize is handled by TipTap/HTML contenteditable nature usually, but min-h helps.
 
   const handlePost = async () => {
-    if (!editor || isPosting || !hasContent) return
+    if (!editor || isPosting || (!hasContent && uploadedMedia.length === 0)) return
 
     let content = editor.getMarkdown() // Store as Markdown instead of HTML
     const textContent = editor.getText() // Get plain text for @goldierill detection
@@ -420,10 +478,11 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
         }
       }
 
-      // Create the message
+      // Create the message with media
       const result = await messagesApi.createMessage({
-        content,
-        tags, // 传递解析出的标签
+        content: content || "", // Allow empty content if media is present
+        tags,
+        media: uploadedMedia.map(m => ({ url: m.url, type: m.type })),
       })
 
       if (result.data) {
@@ -440,9 +499,10 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
           }
         }
 
-        // Clear editor
+        // Clear editor and media
         editor.commands.clearContent()
         setHasContent(false)
+        setUploadedMedia([])
 
         // Call success callback
         onSuccess?.()
@@ -517,10 +577,59 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
             )}
           </div>
 
+          {/* Media Previews */}
+          {uploadedMedia.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {uploadedMedia.map((media, index) => (
+                <div key={index} className="relative group">
+                  {media.type === "image" ? (
+                    <img
+                      src={media.url}
+                      alt={media.name}
+                      className="h-20 w-20 object-cover rounded-lg border border-border"
+                    />
+                  ) : (
+                    <video
+                      src={media.url}
+                      className="h-20 w-20 object-cover rounded-lg border border-border"
+                    />
+                  )}
+                  <button
+                    onClick={() => handleRemoveMedia(index)}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center justify-between border-t border-border pt-3 -ml-2">
             <div className="flex gap-0 text-primary">
-              <Button variant="ghost" size="icon" className="h-[34px] w-[34px] text-primary hover:bg-primary/10 rounded-full">
-                <ImageIcon className="h-5 w-5" />
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".jpg,.jpeg,.jff,.jpj,.png,.webp,.gif,.mp4,.mov,.m4v"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={isUploading}
+              />
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-[34px] w-[34px] text-primary hover:bg-primary/10 rounded-full"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                {isUploading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <ImageIcon className="h-5 w-5" />
+                )}
               </Button>
 
               {/* Templates Dropdown mapped to List icon */}
@@ -562,7 +671,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
 
             <div className="flex items-center gap-3">
               {/* Word Count Circle Placeholder */}
-              {hasContent && (
+              {(hasContent || uploadedMedia.length > 0) && (
                 <div className="w-6 h-6 rounded-full border-2 border-primary/30 flex items-center justify-center">
                   <div className="w-3 h-3 text-[10px] text-primary/50 text-center leading-none">+</div>
                 </div>
@@ -570,7 +679,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
 
               <Button
                 className="rounded-full px-5 font-bold bg-white hover:bg-gray-100 text-black shadow-sm transition-opacity border border-border"
-                disabled={!hasContent || isPosting}
+                disabled={(!hasContent && uploadedMedia.length === 0) || isPosting || isUploading}
                 onClick={handlePost}
               >
                 {isPosting ? <Loader2 className="h-4 w-4 animate-spin" /> : "发布"}

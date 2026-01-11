@@ -46,6 +46,12 @@ export interface Message {
       color: string | null
     }
   }>
+  medias?: Array<{
+    id: string
+    url: string
+    type: string
+    description?: string | null
+  }>
   _count: {
     children: number
     comments: number
@@ -60,6 +66,7 @@ export interface CreateMessageInput {
   quotedMessageId?: string
   quotedCommentId?: string
   tags?: string[]
+  media?: Array<{ url: string; type: string }>
 }
 
 export interface UpdateMessageInput {

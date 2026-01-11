@@ -28,6 +28,12 @@ interface RetweetTarget {
         avatar: string | null
         email: string | null
     } | null
+    medias?: Array<{
+        id: string
+        url: string
+        type: string
+        description?: string | null
+    }>
 }
 
 interface RetweetDialogProps {
@@ -143,6 +149,23 @@ export function RetweetDialog({
                             <div className="mt-1 text-sm leading-normal text-muted-foreground line-clamp-3">
                                 <TipTapViewer content={target.content} />
                             </div>
+                            {/* Media Display - show first image/video */}
+                            {target.medias && target.medias.length > 0 && (
+                                <div className="mt-2 rounded-lg overflow-hidden border border-border">
+                                    {target.medias[0].type === "image" ? (
+                                        <img
+                                            src={target.medias[0].url}
+                                            alt={target.medias[0].description || ""}
+                                            className="max-h-[200px] w-auto object-cover"
+                                        />
+                                    ) : target.medias[0].type === "video" ? (
+                                        <video
+                                            src={target.medias[0].url}
+                                            className="max-h-[200px] w-auto"
+                                        />
+                                    ) : null}
+                                </div>
+                            )}
                         </div>
                     </div>
 

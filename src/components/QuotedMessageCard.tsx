@@ -19,6 +19,12 @@ interface QuotedMessage {
     avatar: string | null
     email: string | null
   } | null
+  medias?: Array<{
+    id: string
+    url: string
+    type: string
+    description?: string | null
+  }>
 }
 
 interface QuotedMessageCardProps {
@@ -96,6 +102,24 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
       <div className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
         <TipTapViewer content={message.content} />
       </div>
+
+      {/* Media Display - show first image/video */}
+      {message.medias && message.medias.length > 0 && (
+        <div className="mt-2 rounded-lg overflow-hidden border border-border">
+          {message.medias[0].type === "image" ? (
+            <img
+              src={message.medias[0].url}
+              alt={message.medias[0].description || ""}
+              className="max-h-[200px] w-auto object-cover"
+            />
+          ) : message.medias[0].type === "video" ? (
+            <video
+              src={message.medias[0].url}
+              className="max-h-[200px] w-auto"
+            />
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }

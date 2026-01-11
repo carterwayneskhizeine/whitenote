@@ -200,6 +200,29 @@ export default function StatusPage() {
                     <QuotedMessageCard message={message.quotedMessage || message.quotedComment!} />
                 )}
 
+                {/* Media Display */}
+                {message.medias && message.medias.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                        {message.medias.map((media) => (
+                            <div key={media.id} className="rounded-lg overflow-hidden border border-border">
+                                {media.type === "image" ? (
+                                    <img
+                                        src={media.url}
+                                        alt={media.description || ""}
+                                        className="max-h-[500px] w-auto object-cover"
+                                    />
+                                ) : media.type === "video" ? (
+                                    <video
+                                        src={media.url}
+                                        controls
+                                        className="max-h-[500px] w-auto"
+                                    />
+                                ) : null}
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <div className="mt-4 flex flex-wrap gap-1 text-muted-foreground text-[15px]">
                     <span>{format(new Date(message.createdAt), "a h:mm · yyyy'年'M'月'd'日'", { locale: zhCN })}</span>
                     <span className="px-1">·</span>
