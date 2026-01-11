@@ -36,8 +36,7 @@ import { RetweetDialog } from "@/components/RetweetDialog"
 import { QuotedMessageCard } from "@/components/QuotedMessageCard"
 import { ImageLightbox } from "@/components/ImageLightbox"
 import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
-import { VideoPlayer } from "@/components/VideoPlayer"
-import { ImagePlayer } from "@/components/ImagePlayer"
+import { MediaGrid } from "@/components/MediaGrid"
 
 export default function CommentDetailPage() {
   const { id, commentId } = useParams() as { id: string; commentId: string }
@@ -362,51 +361,11 @@ export default function CommentDetailPage() {
             </div>
 
             {/* Media Display */}
-            {comment.medias && comment.medias.length > 0 && (() => {
-              const mediaCount = comment.medias.length
-              const hasSingleImage = mediaCount === 1 && comment.medias[0].type === "image"
-              return (
-                <div className={cn(
-                  "mt-2 grid gap-1",
-                  !hasSingleImage && "rounded-lg overflow-hidden border border-border",
-                  mediaCount === 1 && "grid-cols-1",
-                  mediaCount === 2 && "grid-cols-2",
-                  mediaCount === 3 && "grid-cols-2",
-                  mediaCount === 4 && "grid-cols-2"
-                )}>
-                  {comment.medias.map((media, index) => (
-                    <div key={media.id} className={cn(
-                      "relative overflow-hidden",
-                      !hasSingleImage && mediaCount === 1 && "aspect-auto",
-                      !hasSingleImage && mediaCount !== 1 && "aspect-square",
-                      mediaCount === 3 && index === 0 && "col-span-2"
-                    )}>
-                      {media.type === "image" ? (
-                        mediaCount === 1 ? (
-                          <ImagePlayer
-                            src={media.url}
-                            alt={media.description || ""}
-                            onClick={(e) => handleImageClick(index, comment.medias, e)}
-                          />
-                        ) : (
-                          <img
-                            src={media.url}
-                            alt={media.description || ""}
-                            className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                            onClick={(e) => handleImageClick(index, comment.medias, e)}
-                          />
-                        )
-                      ) : media.type === "video" ? (
-                        <VideoPlayer
-                          src={media.url}
-                          className="w-full h-full"
-                        />
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              )
-            })()}
+            <MediaGrid
+              medias={comment.medias || []}
+              onImageClick={(index, e) => handleImageClick(index, comment.medias, e)}
+              className="mt-2"
+            />
 
             {/* 引用的消息卡片 - 类似 X/Twitter */}
             {comment.quotedMessage && (
@@ -649,51 +608,11 @@ export default function CommentDetailPage() {
                   </div>
 
                   {/* Media Display */}
-                  {childComment.medias && childComment.medias.length > 0 && (() => {
-                    const mediaCount = childComment.medias.length
-                    const hasSingleImage = mediaCount === 1 && childComment.medias[0].type === "image"
-                    return (
-                      <div className={cn(
-                        "mt-2 grid gap-1",
-                        !hasSingleImage && "rounded-lg overflow-hidden border border-border",
-                        mediaCount === 1 && "grid-cols-1",
-                        mediaCount === 2 && "grid-cols-2",
-                        mediaCount === 3 && "grid-cols-2",
-                        mediaCount === 4 && "grid-cols-2"
-                      )}>
-                        {childComment.medias.map((media, index) => (
-                          <div key={media.id} className={cn(
-                            "relative overflow-hidden",
-                            !hasSingleImage && mediaCount === 1 && "aspect-auto",
-                            !hasSingleImage && mediaCount !== 1 && "aspect-square",
-                            mediaCount === 3 && index === 0 && "col-span-2"
-                          )}>
-                            {media.type === "image" ? (
-                              mediaCount === 1 ? (
-                                <ImagePlayer
-                                  src={media.url}
-                                  alt={media.description || ""}
-                                  onClick={(e) => handleImageClick(index, childComment.medias, e)}
-                                />
-                              ) : (
-                                <img
-                                  src={media.url}
-                                  alt={media.description || ""}
-                                  className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                  onClick={(e) => handleImageClick(index, childComment.medias, e)}
-                                />
-                              )
-                            ) : media.type === "video" ? (
-                              <VideoPlayer
-                                src={media.url}
-                                className="w-full h-full"
-                              />
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  })()}
+                  <MediaGrid
+                    medias={childComment.medias || []}
+                    onImageClick={(index, e) => handleImageClick(index, childComment.medias, e)}
+                    className="mt-2"
+                  />
 
                   {/* 引用的消息卡片 - 类似 X/Twitter */}
                   {childComment.quotedMessage && (

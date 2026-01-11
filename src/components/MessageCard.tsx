@@ -43,8 +43,7 @@ import { cn, getHandle } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { ImageLightbox } from "@/components/ImageLightbox"
-import { VideoPlayer } from "@/components/VideoPlayer"
-import { ImagePlayer } from "@/components/ImagePlayer"
+import { MediaGrid } from "@/components/MediaGrid"
 
 interface MessageCardProps {
   message: Message
@@ -302,53 +301,11 @@ export function MessageCard({
               )}
 
               {/* Media Display */}
-              {message.medias && message.medias.length > 0 && (() => {
-                const mediaCount = message.medias.length
-                const hasOnlyVideo = mediaCount === 1 && message.medias[0].type === "video"
-                const hasSingleImage = mediaCount === 1 && message.medias[0].type === "image"
-                return (
-                  <div className={cn(
-                    "mt-3 grid gap-1",
-                    !hasOnlyVideo && !hasSingleImage && "rounded-lg overflow-hidden border border-border",
-                    mediaCount === 1 && "grid-cols-1",
-                    mediaCount === 2 && "grid-cols-2",
-                    mediaCount === 3 && "grid-cols-2",
-                    mediaCount === 4 && "grid-cols-2"
-                  )}>
-                    {message.medias.map((media, index) => (
-                      <div key={media.id} className={cn(
-                        "relative overflow-hidden",
-                        !hasOnlyVideo && !hasSingleImage && mediaCount === 1 && "aspect-auto",
-                        !hasOnlyVideo && !hasSingleImage && mediaCount !== 1 && "aspect-square",
-                        mediaCount === 3 && index === 0 && "col-span-2"
-                      )}>
-                        {media.type === "image" ? (
-                          mediaCount === 1 ? (
-                            <ImagePlayer
-                              src={media.url}
-                              alt={media.description || ""}
-                              className="rounded-lg overflow-hidden border border-border"
-                              onClick={(e) => handleImageClick(index, e)}
-                            />
-                          ) : (
-                            <img
-                              src={media.url}
-                              alt={media.description || ""}
-                              className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={(e) => handleImageClick(index, e)}
-                            />
-                          )
-                        ) : media.type === "video" ? (
-                          <VideoPlayer
-                            src={media.url}
-                            className={hasOnlyVideo ? "rounded-xl border border-border/50 bg-black" : "w-full h-full"}
-                          />
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                )
-              })()}
+              <MediaGrid
+                medias={message.medias || []}
+                onImageClick={handleImageClick}
+                className="mt-3"
+              />
 
               {/* Quoted Message/Comment Card */}
               {(message.quotedMessage || message.quotedComment) && (
