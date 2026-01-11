@@ -3,6 +3,12 @@ import prisma from "@/lib/prisma"
 import { deleteFromRAGFlow, updateRAGFlow } from "@/lib/ai/ragflow"
 import { NextRequest } from "next/server"
 import { batchUpsertTags, cleanupUnusedTags } from "@/lib/tag-utils"
+import { unlink } from "fs/promises"
+import { join } from "path"
+import { existsSync } from "fs"
+
+// Upload directory outside the codebase
+const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), "..", "whitenote-data", "uploads")
 
 interface RouteContext {
   params: Promise<{ id: string }>
@@ -253,6 +259,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
   const existing = await prisma.message.findUnique({
     where: { id },
+    include: {
+      medias: {
+        select: { id: true, url: true },
+      },
+    },
   })
 
   if (!existing) {
@@ -264,6 +275,26 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return Response.json({ error: "Forbidden" }, { status: 403 })
   }
 
+  // 先删除媒体文件（在删除消息记录之前）
+  if (existing.medias.length > 0) {
+    for (const media of existing.medias) {
+      try {
+        // Extract filename from URL (format: /api/media/${filename})
+        const filename = media.url.split('/').pop()
+        if (filename) {
+          const filePath = join(UPLOAD_DIR, filename)
+          if (existsSync(filePath)) {
+            await unlink(filePath)
+            console.log(`Deleted media file: ${filename}`)
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to delete media file ${media.url}:`, error)
+        // 继续删除其他文件，不因单个文件删除失败而中断
+      }
+    }
+  }
+
   // 先从 RAGFlow 删除对应的文档
   try {
     await deleteFromRAGFlow(session.user.id, id)
@@ -272,7 +303,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     // 继续删除本地消息，不因 RAGFlow 删除失败而中断
   }
 
-  // 删除本地消息
+  // 删除本地消息（会自动级联删除 Media 数据库记录）
   await prisma.message.delete({
     where: { id },
   })

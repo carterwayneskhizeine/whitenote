@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Template } from "@/types/api"
 import { SlashCommand } from "@/lib/editor/extensions/slash-command"
+import { cn } from "@/lib/utils"
 
 interface InputMachineProps {
   onSuccess?: () => void
@@ -327,13 +328,62 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     const files = event.target.files
     if (!files || files.length === 0) return
 
+    // Check media type constraints
+    const currentHasImage = uploadedMedia.some(m => m.type === "image")
+    const currentHasVideo = uploadedMedia.some(m => m.type === "video")
+    const imageCount = uploadedMedia.filter(m => m.type === "image").length
+
+    // Validate new files
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const isVideo = file.type.startsWith("video")
+      const isImage = file.type.startsWith("image")
+
+      // Cannot mix images and videos
+      if (isVideo && currentHasImage) {
+        alert("不能同时上传图片和视频")
+        return
+      }
+      if (isImage && currentHasVideo) {
+        alert("不能同时上传视频和图片")
+        return
+      }
+
+      // Limit videos to 1
+      if (isVideo && currentHasVideo) {
+        alert("最多只能上传1个视频")
+        return
+      }
+
+      // Limit images to 4
+      if (isImage && imageCount + ([...files].slice(i).filter(f => f.type.startsWith("image")).length) > 4) {
+        alert("最多只能上传4张图片")
+        return
+      }
+    }
+
     setIsUploading(true)
     try {
-      const formData = new FormData()
-
       // Upload each file
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
+
+        // Double check limits before uploading each file
+        const isVideo = file.type.startsWith("video")
+        const currentImageCount = uploadedMedia.filter(m => m.type === "image").length
+
+        if (isVideo && uploadedMedia.some(m => m.type === "video")) {
+          alert("最多只能上传1个视频")
+          break
+        }
+
+        if (!isVideo && currentImageCount >= 4) {
+          alert("最多只能上传4张图片")
+          break
+        }
+
+        // Create a new FormData for each file
+        const formData = new FormData()
         formData.append("file", file)
 
         const response = await fetch("/api/upload", {
@@ -579,24 +629,33 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
 
           {/* Media Previews */}
           {uploadedMedia.length > 0 && (
-            <div className="flex flex-wrap gap-2">
+            <div className={cn(
+              "grid gap-2 rounded-lg overflow-hidden",
+              uploadedMedia.length === 1 && "grid-cols-1",
+              uploadedMedia.length === 2 && "grid-cols-2",
+              uploadedMedia.length === 3 && "grid-cols-2",
+              uploadedMedia.length === 4 && "grid-cols-2"
+            )}>
               {uploadedMedia.map((media, index) => (
-                <div key={index} className="relative group">
+                <div key={index} className={cn(
+                  "relative group aspect-square",
+                  uploadedMedia.length === 3 && index === 0 && "col-span-2"
+                )}>
                   {media.type === "image" ? (
                     <img
                       src={media.url}
                       alt={media.name}
-                      className="h-20 w-20 object-cover rounded-lg border border-border"
+                      className="w-full h-full object-cover"
                     />
                   ) : (
                     <video
                       src={media.url}
-                      className="h-20 w-20 object-cover rounded-lg border border-border"
+                      className="w-full h-full object-cover"
                     />
                   )}
                   <button
                     onClick={() => handleRemoveMedia(index)}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
                   >
                     <X className="h-3 w-3" />
                   </button>

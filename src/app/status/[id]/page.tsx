@@ -201,27 +201,41 @@ export default function StatusPage() {
                 )}
 
                 {/* Media Display */}
-                {message.medias && message.medias.length > 0 && (
-                    <div className="mt-4 flex flex-wrap gap-2">
-                        {message.medias.map((media) => (
-                            <div key={media.id} className="rounded-lg overflow-hidden border border-border">
-                                {media.type === "image" ? (
-                                    <img
-                                        src={media.url}
-                                        alt={media.description || ""}
-                                        className="max-h-[500px] w-auto object-cover"
-                                    />
-                                ) : media.type === "video" ? (
-                                    <video
-                                        src={media.url}
-                                        controls
-                                        className="max-h-[500px] w-auto"
-                                    />
-                                ) : null}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                {message.medias && message.medias.length > 0 && (() => {
+                    const mediaCount = message.medias.length
+                    return (
+                        <div className={cn(
+                            "mt-4 grid gap-2 rounded-lg overflow-hidden border border-border",
+                            mediaCount === 1 && "grid-cols-1",
+                            mediaCount === 2 && "grid-cols-2",
+                            mediaCount === 3 && "grid-cols-2",
+                            mediaCount === 4 && "grid-cols-2"
+                        )}>
+                            {message.medias.map((media, index) => (
+                                <div key={media.id} className={cn(
+                                    "relative overflow-hidden",
+                                    mediaCount === 1 && "aspect-auto",
+                                    mediaCount !== 1 && "aspect-square",
+                                    mediaCount === 3 && index === 0 && "col-span-2"
+                                )}>
+                                    {media.type === "image" ? (
+                                        <img
+                                            src={media.url}
+                                            alt={media.description || ""}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : media.type === "video" ? (
+                                        <video
+                                            src={media.url}
+                                            controls
+                                            className="w-full h-full"
+                                        />
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    )
+                })()}
 
                 <div className="mt-4 flex flex-wrap gap-1 text-muted-foreground text-[15px]">
                     <span>{format(new Date(message.createdAt), "a h:mm · yyyy'年'M'月'd'日'", { locale: zhCN })}</span>

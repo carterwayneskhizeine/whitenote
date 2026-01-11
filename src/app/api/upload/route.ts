@@ -26,6 +26,9 @@ const ALLOWED_EXTENSIONS = [
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100MB
 
+// Upload directory outside the codebase
+const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), "..", "whitenote-data", "uploads")
+
 /**
  * POST /api/upload
  * Upload media files (images and videos)
@@ -76,17 +79,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), "public", "uploads")
-    if (!existsSync(uploadsDir)) {
-      await mkdir(uploadsDir, { recursive: true })
+    // Create uploads directory if it doesn't exist (outside codebase)
+    if (!existsSync(UPLOAD_DIR)) {
+      await mkdir(UPLOAD_DIR, { recursive: true })
     }
 
     // Generate unique filename
     const timestamp = Date.now()
     const randomString = Math.random().toString(36).substring(2, 15)
     const uniqueFileName = `${timestamp}-${randomString}${fileExtension}`
-    const filePath = join(uploadsDir, uniqueFileName)
+    const filePath = join(UPLOAD_DIR, uniqueFileName)
 
     // Convert file to buffer and write to disk
     const bytes = await file.arrayBuffer()
@@ -96,8 +98,8 @@ export async function POST(request: NextRequest) {
     // Determine media type
     const mediaType = isImage ? "image" : "video"
 
-    // Return the URL
-    const url = `/uploads/${uniqueFileName}`
+    // Return the URL using API route instead of static path
+    const url = `/api/media/${uniqueFileName}`
 
     return Response.json({
       data: {
