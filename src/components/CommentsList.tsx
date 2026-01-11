@@ -16,6 +16,9 @@ import {
   Edit2,
   Trash2,
   MoreVertical,
+  Copy,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react"
 import { commentsApi, aiApi } from "@/lib/api"
 import { Comment } from "@/types/api"
@@ -64,6 +67,10 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  // Manage starred state for each comment
+  const [starredComments, setStarredComments] = useState<Set<string>>(new Set())
 
   // Fetch comments (only top-level)
   const fetchComments = async () => {
@@ -74,6 +81,13 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
         // 只显示顶级评论（parentId 为 null）
         const topLevelComments = result.data.filter(c => !c.parentId)
         setComments(topLevelComments)
+
+        // Initialize starred state
+        const starred = new Set<string>()
+        topLevelComments.forEach(c => {
+          if (c.isStarred) starred.add(c.id)
+        })
+        setStarredComments(starred)
       }
     } catch (error) {
       console.error("Failed to fetch comments:", error)
@@ -115,6 +129,43 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
       setDeletingCommentId(null)
       setShowDeleteDialog(false)
       setCommentToDelete(null)
+    }
+  }
+
+  // Handle copy comment
+  const handleCopy = async (comment: Comment, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = comment.content
+      const textContent = tempDiv.textContent || tempDiv.innerText || ''
+
+      await navigator.clipboard.writeText(textContent)
+      setCopiedId(comment.id)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (error) {
+      console.error("Failed to copy comment:", error)
+    }
+  }
+
+  // Handle toggle star
+  const handleToggleStar = async (comment: Comment, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      const result = await commentsApi.toggleStar(comment.id)
+      if (result.data) {
+        setStarredComments(prev => {
+          const newSet = new Set(prev)
+          if (result.data.isStarred) {
+            newSet.add(comment.id)
+          } else {
+            newSet.delete(comment.id)
+          }
+          return newSet
+        })
+      }
+    } catch (error) {
+      console.error("Failed to toggle star:", error)
     }
   }
 
@@ -317,7 +368,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
                   )}
 
                   {/* Action row for comments */}
-                  <div className="mt-3 flex items-center justify-between max-w-75 text-muted-foreground">
+                  <div className="mt-3 flex items-center justify-between gap-2 text-muted-foreground">
                     <div
                       className="group flex items-center cursor-pointer"
                       onClick={(e) => {
@@ -335,6 +386,20 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
                     </div>
                     <div
                       className="group flex items-center cursor-pointer"
+                      onClick={(e) => handleCopy(comment, e)}
+                    >
+                      <div className={cn(
+                        "p-2 rounded-full transition-colors",
+                        copiedId === comment.id ? "bg-green-500/20" : "group-hover:bg-green-500/10"
+                      )}>
+                        <Copy className={cn(
+                          "h-4 w-4 transition-colors",
+                          copiedId === comment.id ? "text-green-500" : "text-muted-foreground group-hover:text-green-500"
+                        )} />
+                      </div>
+                    </div>
+                    <div
+                      className="group flex items-center cursor-pointer"
                       onClick={(e) => handleRetweet(comment, e)}
                     >
                       <div className="p-2 rounded-full group-hover:bg-green-500/10 transition-colors">
@@ -345,6 +410,18 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
                           {comment.retweetCount}
                         </span>
                       )}
+                    </div>
+                    <div
+                      className="group flex items-center cursor-pointer"
+                      onClick={(e) => handleToggleStar(comment, e)}
+                    >
+                      <div className="p-2 rounded-full group-hover:bg-yellow-500/10 transition-colors">
+                        {starredComments.has(comment.id) ? (
+                          <BookmarkCheck className="h-4 w-4 text-yellow-600 fill-yellow-600 transition-colors" />
+                        ) : (
+                          <Bookmark className="h-4 w-4 text-muted-foreground group-hover:text-yellow-600 transition-colors" />
+                        )}
+                      </div>
                     </div>
                     <div className="group flex items-center cursor-pointer">
                       <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors text-right">

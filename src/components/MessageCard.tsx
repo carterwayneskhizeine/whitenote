@@ -296,7 +296,7 @@ export function MessageCard({
             </div>
 
             {/* Action Bar (Footer) */}
-            <div className="mt-3 flex items-center justify-between max-w-[425px]">
+            <div className="mt-3 flex items-center justify-between gap-2">
               {/* 1. Reply */}
               <div
                 className="group flex items-center -ml-2 cursor-pointer"
@@ -310,7 +310,20 @@ export function MessageCard({
                 )}
               </div>
 
-              {/* 2. Retweet */}
+              {/* 2. Copy */}
+              <div onClick={handleCopy} className="group flex items-center cursor-pointer">
+                <div className={cn(
+                  "p-2 rounded-full transition-colors",
+                  copied ? "bg-green-500/20" : "group-hover:bg-green-500/10"
+                )}>
+                  <Copy className={cn(
+                    "h-[18px] w-[18px] transition-colors",
+                    copied ? "text-green-500" : "text-muted-foreground group-hover:text-green-500"
+                  )} />
+                </div>
+              </div>
+
+              {/* 3. Retweet */}
               <div onClick={handleRetweet} className="group flex items-center cursor-pointer">
                 <div className={cn(
                   "p-2 rounded-full transition-colors",
@@ -324,19 +337,6 @@ export function MessageCard({
                 {(message.retweetCount ?? 0) > 0 && (
                   <span className="text-xs text-foreground/60 group-hover:text-green-600 transition-colors">{message.retweetCount}</span>
                 )}
-              </div>
-
-              {/* 3. Copy */}
-              <div onClick={handleCopy} className="group flex items-center cursor-pointer">
-                <div className={cn(
-                  "p-2 rounded-full transition-colors",
-                  copied ? "bg-green-500/20" : "group-hover:bg-green-500/10"
-                )}>
-                  <Copy className={cn(
-                    "h-[18px] w-[18px] transition-colors",
-                    copied ? "text-green-500" : "text-muted-foreground group-hover:text-green-500"
-                  )} />
-                </div>
               </div>
 
               {/* 4. Bookmark */}

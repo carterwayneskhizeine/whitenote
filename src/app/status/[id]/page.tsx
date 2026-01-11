@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Message, messagesApi } from "@/lib/api/messages"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, MoreVertical, MessageCircle, Repeat2, Share, Bookmark, Loader2, Edit2, Pin, PinOff, Trash2 } from "lucide-react"
+import { ArrowLeft, MoreVertical, MessageCircle, Repeat2, Share, Bookmark, Loader2, Edit2, Pin, PinOff, Trash2, Copy } from "lucide-react"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { CommentsList } from "@/components/CommentsList"
@@ -44,6 +44,7 @@ export default function StatusPage() {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
     const [refreshKey, setRefreshKey] = useState(0)
+    const [copied, setCopied] = useState(false)
 
     useEffect(() => {
         const fetchMessage = async () => {
@@ -92,6 +93,21 @@ export default function StatusPage() {
         } finally {
             setIsDeleting(false)
             setShowDeleteDialog(false)
+        }
+    }
+
+    const handleCopy = async () => {
+        if (!message) return
+        try {
+            const tempDiv = document.createElement('div')
+            tempDiv.innerHTML = message.content
+            const textContent = tempDiv.textContent || tempDiv.innerText || ''
+
+            await navigator.clipboard.writeText(textContent)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+        } catch (error) {
+            console.error("Failed to copy message:", error)
         }
     }
 
@@ -209,6 +225,20 @@ export default function StatusPage() {
                     </div>
                     <div
                         className="flex items-center gap-1 group cursor-pointer"
+                        onClick={handleCopy}
+                    >
+                        <div className={cn(
+                            "p-2 rounded-full transition-colors",
+                            copied ? "bg-green-500/20" : "group-hover:bg-green-500/10"
+                        )}>
+                            <Copy className={cn(
+                                "h-[22px] w-[22px] transition-colors",
+                                copied ? "text-green-500" : "group-hover:text-green-500"
+                            )} />
+                        </div>
+                    </div>
+                    <div
+                        className="flex items-center gap-1 group cursor-pointer"
                         onClick={() => setShowRetweetDialog(true)}
                     >
                         <div className="p-2 rounded-full group-hover:bg-green-500/10 group-hover:text-green-500 transition-colors">
@@ -230,7 +260,6 @@ export default function StatusPage() {
                         <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
                             <Bookmark className={cn("h-[22px] w-[22px]", message.isStarred && "text-blue-600 fill-blue-600")} />
                         </div>
-                        <span className="text-sm">{message.isStarred ? "已收藏" : "收藏"}</span>
                     </div>
                     <div className="flex items-center group cursor-pointer">
                         <div className="p-2 rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
