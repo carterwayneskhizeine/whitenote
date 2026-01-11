@@ -59,6 +59,24 @@ export const commentsApi = {
   },
 
   /**
+   * Toggle star status
+   */
+  async toggleStar(commentId: string): Promise<CommentResponse> {
+    const response = await fetch(`${API_BASE}/comments/${commentId}/star`, {
+      method: 'POST',
+    })
+    return response.json()
+  },
+
+  /**
+   * Get starred comments
+   */
+  async getStarredComments(): Promise<CommentsResponse> {
+    const response = await fetch(`${API_BASE}/comments/starred`)
+    return response.json()
+  },
+
+  /**
    * Toggle retweet status
    */
   async toggleRetweet(commentId: string): Promise<CommentResponse> {

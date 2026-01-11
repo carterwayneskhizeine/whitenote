@@ -154,9 +154,10 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
     try {
       const result = await commentsApi.toggleStar(comment.id)
       if (result.data) {
+        const { isStarred } = result.data
         setStarredComments(prev => {
           const newSet = new Set(prev)
-          if (result.data.isStarred) {
+          if (isStarred) {
             newSet.add(comment.id)
           } else {
             newSet.delete(comment.id)

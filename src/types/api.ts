@@ -115,6 +115,7 @@ export interface Comment {
   updatedAt: string
   messageId: string
   authorId: string
+  isStarred: boolean
   isAIBot: boolean
   author: {
     id: string
