@@ -43,21 +43,31 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     })
 
-    // Get retweet counts for each comment
+    // Get retweet counts for each comment (including simple retweets and quoted by messages)
     const commentIds = comments.map(c => c.id)
-    const retweetCounts = await prisma.retweet.groupBy({
-      by: ['commentId'],
-      where: { commentId: { in: commentIds } },
-      _count: { commentId: true },
-    })
+    const [retweetCounts, quotedByCounts] = await Promise.all([
+      prisma.retweet.groupBy({
+        by: ['commentId'],
+        where: { commentId: { in: commentIds } },
+        _count: { commentId: true },
+      }),
+      prisma.message.groupBy({
+        by: ['quotedCommentId'],
+        where: { quotedCommentId: { in: commentIds } },
+        _count: { quotedCommentId: true },
+      }),
+    ])
 
     const retweetCountMap = Object.fromEntries(
       retweetCounts.map(r => [r.commentId, r._count.commentId])
     )
+    const quotedByCountMap = Object.fromEntries(
+      quotedByCounts.map(r => [r.quotedCommentId!, r._count.quotedCommentId])
+    )
 
     const commentsWithRetweetCount = comments.map(comment => ({
       ...comment,
-      retweetCount: retweetCountMap[comment.id] || 0,
+      retweetCount: (retweetCountMap[comment.id] || 0) + (quotedByCountMap[comment.id] || 0),
     }))
 
     return Response.json({ data: commentsWithRetweetCount })

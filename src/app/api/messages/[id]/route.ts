@@ -167,12 +167,17 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const retweetCount = (message as any)._count.retweets
   const isRetweeted = (message as any).retweets.length > 0
 
+  // 获取引用转发数量
+  const quoteRetweetCount = await prisma.message.count({
+    where: { quotedMessageId: id },
+  })
+
   // @ts-ignore - retweets is included in the query
   const { retweets, ...messageData } = message
 
   const messageWithRetweetInfo = {
     ...messageData,
-    retweetCount,
+    retweetCount: retweetCount + quoteRetweetCount,
     isRetweeted,
   }
 

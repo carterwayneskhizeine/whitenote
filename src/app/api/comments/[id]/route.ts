@@ -53,12 +53,17 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const retweetCount = (comment as any)._count.retweets
   const isRetweeted = (comment as any).retweets.length > 0
 
+  // 获取被消息引用的数量
+  const quotedByCount = await prisma.message.count({
+    where: { quotedCommentId: id },
+  })
+
   // @ts-ignore - retweets is included in the query
   const { retweets, ...commentData } = comment
 
   const commentWithRetweetInfo = {
     ...commentData,
-    retweetCount,
+    retweetCount: retweetCount + quotedByCount,
     isRetweeted,
   }
 

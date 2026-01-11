@@ -115,10 +115,23 @@ export async function GET(request: NextRequest) {
     prisma.message.count({ where }),
   ])
 
-  // 添加转发相关字段
+  // 获取所有消息ID，用于计算转发总数（包括引用转发）
+  const messageIds = messages.map(m => m.id)
+  const quoteRetweetCounts = await prisma.message.groupBy({
+    by: ['quotedMessageId'],
+    where: {
+      quotedMessageId: { in: messageIds },
+    },
+    _count: { quotedMessageId: true },
+  })
+  const quoteRetweetCountMap = Object.fromEntries(
+    quoteRetweetCounts.map(r => [r.quotedMessageId!, r._count.quotedMessageId])
+  )
+
+  // 添加转发相关字段（包含简单转发和引用转发）
   const messagesWithRetweetInfo = messages.map((message) => ({
     ...message,
-    retweetCount: message._count.retweets,
+    retweetCount: message._count.retweets + (quoteRetweetCountMap[message.id] || 0),
     isRetweeted: message.retweets.length > 0,
   }))
 
@@ -274,10 +287,15 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // 添加转发相关字段
+    // 获取引用转发数量
+    const quoteRetweetCount = await prisma.message.count({
+      where: { quotedMessageId: message.id },
+    })
+
+    // 添加转发相关字段（包含简单转发和引用转发）
     const messageWithRetweetInfo = {
       ...message,
-      retweetCount: message._count.retweets,
+      retweetCount: message._count.retweets + quoteRetweetCount,
       isRetweeted: message.retweets.length > 0,
     }
 

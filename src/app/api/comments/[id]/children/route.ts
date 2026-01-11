@@ -49,13 +49,26 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     orderBy: { createdAt: "asc" },
   })
 
+  // 获取所有评论ID，用于计算转发总数（包括被消息引用）
+  const commentIds = childComments.map(c => c.id)
+  const quotedByCounts = await prisma.message.groupBy({
+    by: ['quotedCommentId'],
+    where: {
+      quotedCommentId: { in: commentIds },
+    },
+    _count: { quotedCommentId: true },
+  })
+  const quotedByCountMap = Object.fromEntries(
+    quotedByCounts.map(r => [r.quotedCommentId!, r._count.quotedCommentId])
+  )
+
   // 添加转发相关字段
   const childCommentsWithRetweetInfo = childComments.map((comment: any) => ({
     ...comment,
     _count: {
       ...comment._count,
     },
-    retweetCount: comment._count.retweets,
+    retweetCount: comment._count.retweets + (quotedByCountMap[comment.id] || 0),
     isRetweeted: comment.retweets.length > 0,
   }))
 
