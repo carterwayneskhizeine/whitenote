@@ -15,6 +15,33 @@ interface RouteContext {
 }
 
 /**
+ * 递归获取评论的所有媒体文件 URL
+ */
+async function getAllCommentMediaUrls(commentId: string): Promise<string[]> {
+  const comment = await prisma.comment.findUnique({
+    where: { id: commentId },
+    select: {
+      medias: { select: { url: true } },
+      replies: {
+        select: { id: true },
+      },
+    },
+  })
+
+  if (!comment) return []
+
+  const mediaUrls = comment.medias.map(m => m.url)
+
+  // 递归获取子评论的媒体文件
+  for (const reply of comment.replies) {
+    const childMediaUrls = await getAllCommentMediaUrls(reply.id)
+    mediaUrls.push(...childMediaUrls)
+  }
+
+  return mediaUrls
+}
+
+/**
  * 构建包含标签的内容（用于 RAGFlow 同步）
  */
 async function buildContentWithTags(messageId: string): Promise<string> {
@@ -269,6 +296,11 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       medias: {
         select: { id: true, url: true },
       },
+      comments: {
+        select: {
+          id: true,
+        },
+      },
     },
   })
 
@@ -281,7 +313,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     return Response.json({ error: "Forbidden" }, { status: 403 })
   }
 
-  // 先删除媒体文件（在删除消息记录之前）
+  // 先删除消息的媒体文件（在删除消息记录之前）
   if (existing.medias.length > 0) {
     for (const media of existing.medias) {
       try {
@@ -291,11 +323,31 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
           const filePath = join(UPLOAD_DIR, filename)
           if (existsSync(filePath)) {
             await unlink(filePath)
-            console.log(`Deleted media file: ${filename}`)
+            console.log(`Deleted message media file: ${filename}`)
           }
         }
       } catch (error) {
         console.error(`Failed to delete media file ${media.url}:`, error)
+        // 继续删除其他文件，不因单个文件删除失败而中断
+      }
+    }
+  }
+
+  // 递归删除所有关联评论（包括子评论）的媒体文件
+  for (const comment of existing.comments) {
+    const mediaUrls = await getAllCommentMediaUrls(comment.id)
+    for (const mediaUrl of mediaUrls) {
+      try {
+        const filename = mediaUrl.split('/').pop()
+        if (filename) {
+          const filePath = join(UPLOAD_DIR, filename)
+          if (existsSync(filePath)) {
+            await unlink(filePath)
+            console.log(`Deleted comment media file: ${filename}`)
+          }
+        }
+      } catch (error) {
+        console.error(`Failed to delete comment media file ${mediaUrl}:`, error)
         // 继续删除其他文件，不因单个文件删除失败而中断
       }
     }
