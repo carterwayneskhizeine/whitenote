@@ -2,6 +2,13 @@ import { createServer } from "http"
 import { parse } from "url"
 import next from "next"
 import { initSocketServer } from "./src/lib/socket/server"
+import * as fs from "fs"
+import * as path from "path"
+import ffmpeg from "fluent-ffmpeg"
+import { promisify } from "util"
+
+const unlink = promisify(fs.unlink)
+const writeFile = promisify(fs.writeFile)
 
 const dev = process.env.NODE_ENV !== "production"
 const hostname = "localhost"
@@ -10,15 +17,33 @@ const port = parseInt(process.env.PORT || "3005", 10)
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
 
+// Upload directory
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(process.cwd(), "..", "whitenote-data", "uploads")
+
+// Ensure upload directory exists
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true })
+}
+
 app.prepare().then(() => {
   const httpServer = createServer(async (req, res) => {
     try {
       const parsedUrl = parse(req.url!, true)
+      const pathname = parsedUrl.pathname || ""
+
+      // Handle upload endpoint with custom multipart parsing
+      if (pathname === "/api/upload" && req.method === "POST") {
+        await handleUpload(req, res)
+        return
+      }
+
       await handle(req, res, parsedUrl)
     } catch (err) {
       console.error("Error occurred handling", req.url, err)
-      res.statusCode = 500
-      res.end("Internal server error")
+      if (!res.headersSent) {
+        res.statusCode = 500
+        res.end("Internal server error")
+      }
     }
   })
 
@@ -34,3 +59,187 @@ app.prepare().then(() => {
       console.log(`> Ready on http://${hostname}:${port}`)
     })
 })
+
+async function handleUpload(req: any, res: any) {
+  // Parse the boundary from content type
+  const contentType = req.headers["content-type"] || ""
+  const boundaryMatch = contentType.match(/boundary=([^;]+)/i)
+
+  if (!boundaryMatch) {
+    res.writeHead(400, { "Content-Type": "application/json" })
+    res.end(JSON.stringify({ error: "Invalid content type" }))
+    return
+  }
+
+  const boundary = boundaryMatch[1]
+  const chunks: Buffer[] = []
+  let currentSize = 0
+  const MAX_SIZE = 100 * 1024 * 1024 // 100MB
+
+  // Collect data with size limit
+  req.on("data", (chunk: Buffer) => {
+    currentSize += chunk.length
+    if (currentSize > MAX_SIZE) {
+      req.pause()
+      res.writeHead(413, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ error: "File too large" }))
+      return
+    }
+    chunks.push(chunk)
+  })
+
+  req.on("end", async () => {
+    try {
+      const buffer = Buffer.concat(chunks)
+
+      // Parse multipart data
+      const parts = buffer.toString("binary").split(`--${boundary}`)
+
+      let fileData: Buffer | null = null
+      let fileName = ""
+      let mimeType = ""
+
+      for (const part of parts) {
+        if (part.includes("Content-Disposition")) {
+          const headersEnd = part.indexOf("\r\n\r\n")
+          if (headersEnd === -1) continue
+
+          const headers = part.substring(0, headersEnd)
+          const content = part.substring(headersEnd + 4)
+
+          const filenameMatch = headers.match(/filename="([^"]+)"/)
+          const contentTypeMatch = headers.match(/Content-Type: ([^\r\n]+)/)
+
+          if (filenameMatch) {
+            fileName = filenameMatch[1]
+            mimeType = contentTypeMatch ? contentTypeMatch[1].trim() : "application/octet-stream"
+
+            // Remove trailing \r\n
+            const contentWithoutBoundary = content.replace(/\r\n--$/, "")
+            fileData = Buffer.from(contentWithoutBoundary, "binary")
+            break
+          }
+        }
+      }
+
+      if (!fileData || !fileName) {
+        res.writeHead(400, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: "No file found" }))
+        return
+      }
+
+      // Validate file size
+      if (fileData.length > MAX_SIZE) {
+        res.writeHead(400, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: `File size exceeds ${MAX_SIZE / 1024 / 1024}MB limit` }))
+        return
+      }
+
+      // Get file extension
+      const fileExtension = fileName.substring(fileName.lastIndexOf(".")).toLowerCase()
+
+      // Allowed extensions
+      const ALLOWED_EXTENSIONS = [
+        ".jpg", ".jpeg", ".jff", ".jpj", ".png", ".webp", ".gif",
+        ".mp4", ".mov", ".m4v"
+      ]
+
+      if (!ALLOWED_EXTENSIONS.includes(fileExtension)) {
+        res.writeHead(400, { "Content-Type": "application/json" })
+        res.end(JSON.stringify({ error: `Invalid file type. Allowed: ${ALLOWED_EXTENSIONS.join(", ")}` }))
+        return
+      }
+
+      // Determine media type
+      const isVideo = mimeType.startsWith("video")
+      const mediaType = isVideo ? "video" : "image"
+
+      // Generate unique filename
+      const timestamp = Date.now()
+      const randomString = Math.random().toString(36).substring(2, 15)
+      const uniqueFileName = `${timestamp}-${randomString}${fileExtension}`
+      const filePath = path.join(UPLOAD_DIR, uniqueFileName)
+
+      // Write file to disk
+      await writeFile(filePath, fileData)
+
+      // Process video with ffmpeg to enable streaming
+      if (isVideo) {
+        try {
+          const tempFilePath = path.join(UPLOAD_DIR, `temp_${uniqueFileName}`)
+
+          console.log(`Processing video: ${uniqueFileName}`)
+
+          await new Promise<void>((resolve, reject) => {
+            let command = ffmpeg(filePath)
+
+            // Set ffmpeg path for Windows if needed
+            // command.setFfmpegPath('ffmpeg') // Uncomment if ffmpeg is not in PATH
+
+            command
+              .outputOptions([
+                '-c:v', 'libx264',     // Re-encode video with H.264
+                '-preset', 'fast',     // Use fast preset
+                '-crf', '23',          // Quality balance
+                '-c:a', 'aac',         // Re-encode audio with AAC
+                '-b:a', '128k',        // Audio bitrate
+                '-movflags', '+faststart' // Move moov atom to the beginning
+              ])
+              .output(tempFilePath)
+              .on('start', (commandLine) => {
+                console.log('FFmpeg command:', commandLine)
+              })
+              .on('end', () => {
+                console.log(`Video processed successfully: ${uniqueFileName}`)
+                resolve()
+              })
+              .on('error', (err: any) => {
+                console.error('FFmpeg error:', err?.message || err)
+                reject(err)
+              })
+              .run()
+          })
+
+          // Replace original file with processed file
+          const processedData = fs.readFileSync(tempFilePath)
+          await unlink(filePath)
+          await writeFile(filePath, processedData)
+          await unlink(tempFilePath)
+
+          console.log(`Replaced original file with processed version`)
+        } catch (ffmpegError) {
+          console.error("FFmpeg processing error:", ffmpegError)
+          // If ffmpeg fails, still use the original file
+          console.log("Using original file without processing")
+        }
+      }
+
+      // Return response
+      const url = `/api/media/${uniqueFileName}`
+
+      res.writeHead(200, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({
+        data: {
+          url,
+          type: mediaType,
+          fileName: uniqueFileName,
+          originalName: fileName,
+          size: fileData.length,
+          mimeType,
+        },
+      }))
+    } catch (error) {
+      console.error("File upload error:", error)
+      res.writeHead(500, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ error: "Failed to upload file" }))
+    }
+  })
+
+  req.on("error", (err: any) => {
+    console.error("Request error:", err)
+    if (!res.headersSent) {
+      res.writeHead(500, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ error: "Internal server error" }))
+    }
+  })
+}
