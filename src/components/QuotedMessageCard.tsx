@@ -7,9 +7,9 @@ import { TipTapViewer } from "@/components/TipTapViewer"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
+import { MediaGrid } from "@/components/MediaGrid"
 import { getHandle } from "@/lib/utils"
 import { ImageLightbox } from "@/components/ImageLightbox"
-import { VideoPlayer } from "@/components/VideoPlayer"
 
 interface QuotedMessage {
   id: string
@@ -116,41 +116,11 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
       </div>
 
       {/* Media Display - grid layout */}
-      {message.medias && message.medias.length > 0 && (() => {
-        const mediaCount = message.medias.length
-        return (
-          <div className={cn(
-            "mt-2 grid gap-1 rounded-lg overflow-hidden",
-            mediaCount === 1 && "grid-cols-1",
-            mediaCount === 2 && "grid-cols-2",
-            mediaCount === 3 && "grid-cols-2",
-            mediaCount === 4 && "grid-cols-2"
-          )}>
-            {message.medias.map((media, index) => (
-              <div key={media.id} className={cn(
-                "relative overflow-hidden",
-                mediaCount === 1 && "aspect-auto",
-                mediaCount !== 1 && "aspect-square",
-                mediaCount === 3 && index === 0 && "col-span-2"
-              )}>
-                {media.type === "image" ? (
-                  <img
-                    src={media.url}
-                    alt={media.description || ""}
-                    className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={(e) => handleImageClick(index, e)}
-                  />
-                ) : media.type === "video" ? (
-                  <VideoPlayer
-                    src={media.url}
-                    className="w-full h-full"
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )
-      })()}
+      <MediaGrid
+        medias={message.medias || []}
+        onImageClick={handleImageClick}
+        className="mt-2"
+      />
     </div>
 
     {/* Image Lightbox */}
