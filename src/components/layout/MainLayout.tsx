@@ -9,6 +9,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register")
   const isSettingsPage = pathname?.startsWith("/settings")
+  const isTagsPage = pathname === "/tags"
 
   if (isAuthPage) {
     return <>{children}</>
@@ -26,13 +27,16 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* MainLayout - 移动端全宽,桌面端 max-w-[600px] */}
-        <main className={`flex-1 border-x border-border min-h-screen flex flex-col w-full ${isSettingsPage ? 'md:max-w-[600px] xl:max-w-[1000px]' : 'md:max-w-[600px]'} shrink-0`}>
+        <main className={`flex-1 border-x border-border min-h-screen flex flex-col w-full ${isSettingsPage ? 'md:max-w-[600px] xl:max-w-[1000px]' :
+          isTagsPage ? 'max-w-full' :
+            'md:max-w-[600px]'
+          } shrink-0`}>
           <MobileNav />
           {children}
         </main>
 
-        {/* RightSidebar - 层级1-2: 显示 (lg+), 层级3-4: 隐藏, hidden on settings page */}
-        {!isSettingsPage && (
+        {/* RightSidebar - 层级1-2: 显示 (lg+), 层级3-4: 隐藏, hidden on settings and tags page */}
+        {!isSettingsPage && !isTagsPage && (
           <div className="hidden lg:flex shrink-0 ml-3.75">
             <RightSidebar />
           </div>
@@ -40,4 +44,5 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   )
+
 }
