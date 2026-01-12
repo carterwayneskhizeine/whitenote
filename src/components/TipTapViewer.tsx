@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import { useEffect } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from '@tiptap/markdown'
@@ -59,6 +59,67 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
       },
     },
   })
+
+  // Add copy buttons to code blocks after editor is ready
+  useEffect(() => {
+    if (!editor) return
+
+    const addCopyButtons = () => {
+      const codeBlocks = editor.view.dom.querySelectorAll('pre')
+      codeBlocks.forEach((pre: Element) => {
+        // Skip if already has copy button
+        if (pre.querySelector('.code-copy-btn')) return
+
+        const button = document.createElement('button')
+        button.className = 'code-copy-btn'
+        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>'
+        button.setAttribute('aria-label', 'Copy code')
+        button.setAttribute('type', 'button')
+
+        const handleClick = async (e: MouseEvent) => {
+          e.preventDefault()
+          e.stopPropagation()
+          const code = pre.querySelector('code')
+          if (code) {
+            const text = code.textContent || ''
+            try {
+              await navigator.clipboard.writeText(text)
+              button.classList.add('copied')
+              setTimeout(() => {
+                button.classList.remove('copied')
+              }, 1000)
+            } catch (error) {
+              console.error('Failed to copy code:', error)
+            }
+          }
+        }
+
+        button.addEventListener('click', handleClick)
+        pre.appendChild(button)
+      })
+    }
+
+    // Delay to ensure editor is fully rendered
+    const timer = setTimeout(() => {
+      addCopyButtons()
+    }, 100)
+
+    // Watch for content changes
+    const observer = new MutationObserver(() => {
+      addCopyButtons()
+    })
+
+    const editorElement = editor.view.dom
+    observer.observe(editorElement, {
+      childList: true,
+      subtree: true,
+    })
+
+    return () => {
+      clearTimeout(timer)
+      observer.disconnect()
+    }
+  }, [editor])
 
   if (!editor) {
     return null
@@ -123,6 +184,8 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
           margin-bottom: 0.75rem;
           overflow-x: auto;
           border: 1px solid hsl(var(--border));
+          position: relative;
+          pointer-events: auto;
         }
 
         .tipTap-viewer .ProseMirror pre code {
@@ -141,9 +204,43 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
           font-family: 'JetBrainsMono', 'Fira Code', Consolas, Monaco, monospace;
         }
 
-        /* Code block with language label */
-        .tipTap-viewer .ProseMirror pre[data-language] {
-          position: relative;
+        /* Code block copy button */
+        .tipTap-viewer .ProseMirror pre .code-copy-btn {
+          position: absolute;
+          top: 0.5rem;
+          right: 0.5rem;
+          background-color: transparent;
+          border: none;
+          border-radius: 0.375rem;
+          padding: 0.375rem;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.2s, color 0.2s;
+          pointer-events: auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+        }
+
+        /* Light mode (default) - black button */
+        .tipTap-viewer .ProseMirror pre .code-copy-btn,
+        :not(.dark) .tipTap-viewer .ProseMirror pre .code-copy-btn {
+          color: #000000;
+        }
+
+        /* Dark mode - white button */
+        .dark .tipTap-viewer .ProseMirror pre .code-copy-btn {
+          color: #ffffff;
+        }
+
+        .tipTap-viewer .ProseMirror pre:hover .code-copy-btn {
+          opacity: 1;
+        }
+
+        .tipTap-viewer .ProseMirror pre .code-copy-btn.copied {
+          color: #22c55e !important;
+          opacity: 1 !important;
         }
 
         /* Tables */

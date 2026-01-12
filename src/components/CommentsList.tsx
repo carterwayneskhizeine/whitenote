@@ -165,7 +165,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
       // Copy the raw Markdown content directly (preserves code blocks and formatting)
       await navigator.clipboard.writeText(comment.content)
       setCopiedId(comment.id)
-      setTimeout(() => setCopiedId(null), 2000)
+      setTimeout(() => setCopiedId(null), 1000)
     } catch (error) {
       console.error("Failed to copy comment:", error)
     }

@@ -227,7 +227,7 @@ export default function CommentDetailPage() {
       // Copy the raw Markdown content directly (preserves code blocks and formatting)
       await navigator.clipboard.writeText(content)
       setCopiedId(commentId)
-      setTimeout(() => setCopiedId(null), 2000)
+      setTimeout(() => setCopiedId(null), 1000)
     } catch (error) {
       console.error("Failed to copy comment:", error)
     }

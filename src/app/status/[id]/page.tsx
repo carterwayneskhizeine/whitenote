@@ -106,7 +106,7 @@ export default function StatusPage() {
             // Copy the raw Markdown content directly (preserves code blocks and formatting)
             await navigator.clipboard.writeText(message.content)
             setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
+            setTimeout(() => setCopied(false), 1000)
         } catch (error) {
             console.error("Failed to copy message:", error)
         }
