@@ -35,6 +35,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           }
         }
       },
+      tags: {
+        include: {
+          tag: { select: { id: true, name: true, color: true } },
+        },
+      },
       medias: {
         select: { id: true, url: true, type: true, description: true }
       },
