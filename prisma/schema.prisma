@@ -80,7 +80,6 @@ model Message {
   quotedComment    Comment?         @relation("QuoteCommentByMessage", fields: [quotedCommentId], references: [id])
   quoteRetweets    Message[]        @relation("QuoteRetweet")
   quoteComments    Comment[]        @relation("QuoteComment")
-  aliases          MessageAlias[]
   tags             MessageTag[]
   versions         MessageVersion[]
   reminders        Reminder[]
@@ -111,16 +110,6 @@ model MessageTag {
 
   @@id([messageId, tagId])
   @@index([tagId])
-}
-
-model MessageAlias {
-  id        String  @id @default(cuid())
-  alias     String
-  messageId String
-  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-
-  @@unique([messageId, alias])
-  @@index([alias])
 }
 
 model MessageVersion {
