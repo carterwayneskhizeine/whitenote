@@ -81,7 +81,8 @@ export async function getGraphData(): Promise<GraphData> {
             val: connections + 1,
             isHub: connections > 2,
             color: comment.isStarred ? '#f59e0b' : '#6b7280',
-            nodeType: 'comment'
+            nodeType: 'comment',
+            messageId: comment.messageId
         }
     })
 

@@ -8,8 +8,8 @@ import * as d3 from 'd3';
 // Link type colors
 const LINK_COLORS: Record<LinkType, { color: string; dashArray?: string; width: number }> = {
     reply: { color: '#60a5fa', dashArray: undefined, width: 2 }, // Blue solid
-    quote: { color: '#f59e0b', dashArray: '5,5', width: 2 }, // Orange dashed
-    retweet: { color: '#8b5cf6', dashArray: undefined, width: 3 }, // Purple thick
+    quote: { color: '#1d9bf0', dashArray: '5,5', width: 2 }, // Blue dashed
+    retweet: { color: '#1d9bf0', dashArray: undefined, width: 3 }, // Blue thick
     comment: { color: '#ffffff', dashArray: undefined, width: 2 }, // White solid
     'comment-reply': { color: '#ffffff', dashArray: '3,3', width: 1.5 } // White dashed
 };
@@ -125,6 +125,16 @@ export const GraphView: React.FC<GraphViewProps> = ({
             .call(drag(simulation) as any)
             .on("click", (event, d) => {
                 event.stopPropagation();
+                // Navigate to the message or comment
+                const nodeType = (d as any).nodeType as string;
+                if (nodeType === 'comment') {
+                    const messageId = (d as any).messageId as string;
+                    if (messageId) {
+                        window.location.href = `/status/${messageId}/comment/${d.id}`;
+                    }
+                } else if (nodeType === 'message') {
+                    window.location.href = `/status/${d.id}`;
+                }
                 if (onNodeClick) onNodeClick(d);
             })
             .on("mouseover", function (_event, d) {

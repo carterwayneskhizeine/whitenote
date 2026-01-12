@@ -11,6 +11,7 @@ export interface GraphNode extends SimulationNodeDatum {
     isHub?: boolean; // Is this a hub node?
     color?: string; // Color of the node (based on Tag)
     nodeType: NodeType; // Whether this is a message or comment node
+    messageId?: string; // For comment nodes, the parent message ID
     x?: number;
     y?: number;
     vx?: number;
