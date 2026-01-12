@@ -81,8 +81,6 @@ model Message {
   quoteRetweets    Message[]        @relation("QuoteRetweet")
   quoteComments    Comment[]        @relation("QuoteComment")
   aliases          MessageAlias[]
-  outgoingLinks    MessageLink[]    @relation("OutgoingLinks")
-  incomingLinks    MessageLink[]    @relation("IncomingLinks")
   tags             MessageTag[]
   versions         MessageVersion[]
   reminders        Reminder[]
@@ -123,19 +121,6 @@ model MessageAlias {
 
   @@unique([messageId, alias])
   @@index([alias])
-}
-
-model MessageLink {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  sourceId  String
-  targetId  String
-  context   String?
-  source    Message  @relation("OutgoingLinks", fields: [sourceId], references: [id], onDelete: Cascade)
-  target    Message  @relation("IncomingLinks", fields: [targetId], references: [id], onDelete: Cascade)
-
-  @@unique([sourceId, targetId])
-  @@index([targetId])
 }
 
 model MessageVersion {

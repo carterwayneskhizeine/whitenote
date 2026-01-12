@@ -3,7 +3,16 @@
 
 import React, { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { GraphData, GraphNode, GraphLink, FilterSettings } from '@/types/graph';
+ import { GraphData, GraphNode, GraphLink, FilterSettings, LinkType } from '@/types/graph';
+
+// Link type colors
+const LINK_COLORS: Record<LinkType, { color: string; dashArray?: string; width: number }> = {
+    reply: { color: '#60a5fa', dashArray: undefined, width: 2 }, // Blue solid
+    quote: { color: '#f59e0b', dashArray: '5,5', width: 2 }, // Orange dashed
+    retweet: { color: '#8b5cf6', dashArray: undefined, width: 3 }, // Purple thick
+    comment: { color: '#ec4899', dashArray: undefined, width: 2 }, // Pink solid
+    'comment-reply': { color: '#ec4899', dashArray: '3,3', width: 1.5 } // Pink dashed
+};
 
 // Colors for the graph (can be updated to match the theme)
 const COLORS = [
@@ -66,12 +75,22 @@ export const GraphView: React.FC<GraphViewProps> = ({
 
         // Draw Links
         const link = container.append("g")
-            .attr("stroke", "#404040")
-            .attr("stroke-opacity", 0.6)
             .selectAll("line")
             .data(links)
             .join("line")
-            .attr("stroke-width", d => Math.sqrt(d.value) * settings.linkThickness);
+            .attr("stroke", d => {
+                const type = (d as any).type as LinkType | undefined;
+                return type ? LINK_COLORS[type].color : '#404040';
+            })
+            .attr("stroke-opacity", 0.8)
+            .attr("stroke-width", d => {
+                const type = (d as any).type as LinkType | undefined;
+                return type ? LINK_COLORS[type].width * settings.linkThickness : Math.sqrt(d.value) * settings.linkThickness;
+            })
+            .attr("stroke-dasharray", d => {
+                const type = (d as any).type as LinkType | undefined;
+                return type ? LINK_COLORS[type].dashArray || 'none' : 'none';
+            });
 
         // Draw Nodes
         const node = container.append("g")
@@ -80,9 +99,13 @@ export const GraphView: React.FC<GraphViewProps> = ({
             .selectAll("circle")
             .data(nodes)
             .join("circle")
-            .attr("r", d => (d.isHub ? 8 : 5) * (settings.nodeSize))
+            .attr("r", d => {
+                // Comment nodes are smaller
+                const baseSize = (d as any).nodeType === 'comment' ? 4 : 5
+                return (d.isHub ? 8 : baseSize) * (settings.nodeSize)
+            })
             .attr("fill", d => {
-                if (d.color && d.color !== '#3B82F6') return d.color; // Use tag color if available
+                if (d.color && d.color !== '#3B82F6') return d.color;
 
                 // Fallback to hash color
                 let hash = 0;
@@ -93,13 +116,18 @@ export const GraphView: React.FC<GraphViewProps> = ({
                 const colorIndex = Math.abs(hash) % COLORS.length;
                 return d.isHub ? COLORS[colorIndex] : (d.color || "#5c5c5c");
             })
-            .attr("stroke", d => d.isHub ? "#fff" : "none")
+            .attr("stroke", d => {
+                const nodeType = (d as any).nodeType
+                if (nodeType === 'comment') return '#ec4899' // Pink stroke for comments
+                return d.isHub ? "#fff" : "none"
+            })
+            .attr("stroke-width", d => (d as any).nodeType === 'comment' ? 2 : 1.5)
             .call(drag(simulation) as any)
             .on("click", (event, d) => {
                 event.stopPropagation();
                 if (onNodeClick) onNodeClick(d);
             })
-            .on("mouseover", function (event, d) {
+            .on("mouseover", function (_event, d) {
                 d3.select(this).attr("stroke", "#7c3aed").attr("stroke-width", 3);
                 // Highlight connections
                 link.attr("stroke", (l: any) => (l.source.id === d.id || l.target.id === d.id ? "#dcddde" : "#404040"))
@@ -195,11 +223,63 @@ export const GraphView: React.FC<GraphViewProps> = ({
             .on("end", dragended);
     };
 
+    // Count links by type
+    const linkCounts = data.links.reduce((acc, link) => {
+        const type = (link as any).type as LinkType | undefined;
+        if (type) {
+            acc[type] = (acc[type] || 0) + 1;
+        }
+        return acc;
+    }, {} as Record<LinkType, number>);
+
     return (
         <div className={`relative w-full h-full bg-[#161616] overflow-hidden ${className}`}>
             <svg ref={svgRef} width="100%" height="100%" className="cursor-grab active:cursor-grabbing block w-full h-full">
                 <g ref={zoomRef} />
             </svg>
+
+            {/* Legend Overlay (Top Left) */}
+            <div className="absolute top-4 left-4 z-40 text-xs bg-black/80 px-3 py-2 rounded-lg border border-gray-800 backdrop-blur pointer-events-none select-none max-w-xs">
+                <div className="text-gray-400 font-semibold mb-2">节点类型</div>
+                <div className="space-y-1 mb-3">
+                    <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-gray-500 border-2 border-transparent"></div>
+                        <span className="text-gray-300">消息</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-gray-500 border-2 border-pink-500"></div>
+                        <span className="text-gray-300">评论</span>
+                    </div>
+                </div>
+
+                <div className="text-gray-400 font-semibold mb-2">链接类型</div>
+                <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-0.5" style={{ backgroundColor: LINK_COLORS['comment'].color }}></div>
+                        <span className="text-gray-300">评论</span>
+                        <span className="text-gray-500">({linkCounts.comment || 0})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-0.5" style={{
+                            backgroundColor: LINK_COLORS['comment-reply'].color,
+                            backgroundImage: `linear-gradient(to right, ${LINK_COLORS['comment-reply'].color} 50%, transparent 50%)`,
+                            backgroundSize: '6px 1px'
+                        }}></div>
+                        <span className="text-gray-300">评论回复</span>
+                        <span className="text-gray-500">({linkCounts['comment-reply'] || 0})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-0.5" style={{
+                            backgroundColor: LINK_COLORS.quote.color,
+                            backgroundImage: `linear-gradient(to right, ${LINK_COLORS.quote.color} 50%, transparent 50%)`,
+                            backgroundSize: '8px 1px'
+                        }}></div>
+                        <span className="text-gray-300">引用</span>
+                        <span className="text-gray-500">({linkCounts.quote || 0})</span>
+                    </div>
+                </div>
+            </div>
+
             {/* Stats Overlay (Bottom Right) */}
             <div className="absolute bottom-4 right-4 z-40 text-xs text-gray-400 bg-black/80 px-3 py-1 rounded-full border border-gray-800 backdrop-blur pointer-events-none select-none">
                 Nodes: {data.nodes.length} | Links: {data.links.length}

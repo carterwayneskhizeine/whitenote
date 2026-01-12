@@ -1,6 +1,8 @@
 
 import { SimulationNodeDatum, SimulationLinkDatum } from 'd3';
 
+export type NodeType = 'message' | 'comment'
+
 export interface GraphNode extends SimulationNodeDatum {
     id: string;
     title?: string;
@@ -8,6 +10,7 @@ export interface GraphNode extends SimulationNodeDatum {
     val: number; // Size/weight of the node
     isHub?: boolean; // Is this a hub node?
     color?: string; // Color of the node (based on Tag)
+    nodeType: NodeType; // Whether this is a message or comment node
     x?: number;
     y?: number;
     vx?: number;
@@ -16,10 +19,13 @@ export interface GraphNode extends SimulationNodeDatum {
     fy?: number | null;
 }
 
+export type LinkType = 'reply' | 'quote' | 'retweet' | 'comment' | 'comment-reply'
+
 export interface GraphLink extends SimulationLinkDatum<GraphNode> {
     source: string | GraphNode;
     target: string | GraphNode;
     value: number; // Thickness/strength
+    type?: LinkType; // Type of relationship
 }
 
 export interface GraphData {

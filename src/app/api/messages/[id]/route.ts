@@ -137,13 +137,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
         },
         orderBy: { createdAt: "asc" },
       },
-      incomingLinks: {
-        include: {
-          source: {
-            select: { id: true, title: true, content: true },
-          },
-        },
-      },
       _count: {
         select: { children: true, comments: true, versions: true, retweets: true },
       },
