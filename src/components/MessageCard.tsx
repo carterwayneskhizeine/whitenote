@@ -166,12 +166,8 @@ export function MessageCard({
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      // Create a temporary div to render the TipTap content
-      const tempDiv = document.createElement('div')
-      tempDiv.innerHTML = message.content
-      const textContent = tempDiv.textContent || tempDiv.innerText || ''
-
-      await navigator.clipboard.writeText(textContent)
+      // Copy the raw Markdown content directly (preserves code blocks and formatting)
+      await navigator.clipboard.writeText(message.content)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (error) {

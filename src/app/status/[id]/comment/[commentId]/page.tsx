@@ -224,11 +224,8 @@ export default function CommentDetailPage() {
   // Handle copy comment
   const handleCopy = async (commentId: string, content: string) => {
     try {
-      const tempDiv = document.createElement('div')
-      tempDiv.innerHTML = content
-      const textContent = tempDiv.textContent || tempDiv.innerText || ''
-
-      await navigator.clipboard.writeText(textContent)
+      // Copy the raw Markdown content directly (preserves code blocks and formatting)
+      await navigator.clipboard.writeText(content)
       setCopiedId(commentId)
       setTimeout(() => setCopiedId(null), 2000)
     } catch (error) {

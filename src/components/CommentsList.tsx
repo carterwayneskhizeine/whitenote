@@ -162,11 +162,8 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
   const handleCopy = async (comment: Comment, e: React.MouseEvent) => {
     e.stopPropagation()
     try {
-      const tempDiv = document.createElement('div')
-      tempDiv.innerHTML = comment.content
-      const textContent = tempDiv.textContent || tempDiv.innerText || ''
-
-      await navigator.clipboard.writeText(textContent)
+      // Copy the raw Markdown content directly (preserves code blocks and formatting)
+      await navigator.clipboard.writeText(comment.content)
       setCopiedId(comment.id)
       setTimeout(() => setCopiedId(null), 2000)
     } catch (error) {

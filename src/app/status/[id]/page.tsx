@@ -103,11 +103,8 @@ export default function StatusPage() {
     const handleCopy = async () => {
         if (!message) return
         try {
-            const tempDiv = document.createElement('div')
-            tempDiv.innerHTML = message.content
-            const textContent = tempDiv.textContent || tempDiv.innerText || ''
-
-            await navigator.clipboard.writeText(textContent)
+            // Copy the raw Markdown content directly (preserves code blocks and formatting)
+            await navigator.clipboard.writeText(message.content)
             setCopied(true)
             setTimeout(() => setCopied(false), 2000)
         } catch (error) {
