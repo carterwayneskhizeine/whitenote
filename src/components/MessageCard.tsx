@@ -39,6 +39,7 @@ import { TipTapViewer } from "@/components/TipTapViewer"
 import { ImageLightbox } from "@/components/ImageLightbox"
 import { MediaGrid } from "@/components/MediaGrid"
 import { ActionRow } from "@/components/ActionRow"
+import { UserInfoWithTags } from "@/components/UserInfoWithTags"
 
 interface MessageCardProps {
   message: Message
@@ -198,42 +199,14 @@ export function MessageCard({
           <div className="flex-1 min-w-0">
             {/* Header: Name @handle · Time #Tags */}
             <div className="flex items-start justify-between gap-2">
-              <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5 text-sm leading-5">
-                {message.author ? (
-                  <>
-                    <span className="font-bold text-foreground hover:underline">
-                      {message.author.name || "GoldieRill"}
-                    </span>
-                    <span className="text-muted-foreground">
-                      @{getHandle(message.author?.email || null, !!message.author)}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="font-bold text-purple-600 hover:underline">
-                      AI 助手
-                    </span>
-                    <span className="text-muted-foreground">
-                      @assistant
-                    </span>
-                  </>
-                )}
-                <span className="text-muted-foreground px-1">·</span>
-                <span className="text-muted-foreground hover:underline">
-                  {formatTime(message.createdAt)}
-                </span>
-
-                {/* Tags displayed after user info */}
-                {message.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {message.tags.map(({ tag }) => (
-                      <span key={tag.id} className="text-primary hover:underline cursor-pointer">
-                        #{tag.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <UserInfoWithTags
+                author={message.author}
+                createdAt={message.createdAt}
+                tags={message.tags}
+                size="md"
+                align="baseline"
+                containerClassName="text-sm leading-5"
+              />
               <div className="flex items-center">
                 {message.isPinned && <Pin className="h-4 w-4 text-muted-foreground fill-current mr-2" />}
                 <DropdownMenu>

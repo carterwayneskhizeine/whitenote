@@ -1,14 +1,12 @@
 "use client"
 
 import { useState } from "react"
-import { formatDistanceToNow } from "date-fns"
-import { zhCN } from "date-fns/locale"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { MediaGrid } from "@/components/MediaGrid"
-import { getHandle } from "@/lib/utils"
+import { UserInfoWithTags } from "@/components/UserInfoWithTags"
 import { ImageLightbox } from "@/components/ImageLightbox"
 
 interface QuotedMessage {
@@ -47,17 +45,6 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
 
-  const formatTime = (dateString: string) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), {
-        addSuffix: true,
-        locale: zhCN,
-      })
-    } catch {
-      return ""
-    }
-  }
-
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     // If it has a messageId, it's a comment - navigate to the comment's URL
@@ -92,40 +79,15 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
           size="sm"
           isAI={!message.author}
         />
-        {message.author ? (
-          <>
-            <span className="font-bold text-foreground">
-              {message.author.name || "GoldieRill"}
-            </span>
-            <span className="text-muted-foreground">
-              @{getHandle(message.author?.email || null, !!message.author)}
-            </span>
-          </>
-        ) : (
-          <>
-            <span className="font-bold text-purple-600">
-              AI 助手
-            </span>
-            <span className="text-muted-foreground">
-              @assistant
-            </span>
-          </>
-        )}
-        <span className="text-muted-foreground">·</span>
-        <span className="text-muted-foreground">
-          {formatTime(message.createdAt)}
-        </span>
-
-        {/* Tags displayed after user info */}
-        {message.tags && message.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 items-center">
-            {message.tags.map(({ tag }) => (
-              <span key={tag.id} className="text-primary hover:underline cursor-pointer text-xs">
-                #{tag.name}
-              </span>
-            ))}
-          </div>
-        )}
+        <UserInfoWithTags
+          author={message.author}
+          createdAt={message.createdAt}
+          tags={message.tags}
+          size="sm"
+          align="center"
+          containerClassName="text-sm"
+          showAIIndicator={false}
+        />
       </div>
 
       {/* Message Content - truncated to 2 lines */}

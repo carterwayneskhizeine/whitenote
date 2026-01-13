@@ -3,6 +3,7 @@
 import { Comment } from "@/types/api"
 import { cn } from "@/lib/utils"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
+import { UserInfoWithTags } from "@/components/UserInfoWithTags"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { MediaGrid } from "@/components/MediaGrid"
 import { QuotedMessageCard } from "@/components/QuotedMessageCard"
@@ -14,10 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Bot, Edit2, Trash2, MoreVertical } from "lucide-react"
-import { getHandle } from "@/lib/utils"
-import { formatDistanceToNow } from "date-fns"
-import { zhCN } from "date-fns/locale"
+import { Edit2, Trash2, MoreVertical } from "lucide-react"
 
 export interface CommentItemProps {
   comment: Comment
@@ -103,18 +101,6 @@ export function CommentItem({
 }: CommentItemProps) {
   const config = sizeConfig[size]
 
-  // Format time
-  const formatTime = (dateString: string) => {
-    try {
-      return formatDistanceToNow(new Date(dateString), {
-        addSuffix: true,
-        locale: zhCN,
-      })
-    } catch {
-      return ""
-    }
-  }
-
   return (
     <div
       className={cn("p-4 border-b hover:bg-muted/5 transition-colors", onClick && "cursor-pointer", className)}
@@ -132,44 +118,14 @@ export function CommentItem({
         <div className="flex-1 min-w-0">
           {/* Header: User Info + Menu */}
           <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-1 flex-wrap">
-              {/* Name */}
-              <span className={cn("font-bold hover:underline", config.name)}>
-                {comment.author?.name || "GoldieRill"}
-              </span>
-
-              {/* Handle */}
-              <span className={cn("text-muted-foreground", config.handle)}>
-                @{getHandle(comment.author?.email || null, !!comment.author)}
-              </span>
-
-              {/* Separator */}
-              <span className={cn("text-muted-foreground", config.time)}>·</span>
-
-              {/* Time */}
-              <span className={cn("text-muted-foreground hover:underline", config.time)}>
-                {formatTime(comment.createdAt)}
-              </span>
-
-              {/* AI Bot Indicator */}
-              {comment.isAIBot && (
-                <Bot className={cn(config.botIcon, "text-primary ml-1")} />
-              )}
-
-              {/* Tags */}
-              {comment.tags && comment.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 items-center">
-                  {comment.tags.map(({ tag }) => (
-                    <span
-                      key={tag.id}
-                      className={cn("text-primary hover:underline cursor-pointer", config.tag)}
-                    >
-                      #{tag.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+            <UserInfoWithTags
+              author={comment.author}
+              createdAt={comment.createdAt}
+              tags={comment.tags}
+              isAIBot={comment.isAIBot}
+              size={size}
+              align="center"
+            />
 
             {/* Dropdown Menu */}
             {showMenu && (
