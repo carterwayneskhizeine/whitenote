@@ -44,13 +44,19 @@ export async function GET(request: NextRequest) {
   }
 
   // 构建最终查询条件：用户的消息 OR 系统生成的晨报
+  // 系统消息也需要应用 rootOnly 过滤（如果设置了）
+  const systemMessageWhere: Record<string, unknown> = {
+    authorId: null,
+    tags: { some: { tag: { name: "dailyreview" } } },  // 标签名在数据库中是小写
+  }
+  if (rootOnly) {
+    systemMessageWhere.parentId = null
+  }
+
   const where: Record<string, unknown> = {
     OR: [
       { authorId: session.user.id, ...baseWhere },  // 用户的消息
-      {
-        authorId: null,  // 系统消息
-        tags: { some: { tag: { name: "DailyReview" } } }  // 带有 DailyReview 标签
-      }
+      systemMessageWhere,  // 系统生成的晨报
     ]
   }
 
