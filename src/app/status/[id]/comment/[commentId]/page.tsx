@@ -58,6 +58,7 @@ export default function CommentDetailPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [templates, setTemplates] = useState<Template[]>([])
   const [replyInputFocused, setReplyInputFocused] = useState(false)
+  const [isProcessingAI, setIsProcessingAI] = useState(false)
 
   const [showRetweetDialog, setShowRetweetDialog] = useState(false)
   const [retweetTarget, setRetweetTarget] = useState<Comment | null>(null)
@@ -176,6 +177,47 @@ export default function CommentDetailPage() {
   // Apply template
   const applyTemplate = (template: Template) => {
     setNewReply(prev => prev + template.content)
+  }
+
+  // Sanitize markdown to prevent TipTap mark conflicts
+  const sanitizeMarkdown = (markdown: string): string => {
+    // Remove bold from within code blocks (e.g., **`code`** -> `code`)
+    let sanitized = markdown.replace(/\*\*`([^`]+)`\*\*/g, '`$1`')
+    // Remove italic from within code blocks (e.g., *`code`* -> `code`)
+    sanitized = sanitized.replace(/\*`([^`]+)`\*/g, '`$1`')
+    // Remove bold/italic from within inline code (e.g., `**bold**` -> `bold`)
+    sanitized = sanitized.replace(/`(\*\*[^*]+\*\*)`/g, '$1')
+    sanitized = sanitized.replace(/`(\*[^*]+\*)`/g, '$1')
+    return sanitized
+  }
+
+  // Handle AI command selection from button
+  const handleAICommandFromButton = async (action: string) => {
+    setIsProcessingAI(true)
+    try {
+      const response = await fetch('/api/ai/enhance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          content: newReply.trim(),
+        }),
+      })
+
+      if (!response.ok) throw new Error('AI request failed')
+
+      const data = await response.json()
+      if (data.data?.result) {
+        const result = sanitizeMarkdown(data.data.result.trim())
+        setNewReply(result)
+      }
+    } catch (error) {
+      console.error('AI enhance error:', error)
+    } finally {
+      setIsProcessingAI(false)
+    }
   }
 
   const formatTime = (dateString: string) => {
@@ -432,7 +474,7 @@ export default function CommentDetailPage() {
         focused={replyInputFocused}
         onFocusedChange={setReplyInputFocused}
         templates={templates}
-        onApplyTemplate={applyTemplate}
+        onAICommandSelect={handleAICommandFromButton}
         onSubmit={handlePostReply}
       />
 

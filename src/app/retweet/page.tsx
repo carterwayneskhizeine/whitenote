@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { messagesApi, commentsApi, templatesApi } from "@/lib/api"
 import { Message } from "@/lib/api/messages"
-import { Comment } from "@/lib/api/comments"
-import { Template } from "@/types/api"
+import { Comment, Template } from "@/types/api"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { MediaGrid } from "@/components/MediaGrid"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
@@ -161,9 +160,9 @@ export default function MobileRetweetPage() {
       }
 
       if (targetType === 'message') {
-        createData.quotedMessageId = targetId
+        createData.quotedMessageId = targetId!
       } else {
-        createData.quotedCommentId = targetId
+        createData.quotedCommentId = targetId!
       }
 
       const result = await messagesApi.createMessage(createData)
@@ -171,9 +170,9 @@ export default function MobileRetweetPage() {
       if (result.data) {
         // 2. Call retweet API to increment retweet count
         if (targetType === 'message') {
-          await messagesApi.toggleRetweet(targetId)
+          await messagesApi.toggleRetweet(targetId!)
         } else {
-          await commentsApi.toggleRetweet(targetId)
+          await commentsApi.toggleRetweet(targetId!)
         }
 
         // Navigate to home to show the new message

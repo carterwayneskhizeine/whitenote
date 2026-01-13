@@ -200,7 +200,6 @@ export default function FavoritesPage() {
         onOpenChange={setShowReplyDialog}
         target={replyTarget}
         messageId={replyTarget?.messageId || ""}
-        targetType="comment"
         onSuccess={() => {
           // Reply was successful, dialog will close automatically
           setShowReplyDialog(false)
