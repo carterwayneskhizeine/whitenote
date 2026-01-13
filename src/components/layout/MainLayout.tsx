@@ -1,12 +1,14 @@
 "use client"
 
 import { usePathname } from "next/navigation"
+import { useMobile } from "@/hooks/use-mobile"
 import { LeftSidebar } from "./LeftSidebar"
 import { RightSidebar } from "./RightSidebar"
 import { MobileNav } from "./MobileNav"
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const isMobile = useMobile()
   const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register")
   const isSettingsPage = pathname?.startsWith("/settings")
   const isTagsPage = pathname === "/tags"
@@ -27,7 +29,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* MainLayout - 移动端全宽,桌面端 max-w-[600px] */}
-        <main className={`flex-1 border-x border-border min-h-screen flex flex-col w-full ${isSettingsPage ? 'md:max-w-[600px] xl:max-w-[1000px]' :
+        <main className={`flex-1 min-h-screen flex flex-col w-full ${!isMobile ? 'border-x border-border' : ''} ${isSettingsPage ? 'md:max-w-[600px] xl:max-w-[1000px]' :
           isTagsPage ? 'max-w-full' :
             'md:max-w-[600px]'
           } shrink-0`}>
