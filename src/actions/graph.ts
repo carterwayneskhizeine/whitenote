@@ -20,8 +20,7 @@ export async function getGraphData(): Promise<GraphData> {
                             color: true
                         }
                     }
-                },
-                take: 1
+                }
             },
             _count: {
                 select: {
