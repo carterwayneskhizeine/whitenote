@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Copy, Check } from "lucide-react"
+import { useMobile } from "@/hooks/use-mobile"
 
 export interface MediaItem {
   id: string
@@ -76,6 +77,7 @@ function ImageDescriptionDialog({
 
 export function MediaGrid({ medias, onImageClick, className }: MediaGridProps) {
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null)
+  const isMobile = useMobile()
 
   if (!medias || medias.length === 0) return null
 
@@ -122,7 +124,7 @@ export function MediaGrid({ medias, onImageClick, className }: MediaGridProps) {
                 {media.description && (
                   <button
                     onClick={() => setSelectedMedia(media)}
-                    className="absolute bottom-2 left-2 px-2 py-1 bg-black/70 hover:bg-black/80 text-white text-xs font-medium rounded backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100"
+                    className={`absolute bottom-2 left-2 px-2 py-1 bg-black/70 hover:bg-black/80 text-white text-xs font-medium rounded backdrop-blur-sm transition-all ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                   >
                     ALT
                   </button>
