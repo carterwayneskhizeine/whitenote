@@ -90,6 +90,18 @@ export function RetweetDialog({
 
     if (!target) return null
 
+    // Sanitize markdown to prevent TipTap mark conflicts
+    const sanitizeMarkdown = (markdown: string): string => {
+        // Remove bold from within code blocks (e.g., **`code`** -> `code`)
+        let sanitized = markdown.replace(/\*\*`([^`]+)`\*\*/g, '`$1`')
+        // Remove italic from within code blocks (e.g., *`code`* -> `code`)
+        sanitized = sanitized.replace(/\*`([^`]+)`\*/g, '`$1`')
+        // Remove bold/italic from within inline code (e.g., `**bold**` -> `bold`)
+        sanitized = sanitized.replace(/`(\*\*[^*]+\*\*)`/g, '$1')
+        sanitized = sanitized.replace(/`(\*[^*]+\*)`/g, '$1')
+        return sanitized
+    }
+
     // Handle AI command selection from button
     const handleAICommandFromButton = async (action: string) => {
         setIsProcessingAI(true)
@@ -109,7 +121,7 @@ export function RetweetDialog({
 
             const data = await response.json()
             if (data.data?.result) {
-                const result = data.data.result.trim()
+                const result = sanitizeMarkdown(data.data.result.trim())
                 setContent(result)
             }
         } catch (error) {

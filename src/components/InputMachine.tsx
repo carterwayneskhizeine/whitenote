@@ -274,6 +274,18 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     }
   }, [mediaRecorder])
 
+  // Sanitize markdown to prevent TipTap mark conflicts
+  const sanitizeMarkdown = (markdown: string): string => {
+    // Remove bold from within code blocks (e.g., **`code`** -> `code`)
+    let sanitized = markdown.replace(/\*\*`([^`]+)`\*\*/g, '`$1`')
+    // Remove italic from within code blocks (e.g., *`code`* -> `code`)
+    sanitized = sanitized.replace(/\*`([^`]+)`\*/g, '`$1`')
+    // Remove bold/italic from within inline code (e.g., `**bold**` -> `bold`)
+    sanitized = sanitized.replace(/`(\*\*[^*]+\*\*)`/g, '$1')
+    sanitized = sanitized.replace(/`(\*[^*]+\*)`/g, '$1')
+    return sanitized
+  }
+
   // Handle AI command selection from button
   const handleAICommandFromButton = async (action: string) => {
     if (!editor || isProcessingAI) return
@@ -312,13 +324,21 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
           editor.commands.clearContent()
           setHasContent(false)
         } else {
+          // Sanitize markdown to prevent mark conflicts
+          const sanitized = sanitizeMarkdown(result)
           // Replace editor content with AI result as Markdown
-          editor.commands.setContent(result, {
-            contentType: 'markdown',
-            parseOptions: {
-              preserveWhitespace: 'full',
-            },
-          })
+          try {
+            editor.commands.setContent(sanitized, {
+              contentType: 'markdown',
+              parseOptions: {
+                preserveWhitespace: 'full',
+              },
+            })
+          } catch (setContentError) {
+            // Fallback: insert as plain text if setContent fails
+            console.warn('Failed to set markdown content, falling back to plain text:', setContentError)
+            editor.commands.insertContent(sanitized)
+          }
           setHasContent(true)
         }
       }
