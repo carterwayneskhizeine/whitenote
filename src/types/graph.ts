@@ -12,6 +12,7 @@ export interface GraphNode extends SimulationNodeDatum {
     color?: string; // Color of the node (based on Tag)
     nodeType: NodeType; // Whether this is a message or comment node
     messageId?: string; // For comment nodes, the parent message ID
+    tags?: string[]; // Array of tag names for this node
     x?: number;
     y?: number;
     vx?: number;

@@ -153,23 +153,46 @@ export const GraphView: React.FC<GraphViewProps> = ({
                     const isConnected = links.some((l: any) => (l.source.id === d.id && l.target.id === n.id) || (l.target.id === d.id && l.source.id === n.id));
                     return (n.id === d.id || isConnected) ? 1 : 0.1;
                 });
+                tagsText.attr("opacity", (n: any) => {
+                    const isConnected = links.some((l: any) => (l.source.id === d.id && l.target.id === n.id) || (l.target.id === d.id && l.source.id === n.id));
+                    return (n.id === d.id || isConnected) ? 1 : 0.1;
+                });
             })
             .on("mouseout", function () {
                 d3.select(this).attr("stroke", d => (d as any).isHub ? "#fff" : "none").attr("stroke-width", 1.5);
                 link.attr("stroke", "#404040").attr("stroke-opacity", 0.6);
                 node.attr("opacity", 1);
                 text.attr("opacity", d => (d as any).isHub ? 1 : 0.7); // Reset to default visibility
+                tagsText.attr("opacity", d => (d as any).isHub ? 1 : 0.7); // Reset to default visibility
             });
 
 
-        // Draw Labels
+        // Draw Labels - Line 1: Tags (blue)
+        const tagsText = container.append("g")
+            .selectAll("text")
+            .data(nodes.filter(d => (d as any).tags && (d as any).tags.length > 0))
+            .join("text")
+            .text(d => {
+                const tags = (d as any).tags as string[]
+                return tags.map(t => `#${t}`).join(' ')
+            })
+            .attr("x", 12)
+            .attr("y", -6)
+            .attr("font-family", "sans-serif")
+            .attr("font-size", "9px")
+            .attr("font-weight", "normal")
+            .attr("fill", "#1d9bf0")
+            .attr("opacity", d => d.isHub ? 1 : 0.7)
+            .style("pointer-events", "none");
+
+        // Draw Labels - Line 2: Message text (below tags)
         const text = container.append("g")
             .selectAll("text")
             .data(nodes)
             .join("text")
             .text(d => d.title || d.id.substring(0, 10))
             .attr("x", 12)
-            .attr("y", 4)
+            .attr("y", d => ((d as any).tags && (d as any).tags.length > 0) ? 8 : 4)
             .attr("font-family", "sans-serif")
             .attr("font-size", d => d.isHub ? "14px" : "10px")
             .attr("font-weight", d => d.isHub ? "bold" : "normal")
@@ -191,8 +214,15 @@ export const GraphView: React.FC<GraphViewProps> = ({
                 .attr("cy", d => d.y!);
 
             text
-                .attr("x", d => d.x! + 10)
-                .attr("y", d => d.y! + 4);
+                .attr("x", d => d.x! + 12)
+                .attr("y", d => {
+                    const hasTags = (d as any).tags && (d as any).tags.length > 0;
+                    return d.y! + (hasTags ? 8 : 4);
+                });
+
+            tagsText
+                .attr("x", d => d.x! + 12)
+                .attr("y", d => d.y! - 6);
         });
 
         // Zoom Behavior

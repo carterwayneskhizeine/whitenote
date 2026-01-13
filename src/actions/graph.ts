@@ -66,7 +66,8 @@ export async function getGraphData(): Promise<GraphData> {
             val: connections + 1,
             isHub: connections > 3,
             color: primaryTag?.color || '#5c5c5c',
-            nodeType: 'message'
+            nodeType: 'message',
+            tags: msg.tags.map(t => t.tag.name)
         }
     })
 
