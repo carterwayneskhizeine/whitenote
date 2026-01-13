@@ -9,6 +9,7 @@ import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { CommentBreadcrumb } from "@/components/CommentBreadcrumb"
+import { Separator } from "@/components/ui/separator"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +29,6 @@ import {
 import { Comment } from "@/types/api"
 import { Template } from "@/types/api"
 import { MediaItem } from "@/components/MediaUploader"
-import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { getHandle } from "@/lib/utils"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
@@ -300,110 +300,110 @@ export default function CommentDetailPage() {
 
       {/* Comment Content */}
       <div className="p-4">
-        <div className="flex gap-3">
-          {/* Avatar */}
-          <GoldieAvatar
-            name={comment.author?.name || null}
-            avatar={comment.author?.avatar || null}
-            size="xl"
-          />
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center gap-1 flex-wrap">
-                <span className="font-bold text-base hover:underline">
-                  {comment.author?.name || "GoldieRill"}
+        <div className="flex items-start justify-between">
+          <div className="flex flex-wrap items-baseline gap-x-1 gap-y-0.5 text-sm leading-5">
+            {comment.author ? (
+              <>
+                <span className="font-bold text-foreground hover:underline">
+                  {comment.author.name || "GoldieRill"}
                 </span>
-                <span className="text-muted-foreground text-sm">
+                <span className="text-muted-foreground">
                   @{getHandle(comment.author?.email || null, !!comment.author)}
                 </span>
-                <span className="text-muted-foreground text-sm">·</span>
-                <span className="text-muted-foreground text-sm hover:underline">
-                  {formatTime(comment.createdAt)}
+              </>
+            ) : (
+              <>
+                <span className="font-bold text-purple-600 hover:underline">
+                  GoldieRill
                 </span>
-                {comment.isAIBot && (
-                  <Bot className="h-4 w-4 text-primary ml-1" />
-                )}
-
-                {/* Tags displayed after user info */}
-                {comment.tags && comment.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 items-center">
-                    {comment.tags.map(({ tag }) => (
-                      <span key={tag.id} className="text-primary hover:underline cursor-pointer text-sm">
-                        #{tag.name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:bg-primary/10 hover:text-primary rounded-full"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem
-                    onClick={() => router.push(`/status/${id}/comment/${comment.id}/edit`)}
-                  >
-                    <Edit2 className="h-4 w-4 mr-2" />
-                    编辑
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => setShowDeleteDialog(true)}
-                    className="text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    删除
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            <div className="mt-2 text-sm leading-normal wrap-break-word">
-              <TipTapViewer content={comment.content} />
-            </div>
-
-            {/* Media Display */}
-            <MediaGrid
-              medias={comment.medias || []}
-              onImageClick={(index, e) => handleImageClick(index, comment.medias, e)}
-              className="mt-2"
-            />
-
-            {/* 引用的消息卡片 - 类似 X/Twitter */}
-            {comment.quotedMessage && (
-              <QuotedMessageCard
-                message={comment.quotedMessage}
-                className="mt-2"
-              />
+                <span className="text-muted-foreground">
+                  @AI
+                </span>
+              </>
+            )}
+            <span className="text-muted-foreground px-1">·</span>
+            <span className="text-muted-foreground">
+              {formatTime(comment.createdAt)}
+            </span>
+            {comment.isAIBot && (
+              <Bot className="h-4 w-4 text-primary ml-1" />
             )}
 
-            {/* Action Row */}
-            <ActionRow
-              replyCount={childComments.length}
-              onReply={(e) => {
-                e.stopPropagation()
-                setReplyTarget(comment)
-                setShowReplyDialog(true)
-              }}
-              copied={copiedId === comment.id}
-              onCopy={() => handleCopy(comment.id, comment.content)}
-              retweetCount={comment?.retweetCount ?? 0}
-              onRetweet={handleRetweet}
-              starred={starredComments.has(comment.id)}
-              onToggleStar={() => handleToggleStar(comment.id)}
-              onShare={undefined}
-              size="md"
-              className="mt-3"
-            />
+            {/* Tags displayed after user info */}
+            {comment.tags && comment.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {comment.tags.map(({ tag }) => (
+                  <span key={tag.id} className="text-primary hover:underline cursor-pointer">
+                    #{tag.name}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full text-muted-foreground hover:bg-primary/10 hover:text-primary">
+                <MoreVertical className="h-5 w-5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => router.push(`/status/${id}/comment/${comment.id}/edit`)}
+              >
+                <Edit2 className="h-4 w-4 mr-2" />
+                编辑
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setShowDeleteDialog(true)}
+                className="text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                删除
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+
+        <div className="mt-4 text-sm leading-normal wrap-break-word">
+          <TipTapViewer content={comment.content} />
+        </div>
+
+        {/* Media Display */}
+        <MediaGrid
+          medias={comment.medias || []}
+          onImageClick={(index, e) => handleImageClick(index, comment.medias, e)}
+          className="mt-4"
+        />
+
+        {/* 引用的消息卡片 - 类似 X/Twitter */}
+        {comment.quotedMessage && (
+          <QuotedMessageCard
+            message={comment.quotedMessage}
+          />
+        )}
+
+        <Separator className="my-1" />
+
+        {/* Action Row */}
+        <ActionRow
+          replyCount={childComments.length}
+          onReply={(e) => {
+            e.stopPropagation()
+            setReplyTarget(comment)
+            setShowReplyDialog(true)
+          }}
+          copied={copiedId === comment.id}
+          onCopy={() => handleCopy(comment.id, comment.content)}
+          retweetCount={comment?.retweetCount ?? 0}
+          onRetweet={handleRetweet}
+          starred={starredComments.has(comment.id)}
+          onToggleStar={() => handleToggleStar(comment.id)}
+          onShare={undefined}
+          size="lg"
+          className="px-2"
+        />
+
+        <Separator className="my-1" />
       </div>
 
       {/* Reply Input */}
