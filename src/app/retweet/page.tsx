@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Loader2 } from "lucide-react"
@@ -20,7 +20,7 @@ import { zhCN } from "date-fns/locale"
 type TargetType = 'message' | 'comment'
 type Target = Message | Comment
 
-export default function MobileRetweetPage() {
+function MobileRetweetPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const targetId = searchParams.get('id')
@@ -308,5 +308,17 @@ export default function MobileRetweetPage() {
         />
       </div>
     </div>
+  )
+}
+
+export default function MobileRetweetPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <MobileRetweetPageContent />
+    </Suspense>
   )
 }
