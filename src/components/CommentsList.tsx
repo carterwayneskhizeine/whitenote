@@ -24,6 +24,7 @@ import {
 import { ImageLightbox } from "@/components/ImageLightbox"
 import { CompactReplyInput } from "@/components/CompactReplyInput"
 import { CommentItem } from "@/components/CommentItem"
+import { useMobile } from "@/hooks/use-mobile"
 
 interface CommentsListProps {
   messageId: string
@@ -31,6 +32,7 @@ interface CommentsListProps {
 }
 
 export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
+  const isMobile = useMobile()
   const router = useRouter()
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
@@ -101,11 +103,15 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
     fetchComments()
   }, [messageId])
 
-  // Handle retweet - opens quote retweet dialog
+  // Handle retweet - opens quote retweet dialog on desktop, navigates on mobile
   const handleRetweet = (comment: Comment, e: React.MouseEvent) => {
     e.stopPropagation()
-    setRetweetTarget(comment)
-    setShowRetweetDialog(true)
+    if (isMobile) {
+      router.push(`/retweet?id=${comment.id}&type=comment&messageId=${messageId}`)
+    } else {
+      setRetweetTarget(comment)
+      setShowRetweetDialog(true)
+    }
   }
 
   // Handle delete comment
@@ -290,8 +296,12 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
               replyCount={getReplyCount(comment)}
               onReply={(e) => {
                 e.stopPropagation()
-                setReplyTarget(comment)
-                setShowReplyDialog(true)
+                if (isMobile) {
+                  router.push(`/status/${messageId}/comment/${comment.id}/reply`)
+                } else {
+                  setReplyTarget(comment)
+                  setShowReplyDialog(true)
+                }
               }}
               copied={copiedId === comment.id}
               onCopy={(e) => handleCopy(comment, e)}

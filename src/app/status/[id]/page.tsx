@@ -33,10 +33,12 @@ import { RetweetDialog } from "@/components/RetweetDialog"
 import { QuotedMessageCard } from "@/components/QuotedMessageCard"
 import { ImageLightbox } from "@/components/ImageLightbox"
 import { ActionRow } from "@/components/ActionRow"
+import { useMobile } from "@/hooks/use-mobile"
 
 export default function StatusPage() {
     const { id } = useParams() as { id: string }
     const router = useRouter()
+    const isMobile = useMobile()
     const [message, setMessage] = useState<Message | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -236,13 +238,23 @@ export default function StatusPage() {
                 <ActionRow
                     replyCount={message._count.comments}
                     onReply={() => {
-                        setReplyTarget(message)
-                        setShowReplyDialog(true)
+                        if (isMobile) {
+                            router.push(`/status/${message.id}/reply`)
+                        } else {
+                            setReplyTarget(message)
+                            setShowReplyDialog(true)
+                        }
                     }}
                     copied={copied}
                     onCopy={handleCopy}
                     retweetCount={message.retweetCount ?? 0}
-                    onRetweet={() => setShowRetweetDialog(true)}
+                    onRetweet={() => {
+                        if (isMobile) {
+                            router.push(`/retweet?id=${message.id}&type=message`)
+                        } else {
+                            setShowRetweetDialog(true)
+                        }
+                    }}
                     starred={message.isStarred}
                     onToggleStar={async () => {
                         const result = await messagesApi.toggleStar(message.id)

@@ -40,6 +40,7 @@ import { ImageLightbox } from "@/components/ImageLightbox"
 import { MediaGrid } from "@/components/MediaGrid"
 import { ActionRow } from "@/components/ActionRow"
 import { UserInfoWithTags } from "@/components/UserInfoWithTags"
+import { useMobile } from "@/hooks/use-mobile"
 
 interface MessageCardProps {
   message: Message
@@ -56,6 +57,7 @@ export function MessageCard({
   onReply,
   showChildren = false,
 }: MessageCardProps) {
+  const isMobile = useMobile()
   const [isStarred, setIsStarred] = useState(message.isStarred)
   const [starCount, setStarCount] = useState(0) // Mock count or real if available
   const [isDeleting, setIsDeleting] = useState(false)
@@ -129,10 +131,14 @@ export function MessageCard({
     }
   }
 
-  // Handle retweet - opens quote retweet dialog
+  // Handle retweet - opens quote retweet dialog on desktop, navigates on mobile
   const handleRetweet = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setShowRetweetDialog(true)
+    if (isMobile) {
+      router.push(`/retweet?id=${message.id}&type=message`)
+    } else {
+      setShowRetweetDialog(true)
+    }
   }
 
 
@@ -152,10 +158,14 @@ export function MessageCard({
     }
   }
 
-  // Handle reply
+  // Handle reply - opens dialog on desktop, navigates on mobile
   const handleReply = (e: React.MouseEvent) => {
     e.stopPropagation()
-    setShowReplyDialog(true)
+    if (isMobile) {
+      router.push(`/status/${message.id}/reply`)
+    } else {
+      setShowReplyDialog(true)
+    }
   }
 
   // Handle copy

@@ -38,10 +38,12 @@ import { MediaGrid } from "@/components/MediaGrid"
 import { ActionRow } from "@/components/ActionRow"
 import { CompactReplyInput } from "@/components/CompactReplyInput"
 import { CommentItem } from "@/components/CommentItem"
+import { useMobile } from "@/hooks/use-mobile"
 
 export default function CommentDetailPage() {
   const { id, commentId } = useParams() as { id: string; commentId: string }
   const router = useRouter()
+  const isMobile = useMobile()
 
   const [comment, setComment] = useState<Comment | null>(null)
   const [childComments, setChildComments] = useState<Comment[]>([])
@@ -187,11 +189,15 @@ export default function CommentDetailPage() {
     }
   }
 
-  // Handle retweet - opens quote retweet dialog
+  // Handle retweet - opens quote retweet dialog on desktop, navigates on mobile
   const handleRetweet = () => {
     if (!comment) return
-    setRetweetTarget(comment)
-    setShowRetweetDialog(true)
+    if (isMobile) {
+      router.push(`/retweet?id=${comment.id}&type=comment&messageId=${id}`)
+    } else {
+      setRetweetTarget(comment)
+      setShowRetweetDialog(true)
+    }
   }
 
   const handleDelete = async () => {
@@ -215,11 +221,15 @@ export default function CommentDetailPage() {
     }
   }
 
-  // Handle retweet for child comments
+  // Handle retweet for child comments - opens dialog on desktop, navigates on mobile
   const handleChildRetweet = (childComment: Comment, e: React.MouseEvent) => {
     e.stopPropagation()
-    setRetweetTarget(childComment)
-    setShowRetweetDialog(true)
+    if (isMobile) {
+      router.push(`/retweet?id=${childComment.id}&type=comment&messageId=${id}`)
+    } else {
+      setRetweetTarget(childComment)
+      setShowRetweetDialog(true)
+    }
   }
 
   // Handle copy comment
@@ -389,8 +399,12 @@ export default function CommentDetailPage() {
           replyCount={childComments.length}
           onReply={(e) => {
             e.stopPropagation()
-            setReplyTarget(comment)
-            setShowReplyDialog(true)
+            if (isMobile) {
+              router.push(`/status/${id}/comment/${comment.id}/reply`)
+            } else {
+              setReplyTarget(comment)
+              setShowReplyDialog(true)
+            }
           }}
           copied={copiedId === comment.id}
           onCopy={() => handleCopy(comment.id, comment.content)}
@@ -445,8 +459,12 @@ export default function CommentDetailPage() {
               replyCount={childComment._count?.replies || 0}
               onReply={(e) => {
                 e.stopPropagation()
-                setReplyTarget(childComment)
-                setShowReplyDialog(true)
+                if (isMobile) {
+                  router.push(`/status/${id}/comment/${childComment.id}/reply`)
+                } else {
+                  setReplyTarget(childComment)
+                  setShowReplyDialog(true)
+                }
               }}
               copied={copiedId === childComment.id}
               onCopy={(e) => {
