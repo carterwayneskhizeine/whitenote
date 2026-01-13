@@ -10,6 +10,7 @@ import { common, createLowlight } from 'lowlight'
 import { SlashCommand } from '@/lib/editor/extensions/slash-command'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Template } from '@/types/api'
 
 interface SimpleTipTapEditorProps {
   value: string
@@ -18,6 +19,7 @@ interface SimpleTipTapEditorProps {
   disabled?: boolean
   isProcessingAI?: boolean
   className?: string
+  onTemplateSelect?: (template: Template, editor: any) => void
   onAICommandSelect?: (action: string, editor: any) => void
   minHeight?: string
 }
@@ -29,6 +31,7 @@ export function SimpleTipTapEditor({
   disabled = false,
   isProcessingAI = false,
   className,
+  onTemplateSelect,
   onAICommandSelect,
   minHeight = "50px",
 }: SimpleTipTapEditorProps) {
@@ -54,9 +57,9 @@ export function SimpleTipTapEditor({
         placeholder,
       }),
       SlashCommand.configure({
-        onCommandSelect: (action: string, editor: any) => {
-          if (onAICommandSelect) {
-            onAICommandSelect(action, editor)
+        onTemplateSelect: (template: any, editor: any) => {
+          if (onTemplateSelect) {
+            onTemplateSelect(template, editor)
           }
         },
       }),

@@ -2,17 +2,27 @@
 
 import { Button } from "@/components/ui/button"
 import { Template } from "@/types/api"
-import { Mic, MicOff, Loader2, Image as ImageIcon } from "lucide-react"
+import { Mic, MicOff, Loader2, Image as ImageIcon, Sparkles } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useState, useEffect } from "react"
+import { aiCommandsApi } from "@/lib/api"
+
+export interface AICommandData {
+  id: string
+  label: string
+  description: string
+  action: string
+}
 
 interface ActionButtonsProps {
   templates?: Template[]
   onApplyTemplate?: (template: Template) => void
+  onAICommandSelect?: (action: string) => void
   onSubmit?: () => void
   submitDisabled?: boolean
   isSubmitting?: boolean
@@ -33,6 +43,7 @@ interface ActionButtonsProps {
 export function ActionButtons({
   templates = [],
   onApplyTemplate,
+  onAICommandSelect,
   onSubmit,
   submitDisabled = false,
   isSubmitting = false,
@@ -51,6 +62,22 @@ export function ActionButtons({
 }: ActionButtonsProps) {
   const buttonSize = size === "sm" ? "h-8 w-8" : "h-[34px] w-[34px]"
   const iconSize = size === "sm" ? "h-4 w-4" : "h-5 w-5"
+
+  const [aiCommands, setAICommands] = useState<AICommandData[]>([])
+
+  useEffect(() => {
+    const loadCommands = async () => {
+      try {
+        const result = await aiCommandsApi.getCommands()
+        if (result.data) {
+          setAICommands(result.data)
+        }
+      } catch (error) {
+        console.error('Failed to load AI commands:', error)
+      }
+    }
+    loadCommands()
+  }, [])
 
   return (
     <div className="flex items-center justify-between">
@@ -72,29 +99,23 @@ export function ActionButtons({
           </Button>
         )}
 
-        {/* Templates Dropdown */}
-        {templates.length > 0 && onApplyTemplate && (
+        {/* AI Commands Dropdown */}
+        {aiCommands.length > 0 && onAICommandSelect && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className={`${buttonSize} text-primary hover:bg-primary/10 rounded-full`}>
-                <svg className={`${iconSize}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="8" y1="6" x2="21" y2="6"></line>
-                  <line x1="8" y1="12" x2="21" y2="12"></line>
-                  <line x1="8" y1="18" x2="21" y2="18"></line>
-                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
-              <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                </svg>
+                <Sparkles className={iconSize} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
-              {templates.map((template) => (
+              {aiCommands.map((command) => (
                 <DropdownMenuItem
-                  key={template.id}
-                  onClick={() => onApplyTemplate(template)}
+                  key={command.id}
+                  onClick={() => onAICommandSelect(command.action)}
                 >
                   <div className="flex flex-col">
-                    <span className="font-medium">{template.name}</span>
+                    <span className="font-medium">{command.label}</span>
+                    <span className="text-xs text-muted-foreground">{command.description}</span>
                   </div>
                 </DropdownMenuItem>
               ))}

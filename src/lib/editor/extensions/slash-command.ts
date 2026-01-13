@@ -4,10 +4,10 @@ import { ReactRenderer } from '@tiptap/react'
 import tippy from 'tippy.js'
 import 'tippy.js/animations/scale.css'
 import 'tippy.js/themes/light.css'
-import { AICommandList } from './AICommandList'
+import { TemplateList } from './TemplateList'
 
 interface SlashCommandOptions {
-  onCommandSelect: (action: string, editor: any) => void
+  onTemplateSelect: (template: any, editor: any) => void
 }
 
 export const SlashCommand = Extension.create<SlashCommandOptions>({
@@ -15,7 +15,7 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
 
   addOptions() {
     return {
-      onCommandSelect: () => {},
+      onTemplateSelect: () => {},
     }
   },
 
@@ -34,10 +34,10 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
 
           return {
             onStart: (props: any) => {
-              component = new ReactRenderer(AICommandList, {
+              component = new ReactRenderer(TemplateList, {
                 props: {
                   command: (commandProps: any) => {
-                    this.options.onCommandSelect(commandProps.action, props.editor)
+                    this.options.onTemplateSelect(commandProps.template, props.editor)
                     // Delete the "/" character
                     props.editor.view.dispatch(
                       props.editor.state.tr.deleteRange(

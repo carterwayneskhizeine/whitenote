@@ -85,13 +85,8 @@ export function ReplyDialog({
 
     if (!target) return null
 
-    // Handle AI command selection
-    const handleAICommand = async (action: string, editor: any) => {
-        if (!editor || isProcessingAI) return
-
-        const currentContent = editor.getMarkdown().trim()
-        if (!currentContent) return
-
+    // Handle AI command selection from button
+    const handleAICommandFromButton = async (action: string) => {
         setIsProcessingAI(true)
         try {
             const response = await fetch('/api/ai/enhance', {
@@ -101,7 +96,7 @@ export function ReplyDialog({
                 },
                 body: JSON.stringify({
                     action,
-                    content: currentContent,
+                    content: content.trim(),
                 }),
             })
 
@@ -110,23 +105,26 @@ export function ReplyDialog({
             const data = await response.json()
             if (data.data?.result) {
                 const result = data.data.result.trim()
-                // Use clearContent for empty result to avoid Markdown parser issues
-                if (!result) {
-                    editor.commands.clearContent()
-                } else {
-                    editor.commands.setContent(result, {
-                        contentType: 'markdown',
-                        parseOptions: {
-                            preserveWhitespace: 'full',
-                        },
-                    })
-                }
+                setContent(result)
             }
         } catch (error) {
             console.error('AI enhance error:', error)
         } finally {
             setIsProcessingAI(false)
         }
+    }
+
+    // Handle template selection from "/" command
+    const handleTemplateSelect = (template: Template, editor: any) => {
+        if (!editor) return
+        const currentContent = editor.getMarkdown()
+        const newContent = currentContent + (currentContent ? "\n" : "") + template.content
+        editor.commands.setContent(newContent, {
+            contentType: 'markdown',
+            parseOptions: {
+                preserveWhitespace: 'full',
+            },
+        })
     }
 
     const handleReply = async () => {
@@ -168,10 +166,6 @@ export function ReplyDialog({
         } finally {
             setIsSubmitting(false)
         }
-    }
-
-    const applyTemplate = (template: Template) => {
-        setContent(prev => prev + template.content)
     }
 
     const formatTime = (dateString: string) => {
@@ -243,7 +237,7 @@ export function ReplyDialog({
                                 placeholder="发布你的回复"
                                 disabled={isSubmitting}
                                 isProcessingAI={isProcessingAI}
-                                onAICommandSelect={handleAICommand}
+                                onTemplateSelect={handleTemplateSelect}
                                 minHeight="120px"
                             />
                             <MediaUploader
@@ -260,7 +254,7 @@ export function ReplyDialog({
                 <div className="p-4 border-t">
                     <ActionButtons
                         templates={templates}
-                        onApplyTemplate={applyTemplate}
+                        onAICommandSelect={handleAICommandFromButton}
                         onSubmit={handleReply}
                         submitDisabled={!content.trim() && uploadedMedia.length === 0}
                         isSubmitting={isSubmitting}

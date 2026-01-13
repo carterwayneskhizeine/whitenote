@@ -1,8 +1,8 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Loader2 } from "lucide-react"
+import { Loader2, Sparkles } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -34,7 +34,7 @@ export interface CompactReplyInputProps {
 
   // 模板
   templates: Template[]
-  onApplyTemplate: (template: Template) => void
+  onAICommandSelect: (action: string) => void
 
   // 提交
   onSubmit: () => void
@@ -56,7 +56,7 @@ export function CompactReplyInput({
   focused,
   onFocusedChange,
   templates,
-  onApplyTemplate,
+  onAICommandSelect,
   onSubmit,
   placeholder = "发布你的回复",
   submitLabel = "回复",
@@ -65,45 +65,37 @@ export function CompactReplyInput({
   const { data: session } = useSession()
   const mediaUploaderRef = useRef<MediaUploaderRef>(null)
   const [isProcessingAI, setIsProcessingAI] = useState(false)
+  const [aiCommands, setAICommands] = useState<any[]>([])
+
+  // Fetch AI commands
+  useEffect(() => {
+    const fetchCommands = async () => {
+      try {
+        const { aiCommandsApi } = await import("@/lib/api")
+        const result = await aiCommandsApi.getCommands()
+        if (result.data) {
+          setAICommands(result.data)
+        }
+      } catch (error) {
+        console.error("Failed to fetch AI commands:", error)
+      }
+    }
+    fetchCommands()
+  }, [])
 
   const canSubmit = (value.trim() || media.length > 0) && !posting
 
-  // Handle AI command selection
-  const handleAICommand = async (action: string, editor: any) => {
-    if (!editor || isProcessingAI) return
-
-    const currentContent = editor.getMarkdown().trim()
-    if (!currentContent) return
-
-    setIsProcessingAI(true)
-    try {
-      const response = await fetch('/api/ai/enhance', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action,
-          content: currentContent,
-        }),
-      })
-
-      if (!response.ok) throw new Error('AI request failed')
-
-      const data = await response.json()
-      if (data.data?.result) {
-        editor.commands.setContent(data.data.result, {
-          contentType: 'markdown',
-          parseOptions: {
-            preserveWhitespace: 'full',
-          },
-        })
-      }
-    } catch (error) {
-      console.error('AI enhance error:', error)
-    } finally {
-      setIsProcessingAI(false)
-    }
+  // Handle template selection from "/" command
+  const handleTemplateSelect = (template: Template, editor: any) => {
+    if (!editor) return
+    const currentContent = editor.getMarkdown()
+    const newContent = currentContent + (currentContent ? "\n" : "") + template.content
+    editor.commands.setContent(newContent, {
+      contentType: 'markdown',
+      parseOptions: {
+        preserveWhitespace: 'full',
+      },
+    })
   }
 
   return (
@@ -146,7 +138,7 @@ export function CompactReplyInput({
                 placeholder={placeholder}
                 disabled={posting}
                 isProcessingAI={isProcessingAI}
-                onAICommandSelect={handleAICommand}
+                onTemplateSelect={handleTemplateSelect}
                 minHeight="40px"
               />
 
@@ -174,29 +166,23 @@ export function CompactReplyInput({
                     </svg>
                   </button>
 
-                  {/* Templates Dropdown */}
-                  {templates.length > 0 && (
+                  {/* AI Commands Dropdown */}
+                  {aiCommands.length > 0 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className="h-8 w-8 text-primary hover:bg-primary/10 rounded-full flex items-center justify-center">
-                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <line x1="8" y1="6" x2="21" y2="6"></line>
-                            <line x1="8" y1="12" x2="21" y2="12"></line>
-                            <line x1="8" y1="18" x2="21" y2="18"></line>
-                            <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                            <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                            <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                          </svg>
+                          <Sparkles className="h-4 w-4" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="start" className="w-56">
-                        {templates.map((template) => (
+                        {aiCommands.map((command) => (
                           <DropdownMenuItem
-                            key={template.id}
-                            onClick={() => onApplyTemplate(template)}
+                            key={command.id}
+                            onClick={() => onAICommandSelect(command.action)}
                           >
                             <div className="flex flex-col">
-                              <span className="font-medium">{template.name}</span>
+                              <span className="font-medium">{command.label}</span>
+                              <span className="text-xs text-muted-foreground">{command.description}</span>
                             </div>
                           </DropdownMenuItem>
                         ))}

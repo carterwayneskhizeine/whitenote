@@ -41,6 +41,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
   const [uploadedMedia, setUploadedMedia] = useState<MediaItem[]>([])
   const [isUploading, setIsUploading] = useState(false)
   const [templates, setTemplates] = useState<Template[]>([])
+  const [isProcessingAI, setIsProcessingAI] = useState(false)
   const [replyInputFocused, setReplyInputFocused] = useState(false)
 
   const [showReplyDialog, setShowReplyDialog] = useState(false)
@@ -228,9 +229,46 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
     }
   }
 
-  // Apply template
-  const applyTemplate = (template: Template) => {
-    setNewComment(prev => prev + template.content)
+  // Handle AI command selection from button
+  const handleAICommandFromButton = async (action: string) => {
+    setIsProcessingAI(true)
+    try {
+      const response = await fetch('/api/ai/enhance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          content: newComment.trim(),
+        }),
+      })
+
+      if (!response.ok) throw new Error('AI request failed')
+
+      const data = await response.json()
+      if (data.data?.result) {
+        const result = data.data.result.trim()
+        setNewComment(result)
+      }
+    } catch (error) {
+      console.error('AI enhance error:', error)
+    } finally {
+      setIsProcessingAI(false)
+    }
+  }
+
+  // Handle template selection from "/" command
+  const handleTemplateSelect = (template: Template, editor: any) => {
+    if (!editor) return
+    const currentContent = editor.getMarkdown()
+    const newContent = currentContent + (currentContent ? "\n" : "") + template.content
+    editor.commands.setContent(newContent, {
+      contentType: 'markdown',
+      parseOptions: {
+        preserveWhitespace: 'full',
+      },
+    })
   }
 
   // Format time
@@ -272,7 +310,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
         focused={replyInputFocused}
         onFocusedChange={setReplyInputFocused}
         templates={templates}
-        onApplyTemplate={applyTemplate}
+        onAICommandSelect={handleAICommandFromButton}
         onSubmit={handlePostComment}
       />
 
