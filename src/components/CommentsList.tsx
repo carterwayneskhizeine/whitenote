@@ -2,30 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { GoldieAvatar } from "@/components/GoldieAvatar"
-import {
-  Loader2,
-  Bot,
-  Edit2,
-  Trash2,
-  MoreVertical,
-} from "lucide-react"
+import { Loader2 } from "lucide-react"
+import { formatDistanceToNow } from "date-fns"
+import { zhCN } from "date-fns/locale"
 import { commentsApi, aiApi, templatesApi } from "@/lib/api"
 import { Comment } from "@/types/api"
 import { Template } from "@/types/api"
 import { MediaItem } from "@/components/MediaUploader"
-import { formatDistanceToNow } from "date-fns"
-import { zhCN } from "date-fns/locale"
-import { TipTapViewer } from "@/components/TipTapViewer"
 import { ReplyDialog } from "@/components/ReplyDialog"
-import { QuotedMessageCard } from "@/components/QuotedMessageCard"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { RetweetDialog } from "@/components/RetweetDialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,12 +21,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { RetweetDialog } from "@/components/RetweetDialog"
-import { getHandle } from "@/lib/utils"
 import { ImageLightbox } from "@/components/ImageLightbox"
-import { MediaGrid } from "@/components/MediaGrid"
-import { ActionRow } from "@/components/ActionRow"
 import { CompactReplyInput } from "@/components/CompactReplyInput"
+import { CommentItem } from "@/components/CommentItem"
 
 interface CommentsListProps {
   messageId: string
@@ -296,122 +278,31 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
           </div>
         ) : (
           comments.map((comment) => (
-            <div
+            <CommentItem
               key={comment.id}
-              className="p-4 border-b hover:bg-muted/5 transition-colors cursor-pointer"
+              comment={comment}
               onClick={() => router.push(`/status/${messageId}/comment/${comment.id}`)}
-            >
-              <div className="flex gap-3">
-                {/* Avatar */}
-                <GoldieAvatar
-                  name={comment.author?.name || null}
-                  avatar={comment.author?.avatar || null}
-                  size="lg"
-                />
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className="font-bold text-sm hover:underline">
-                        {comment.author?.name || "GoldieRill"}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        @{getHandle(comment.author?.email || null, !!comment.author)}
-                      </span>
-                      <span className="text-muted-foreground text-sm">·</span>
-                      <span className="text-muted-foreground text-sm hover:underline">
-                        {formatTime(comment.createdAt)}
-                      </span>
-                      {comment.isAIBot && (
-                        <Bot className="h-3.5 w-3.5 text-primary ml-1" />
-                      )}
-
-                      {/* Tags displayed after user info */}
-                      {comment.tags && comment.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 items-center">
-                          {comment.tags.map(({ tag }) => (
-                            <span key={tag.id} className="text-primary hover:underline cursor-pointer text-xs">
-                              #{tag.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:bg-primary/10 hover:text-primary rounded-full"
-                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        >
-                          <MoreVertical className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={(e: React.MouseEvent) => {
-                            e.stopPropagation()
-                            router.push(`/status/${messageId}/comment/${comment.id}/edit`)
-                          }}
-                        >
-                          <Edit2 className="h-4 w-4 mr-2" />
-                          编辑
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => handleDeleteClick(comment, e)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          删除
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <div className="mt-1 text-sm leading-normal wrap-break-word">
-                    <TipTapViewer content={comment.content} />
-                  </div>
-
-                  {/* Media Display */}
-                  <MediaGrid
-                    medias={comment.medias || []}
-                    onImageClick={(index, e) => {
-                      e.stopPropagation()
-                      handleImageClick(index, comment.medias, e)
-                    }}
-                    className="mt-2"
-                  />
-
-                  {/* 引用的消息卡片 - 类似 X/Twitter */}
-                  {comment.quotedMessage && (
-                    <QuotedMessageCard
-                      message={comment.quotedMessage}
-                      className="mt-2"
-                    />
-                  )}
-
-                  {/* Action row for comments */}
-                  <ActionRow
-                    replyCount={getReplyCount(comment)}
-                    onReply={(e) => {
-                      e.stopPropagation()
-                      setReplyTarget(comment)
-                      setShowReplyDialog(true)
-                    }}
-                    copied={copiedId === comment.id}
-                    onCopy={(e) => handleCopy(comment, e)}
-                    retweetCount={comment.retweetCount ?? 0}
-                    onRetweet={(e) => handleRetweet(comment, e)}
-                    starred={starredComments.has(comment.id)}
-                    onToggleStar={(e) => handleToggleStar(comment, e)}
-                    onShare={undefined}
-                    size="sm"
-                    className="mt-3"
-                  />
-                </div>
-              </div>
-            </div>
+              onEditClick={(e: React.MouseEvent) => {
+                e.stopPropagation()
+                router.push(`/status/${messageId}/comment/${comment.id}/edit`)
+              }}
+              onDeleteClick={(e) => handleDeleteClick(comment, e)}
+              replyCount={getReplyCount(comment)}
+              onReply={(e) => {
+                e.stopPropagation()
+                setReplyTarget(comment)
+                setShowReplyDialog(true)
+              }}
+              copied={copiedId === comment.id}
+              onCopy={(e) => handleCopy(comment, e)}
+              retweetCount={comment.retweetCount ?? 0}
+              onRetweet={(e) => handleRetweet(comment, e)}
+              starred={starredComments.has(comment.id)}
+              onToggleStar={(e) => handleToggleStar(comment, e)}
+              onImageClick={(index, e) => handleImageClick(index, comment.medias, e)}
+              size="md"
+              actionRowSize="sm"
+            />
           ))
         )}
       </div>

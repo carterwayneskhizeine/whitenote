@@ -29,7 +29,7 @@ import { Comment } from "@/types/api"
 import { Template } from "@/types/api"
 import { MediaItem } from "@/components/MediaUploader"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
-import { cn, getHandle } from "@/lib/utils"
+import { getHandle } from "@/lib/utils"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
 import { QuotedMessageCard } from "@/components/QuotedMessageCard"
@@ -37,6 +37,7 @@ import { ImageLightbox } from "@/components/ImageLightbox"
 import { MediaGrid } from "@/components/MediaGrid"
 import { ActionRow } from "@/components/ActionRow"
 import { CompactReplyInput } from "@/components/CompactReplyInput"
+import { CommentItem } from "@/components/CommentItem"
 
 export default function CommentDetailPage() {
   const { id, commentId } = useParams() as { id: string; commentId: string }
@@ -429,120 +430,40 @@ export default function CommentDetailPage() {
           </div>
         ) : (
           childComments.map((childComment) => (
-            <div
+            <CommentItem
               key={childComment.id}
-              className="p-4 border-b hover:bg-muted/5 transition-colors cursor-pointer"
+              comment={childComment}
               onClick={() => router.push(`/status/${id}/comment/${childComment.id}`)}
-            >
-              <div className="flex gap-3">
-                <GoldieAvatar
-                  name={childComment.author?.name || null}
-                  avatar={childComment.author?.avatar || null}
-                  size="lg"
-                />
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-1 flex-wrap">
-                      <span className="font-bold text-sm hover:underline">
-                        {childComment.author?.name || "GoldieRill"}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        @{getHandle(childComment.author?.email || null, !!childComment.author)}
-                      </span>
-                      <span className="text-muted-foreground text-sm">·</span>
-                      <span className="text-muted-foreground text-sm hover:underline">
-                        {formatTime(childComment.createdAt)}
-                      </span>
-                      {childComment.isAIBot && (
-                        <Bot className="h-3.5 w-3.5 text-primary ml-1" />
-                      )}
-
-                      {/* Tags displayed after user info */}
-                      {childComment.tags && childComment.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 items-center">
-                          {childComment.tags.map(({ tag }) => (
-                            <span key={tag.id} className="text-primary hover:underline cursor-pointer text-xs">
-                              #{tag.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-muted-foreground hover:bg-primary/10 hover:text-primary rounded-full"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreVertical className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/status/${id}/comment/${childComment.id}/edit`)
-                          }}
-                        >
-                          <Edit2 className="h-4 w-4 mr-2" />
-                          编辑
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setShowDeleteDialog(true)
-                          }}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          删除
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                  <div className="mt-1 text-sm leading-normal wrap-break-word">
-                    <TipTapViewer content={childComment.content} />
-                  </div>
-
-                  {/* Media Display */}
-                  <MediaGrid
-                    medias={childComment.medias || []}
-                    onImageClick={(index, e) => handleImageClick(index, childComment.medias, e)}
-                    className="mt-2"
-                  />
-
-                  {/* 引用的消息卡片 - 类似 X/Twitter */}
-                  {childComment.quotedMessage && (
-                    <QuotedMessageCard
-                      message={childComment.quotedMessage}
-                      className="mt-2"
-                    />
-                  )}
-
-                  {/* Action Row for Child Comments */}
-                  <ActionRow
-                    replyCount={childComment._count?.replies || 0}
-                    onReply={(e) => {
-                      e.stopPropagation()
-                      setReplyTarget(childComment)
-                      setShowReplyDialog(true)
-                    }}
-                    copied={copiedId === childComment.id}
-                    onCopy={() => handleCopy(childComment.id, childComment.content)}
-                    retweetCount={childComment.retweetCount ?? 0}
-                    onRetweet={(e) => handleChildRetweet(childComment, e)}
-                    starred={starredComments.has(childComment.id)}
-                    onToggleStar={() => handleToggleStar(childComment.id)}
-                    onShare={undefined}
-                    size="sm"
-                    className="mt-3"
-                  />
-                </div>
-              </div>
-            </div>
+              onEditClick={(e) => {
+                e.stopPropagation()
+                router.push(`/status/${id}/comment/${childComment.id}/edit`)
+              }}
+              onDeleteClick={(e) => {
+                e.stopPropagation()
+                setShowDeleteDialog(true)
+              }}
+              replyCount={childComment._count?.replies || 0}
+              onReply={(e) => {
+                e.stopPropagation()
+                setReplyTarget(childComment)
+                setShowReplyDialog(true)
+              }}
+              copied={copiedId === childComment.id}
+              onCopy={(e) => {
+                e.stopPropagation()
+                handleCopy(childComment.id, childComment.content)
+              }}
+              retweetCount={childComment.retweetCount ?? 0}
+              onRetweet={(e) => handleChildRetweet(childComment, e)}
+              starred={starredComments.has(childComment.id)}
+              onToggleStar={(e) => {
+                e.stopPropagation()
+                handleToggleStar(childComment.id)
+              }}
+              onImageClick={(index, e) => handleImageClick(index, childComment.medias, e)}
+              size="md"
+              actionRowSize="sm"
+            />
           ))
         )}
       </div>
