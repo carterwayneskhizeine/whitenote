@@ -67,7 +67,7 @@ export function CompactReplyInput({
   const canSubmit = (value.trim() || media.length > 0) && !posting
 
   return (
-    <div className={cn("p-4 border-b", className)}>
+    <div className={cn("px-4 pb-4 border-b", className)}>
       <div className="flex gap-3">
         <Avatar className="h-9 w-9 shrink-0">
           <AvatarImage src={session?.user?.image || undefined} />

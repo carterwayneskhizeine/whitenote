@@ -230,7 +230,7 @@ export default function StatusPage() {
                     <QuotedMessageCard message={message.quotedMessage || message.quotedComment!} />
                 )}
 
-                <Separator className="my-4" />
+                <Separator className="my-1" />
 
                 {/* Stats Row */}
                 <ActionRow
@@ -255,7 +255,7 @@ export default function StatusPage() {
                     className="px-2"
                 />
 
-                <Separator className="my-4" />
+                <Separator className="my-1" />
             </div>
 
             {/* Reply Section */}
