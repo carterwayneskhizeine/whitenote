@@ -192,14 +192,12 @@ export function RetweetDialog({
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[600px] p-0 gap-0 border-none bg-background overflow-hidden flex flex-col max-h-[90vh]">
-                <DialogHeader className="flex flex-row items-center justify-between px-4 py-2 border-b">
+            <DialogContent showCloseButton={false} className="sm:max-w-[600px] p-0 gap-0 border-none bg-background overflow-hidden flex flex-col max-h-[90vh]">
+                <DialogHeader className="px-4 py-2 border-b">
                     <DialogTitle className="sr-only">转发</DialogTitle>
                     <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="rounded-full">
                         <X className="h-5 w-5" />
                     </Button>
-                    <div className="flex-1" />
-                    <Button variant="ghost" className="text-primary font-bold hover:bg-transparent">草稿</Button>
                 </DialogHeader>
 
                 <div className="flex-1 overflow-y-auto p-4">
