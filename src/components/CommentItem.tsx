@@ -16,11 +16,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Edit2, Trash2, MoreVertical } from "lucide-react"
+import { useDoubleClick } from "@/hooks/useDoubleClick"
 
 export interface CommentItemProps {
   comment: Comment
-  // 双击行为（用于导航）
-  onDoubleClick?: () => void
+  // 点击行为（2秒内再次点击触发导航）
+  onClick?: () => void
   // 下拉菜单配置
   showMenu?: boolean
   onEditClick?: (e: React.MouseEvent) => void
@@ -81,7 +82,7 @@ const sizeConfig = {
 
 export function CommentItem({
   comment,
-  onDoubleClick,
+  onClick,
   showMenu = true,
   onEditClick,
   onDeleteClick,
@@ -101,10 +102,16 @@ export function CommentItem({
 }: CommentItemProps) {
   const config = sizeConfig[size]
 
+  // 使用自定义双击处理，2秒内双击有效
+  const handleClick = useDoubleClick({
+    onDoubleClick: () => onClick?.(),
+    delay: 2000,
+  })
+
   return (
     <div
-      className={cn("p-4 border-b hover:bg-muted/5 transition-colors", onDoubleClick && "cursor-pointer", className)}
-      onDoubleClick={onDoubleClick}
+      className={cn("p-4 border-b hover:bg-muted/5 transition-colors", onClick && "cursor-pointer", className)}
+      onClick={handleClick}
     >
       <div className="flex gap-3">
         {/* Avatar */}

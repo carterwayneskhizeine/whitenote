@@ -287,7 +287,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
             <CommentItem
               key={comment.id}
               comment={comment}
-              onDoubleClick={() => router.push(`/status/${messageId}/comment/${comment.id}`)}
+              onClick={() => router.push(`/status/${messageId}/comment/${comment.id}`)}
               onEditClick={(e: React.MouseEvent) => {
                 e.stopPropagation()
                 router.push(`/status/${messageId}/comment/${comment.id}/edit`)

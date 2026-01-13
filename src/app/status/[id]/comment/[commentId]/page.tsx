@@ -447,7 +447,7 @@ export default function CommentDetailPage() {
             <CommentItem
               key={childComment.id}
               comment={childComment}
-              onDoubleClick={() => router.push(`/status/${id}/comment/${childComment.id}`)}
+              onClick={() => router.push(`/status/${id}/comment/${childComment.id}`)}
               onEditClick={(e) => {
                 e.stopPropagation()
                 router.push(`/status/${id}/comment/${childComment.id}/edit`)
