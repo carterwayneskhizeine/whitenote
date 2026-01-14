@@ -54,7 +54,7 @@ function ImageDescriptionDialog({
         </DialogHeader>
         <div className="mt-4 space-y-4">
           <div className="p-4 bg-muted rounded-lg max-h-[300px] overflow-y-auto">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">{description}</p>
+            <p className="whitespace-pre-wrap wrap-break-word text-sm leading-relaxed">{description}</p>
           </div>
           <Button onClick={handleCopy} className="w-full" variant="default">
             {copied ? (
