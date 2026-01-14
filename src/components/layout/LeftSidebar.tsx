@@ -87,13 +87,21 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
   // Fetch fresh user data from API
   useEffect(() => {
     const loadUserData = async () => {
-      const result = await authApi.getCurrentUser()
-      if (result.data) {
-        setUserData({
-          name: result.data.name || "User Name",
-          email: result.data.email || "",
-          avatar: result.data.avatar || ""
-        })
+      try {
+        const result = await authApi.getCurrentUser()
+        if (result.data) {
+          setUserData({
+            name: result.data.name || "User Name",
+            email: result.data.email || "",
+            avatar: result.data.avatar || ""
+          })
+        }
+      } catch (error) {
+        // 401 错误会触发自动跳转到登录页，不需要额外处理
+        // 其他错误静默处理
+        if (error?.message !== 'Unauthorized') {
+          console.error('Failed to load user data:', error)
+        }
       }
     }
     loadUserData()

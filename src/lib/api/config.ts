@@ -4,6 +4,7 @@ import {
   AIConfigResponse,
   ConnectionTestResponse,
 } from '@/types/api'
+import { handle401Error } from '@/lib/auth-redirect'
 
 const API_BASE = '/api'
 
@@ -12,10 +13,8 @@ const API_BASE = '/api'
  */
 async function handleResponse(response: Response): Promise<Response> {
   if (response.status === 401) {
-    // 跳转到登录页
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login'
-    }
+    // 使用统一的错误处理函数
+    handle401Error()
     throw new Error('Unauthorized')
   }
   return response

@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth"
 import prisma from "@/lib/prisma"
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 
 // Force Node.js runtime
 export const runtime = 'nodejs'
@@ -9,7 +9,7 @@ export const runtime = 'nodejs'
  * GET /api/auth/me
  * 获取当前用户信息
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await auth()
 
   if (!session?.user?.id) {
@@ -30,6 +30,34 @@ export async function GET() {
     },
   })
 
+  // 如果用户不存在（可能数据库被重置），清除 session cookie
+  if (!user) {
+    // 创建响应并清除所有可能的 NextAuth session cookies
+    const response = NextResponse.json(
+      { error: "User not found", redirect: "/login" },
+      { status: 401 }
+    )
+
+    // 清除所有可能的 NextAuth session cookies
+    const cookieNames = [
+      'next-auth.session-token',
+      '__Secure-next-auth.session-token',
+      'next-auth.csrf-token',
+      '__Secure-next-auth.csrf-token',
+      'next-auth.callback-url',
+      '__Secure-next-auth.callback-url',
+    ]
+
+    cookieNames.forEach(name => {
+      response.cookies.set(name, '', {
+        expires: new Date(0),
+        path: '/',
+      })
+    })
+
+    return response
+  }
+
   return Response.json({ data: user })
 }
 
@@ -43,6 +71,19 @@ export async function PUT(request: NextRequest) {
   if (!session?.user?.id) {
     return Response.json(
       { error: "Not authenticated" },
+      { status: 401 }
+    )
+  }
+
+  // 检查用户是否存在
+  const existingUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true },
+  })
+
+  if (!existingUser) {
+    return Response.json(
+      { error: "User not found" },
       { status: 401 }
     )
   }
