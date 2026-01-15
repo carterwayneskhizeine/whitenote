@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Message, messagesApi } from "@/lib/api/messages"
 import { Button } from "@/components/ui/button"
@@ -52,6 +52,9 @@ export default function StatusPage() {
     const [copied, setCopied] = useState(false)
     const [lightboxOpen, setLightboxOpen] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState(0)
+    const contentRef = useRef<HTMLDivElement>(null)
+    const [isExpanded, setIsExpanded] = useState(false)
+    const [hasMore, setHasMore] = useState(false)
 
     useEffect(() => {
         const fetchMessage = async () => {
@@ -74,6 +77,26 @@ export default function StatusPage() {
             fetchMessage()
         }
     }, [id, refreshKey])
+
+    // 检测内容是否需要"显示更多"按钮
+    useEffect(() => {
+        const checkOverflow = () => {
+            if (contentRef.current) {
+                const el = contentRef.current
+                // 当应用 line-clamp 后，如果 scrollHeight > clientHeight 说明内容被裁剪了
+                setHasMore(el.scrollHeight > el.clientHeight)
+            }
+        }
+
+        // 多次检测以确保 TipTapViewer 内容完全渲染
+        const timer1 = setTimeout(checkOverflow, 100)
+        const timer2 = setTimeout(checkOverflow, 300)
+
+        return () => {
+            clearTimeout(timer1)
+            clearTimeout(timer2)
+        }
+    }, [message?.content])
 
     const handleTogglePin = async () => {
         if (!message) return
@@ -216,9 +239,28 @@ export default function StatusPage() {
                     </DropdownMenu>
                 </div>
 
-                <div className="mt-4 text-sm leading-normal wrap-break-word">
+                <div
+                    ref={contentRef}
+                    className={cn(
+                        "mt-4 text-sm leading-normal wrap-break-word break-words text-foreground overflow-hidden",
+                        !isExpanded && "line-clamp-9"
+                    )}
+                    style={!isExpanded ? {
+                        display: '-webkit-box',
+                        WebkitLineClamp: 9,
+                        WebkitBoxOrient: 'vertical',
+                    } : {}}
+                >
                     <TipTapViewer content={message.content} />
                 </div>
+                {hasMore && !isExpanded && (
+                    <button
+                        onClick={() => setIsExpanded(true)}
+                        className="text-primary text-sm font-medium mt-1 hover:underline text-left w-fit"
+                    >
+                        显示更多
+                    </button>
+                )}
 
                 {/* Media Display */}
                 <MediaGrid
