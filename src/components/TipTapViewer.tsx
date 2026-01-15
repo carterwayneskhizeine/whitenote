@@ -131,7 +131,6 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
       <style jsx global>{`
         .tipTap-viewer .ProseMirror {
           outline: none;
-          pointer-events: none; /* Ensure it's truly read-only */
         }
 
         /* Headings */
