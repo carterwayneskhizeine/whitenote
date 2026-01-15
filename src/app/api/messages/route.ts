@@ -355,7 +355,8 @@ export async function POST(request: NextRequest) {
 
     // 添加自动打标签任务（如果启用）
     // 注意：auto-tag 完成后会自动触发 sync-ragflow，确保标签被包含
-    if (workspace?.enableAutoTag) {
+    // 这样可以避免同步两次到 RAGFlow（一次无标签，一次带标签）
+    if (workspace?.enableAutoTag && targetWorkspaceId) {
       await addTask("auto-tag", {
         userId: session.user.id,
         workspaceId: targetWorkspaceId,

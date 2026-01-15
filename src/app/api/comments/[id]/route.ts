@@ -5,9 +5,35 @@ import { unlink } from "fs/promises"
 import { join } from "path"
 import { existsSync } from "fs"
 import { batchUpsertTags } from "@/lib/tag-utils"
+import { deleteFromRAGFlow } from "@/lib/ai/ragflow"
 
 // Upload directory outside the codebase
 const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), "..", "whitenote-data", "uploads")
+
+/**
+ * 递归删除评论及其所有子评论的 RAGFlow 文档
+ */
+async function deleteCommentRAGFlowDocumentsRecursive(commentId: string, userId: string, datasetId: string) {
+  // 先删除子评论的 RAGFlow 文档
+  const comment = await prisma.comment.findUnique({
+    where: { id: commentId },
+    select: { replies: { select: { id: true } } },
+  })
+
+  if (comment) {
+    for (const reply of comment.replies) {
+      await deleteCommentRAGFlowDocumentsRecursive(reply.id, userId, datasetId)
+    }
+  }
+
+  // 删除当前评论的 RAGFlow 文档
+  try {
+    await deleteFromRAGFlow(userId, datasetId, commentId, 'comment')
+    console.log(`[DELETE Comment] Deleted RAGFlow document for comment: ${commentId}`)
+  } catch (error) {
+    console.error(`[DELETE Comment] Failed to delete RAGFlow document for comment ${commentId}:`, error)
+  }
+}
 
 /**
  * GET /api/comments/[id]
@@ -107,7 +133,12 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const comment = await prisma.comment.findUnique({
       where: { id },
       include: {
-        message: { select: { authorId: true } },
+        message: {
+          select: {
+            authorId: true,
+            workspace: { select: { ragflowDatasetId: true } }
+          }
+        },
         medias: { select: { id: true, url: true } },
       },
     })
@@ -149,6 +180,17 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
           // 继续删除其他文件，不因单个文件删除失败而中断
         }
       }
+    }
+
+    // 先从 RAGFlow 删除对应的文档（如果有配置）
+    // 递归删除子评论的 RAGFlow 文档
+    try {
+      if (comment.message?.workspace?.ragflowDatasetId) {
+        await deleteCommentRAGFlowDocumentsRecursive(id, session.user.id, comment.message.workspace.ragflowDatasetId)
+      }
+    } catch (error) {
+      console.error("Failed to delete from RAGFlow:", error)
+      // 继续删除本地评论，不因 RAGFlow 删除失败而中断
     }
 
     // 删除评论（级联删除子评论和 Media 数据库记录）

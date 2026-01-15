@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { commentsApi, aiApi, templatesApi } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -29,7 +29,7 @@ import {
 import { Comment } from "@/types/api"
 import { Template } from "@/types/api"
 import { MediaItem } from "@/components/MediaUploader"
-import { getHandle } from "@/lib/utils"
+import { getHandle, cn } from "@/lib/utils"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
 import { QuotedMessageCard } from "@/components/QuotedMessageCard"

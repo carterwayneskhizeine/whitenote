@@ -13,7 +13,7 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), "..", "whitenot
 /**
  * 递归删除评论及其所有子评论的 RAGFlow 文档
  */
-async function deleteCommentRAGFlowDocuments(commentId: string, userId: string) {
+async function deleteCommentRAGFlowDocuments(commentId: string, userId: string, datasetId: string) {
   // 先删除子评论的 RAGFlow 文档
   const comment = await prisma.comment.findUnique({
     where: { id: commentId },
@@ -22,13 +22,13 @@ async function deleteCommentRAGFlowDocuments(commentId: string, userId: string) 
 
   if (comment) {
     for (const reply of comment.replies) {
-      await deleteCommentRAGFlowDocuments(reply.id, userId)
+      await deleteCommentRAGFlowDocuments(reply.id, userId, datasetId)
     }
   }
 
   // 删除当前评论的 RAGFlow 文档
   try {
-    await deleteFromRAGFlow(userId, commentId, 'comment')
+    await deleteFromRAGFlow(userId, datasetId, commentId, 'comment')
     console.log(`[DELETE] Deleted RAGFlow document for comment: ${commentId}`)
   } catch (error) {
     console.error(`[DELETE] Failed to delete RAGFlow document for comment ${commentId}:`, error)
@@ -364,7 +364,9 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
   // 递归删除所有关联评论（包括子评论）的 RAGFlow 文档和媒体文件
   for (const comment of existing.comments) {
     // 删除 RAGFlow 文档（递归删除子评论的文档）
-    await deleteCommentRAGFlowDocuments(comment.id, session.user.id)
+    if (existing.workspace?.ragflowDatasetId) {
+      await deleteCommentRAGFlowDocuments(comment.id, session.user.id, existing.workspace.ragflowDatasetId)
+    }
 
     // 删除媒体文件
     const mediaUrls = await getAllCommentMediaUrls(comment.id)
