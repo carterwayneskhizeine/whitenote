@@ -5,10 +5,8 @@ import next from "next"
 import { initSocketServer } from "./src/lib/socket/server"
 import * as fs from "fs"
 import * as path from "path"
-import ffmpeg from "fluent-ffmpeg"
 import { promisify } from "util"
 
-const unlink = promisify(fs.unlink)
 const writeFile = promisify(fs.writeFile)
 
 const dev = process.env.NODE_ENV !== "production"
@@ -163,42 +161,6 @@ async function handleUpload(req: any, res: any) {
 
       // Write file to disk
       await writeFile(filePath, fileData)
-
-      // Process video with ffmpeg to enable streaming
-      if (isVideo) {
-        try {
-          const tempFilePath = path.join(UPLOAD_DIR, `temp_${uniqueFileName}`)
-
-          await new Promise<void>((resolve, reject) => {
-            let command = ffmpeg(filePath)
-
-            command
-              .outputOptions([
-                '-c:v', 'libx264',
-                '-preset', 'fast',
-                '-crf', '23',
-                '-c:a', 'aac',
-                '-b:a', '128k',
-                '-movflags', '+faststart'
-              ])
-              .output(tempFilePath)
-              .on('error', (err: any) => {
-                console.error('[FFmpeg] Processing error:', err?.message || err)
-                reject(err)
-              })
-              .run()
-          })
-
-          // Replace original file with processed file
-          const processedData = fs.readFileSync(tempFilePath)
-          await unlink(filePath)
-          await writeFile(filePath, processedData)
-          await unlink(tempFilePath)
-        } catch (ffmpegError) {
-          // If ffmpeg fails, still use the original file
-          console.error('[FFmpeg] Processing error:', ffmpegError)
-        }
-      }
 
       // Return response
       const url = `/api/media/${uniqueFileName}`
