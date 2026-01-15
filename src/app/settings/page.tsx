@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Moon, Sun, Monitor, Sparkles, User, Palette, Shield, Bell, Globe, HelpCircle, Wand2, Layers } from "lucide-react"
 import { AIConfigForm } from "@/components/AIConfigForm"
 import { ProfileEditForm } from "@/components/ProfileEditForm"
+import { PasswordChangeForm } from "@/components/PasswordChangeForm"
 import { TemplateManager } from "@/components/templates/TemplateManager"
 import { AICommandManager } from "@/components/ai-commands/AICommandManager"
 import { WorkspaceManager } from "@/components/WorkspaceManager"
@@ -171,29 +172,32 @@ export default function SettingsPage() {
             <div>
               <div className="mb-6">
                 <h2 className="text-2xl font-bold">隐私与安全</h2>
-                <p className="text-muted-foreground">管理您的隐私设置</p>
+                <p className="text-muted-foreground">管理您的隐私设置和安全选项</p>
               </div>
-              <Card>
-                <CardHeader>
-                  <CardTitle>隐私设置</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">私密账户</p>
-                      <p className="text-sm text-muted-foreground">只有您批准的关注者才能看到您的内容</p>
+              <div className="space-y-6">
+                <PasswordChangeForm />
+                <Card>
+                  <CardHeader>
+                    <CardTitle>隐私设置</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">私密账户</p>
+                        <p className="text-sm text-muted-foreground">只有您批准的关注者才能看到您的内容</p>
+                      </div>
+                      <Button variant="outline" size="sm">更改</Button>
                     </div>
-                    <Button variant="outline" size="sm">更改</Button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">安全登录</p>
-                      <p className="text-sm text-muted-foreground">启用两步验证保护您的账户</p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">安全登录</p>
+                        <p className="text-sm text-muted-foreground">启用两步验证保护您的账户</p>
+                      </div>
+                      <Button variant="outline" size="sm">启用</Button>
                     </div>
-                    <Button variant="outline" size="sm">启用</Button>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           )}
 
@@ -423,29 +427,32 @@ export default function SettingsPage() {
                 <div>
                   <div className="mb-6">
                     <h2 className="text-2xl font-bold">隐私与安全</h2>
-                    <p className="text-muted-foreground">管理您的隐私设置</p>
+                    <p className="text-muted-foreground">管理您的隐私设置和安全选项</p>
                   </div>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>隐私设置</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">私密账户</p>
-                          <p className="text-sm text-muted-foreground">只有您批准的关注者才能看到您的内容</p>
+                  <div className="space-y-6">
+                    <PasswordChangeForm />
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>隐私设置</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">私密账户</p>
+                            <p className="text-sm text-muted-foreground">只有您批准的关注者才能看到您的内容</p>
+                          </div>
+                          <Button variant="outline" size="sm">更改</Button>
                         </div>
-                        <Button variant="outline" size="sm">更改</Button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">安全登录</p>
-                          <p className="text-sm text-muted-foreground">启用两步验证保护您的账户</p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium">安全登录</p>
+                            <p className="text-sm text-muted-foreground">启用两步验证保护您的账户</p>
+                          </div>
+                          <Button variant="outline" size="sm">启用</Button>
                         </div>
-                        <Button variant="outline" size="sm">启用</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               )}
 
