@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { workspacesApi } from "@/lib/api/workspaces"
 import type { Workspace, UpdateWorkspaceInput } from "@/types/api"
-import { Loader2, Trash2, Edit2, Check, X, Plus, Layers } from "lucide-react"
+import { Loader2, Trash2, Edit2, Check, X, Plus, Layers, Database } from "lucide-react"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 
@@ -16,6 +16,7 @@ export function WorkspaceManager() {
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [isUpdating, setIsUpdating] = useState<string | null>(null)
+  const [isInitializingRAG, setIsInitializingRAG] = useState<string | null>(null)
   const [newName, setNewName] = useState("")
   const [newDescription, setNewDescription] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -140,6 +141,32 @@ export function WorkspaceManager() {
     } catch (error) {
       console.error("Failed to delete workspace:", error)
       alert("删除失败，请检查网络连接")
+    }
+  }
+
+  // 初始化 RAGFlow
+  const handleInitializeRAG = async (id: string) => {
+    const workspace = workspaces.find((w) => w.id === id)
+    if (!workspace) return
+
+    if (!confirm(`为工作区 "${workspace.name}" 初始化 RAGFlow 资源？\n\n这将创建：\n- 独立的知识库（Dataset）\n- 独立的 AI 助手对话（Chat）\n\n请确保您已在 AI 设置中配置了 RAGFlow Base URL 和 API Key。`)) {
+      return
+    }
+
+    setIsInitializingRAG(id)
+    try {
+      const result = await workspacesApi.initializeRAGFlow(id)
+      if (result.data) {
+        setWorkspaces(workspaces.map((w) => (w.id === id ? result.data! : w)))
+        alert(`RAGFlow 资源初始化成功！\n\n知识库 ID: ${result.data.ragflowDatasetId}\n对话 ID: ${result.data.ragflowChatId}`)
+      } else if (result.error) {
+        alert(`初始化失败: ${result.error}`)
+      }
+    } catch (error) {
+      console.error("Failed to initialize RAGFlow:", error)
+      alert("初始化失败，请检查网络连接和 RAGFlow 配置")
+    } finally {
+      setIsInitializingRAG(null)
     }
   }
 
@@ -299,9 +326,28 @@ export function WorkspaceManager() {
                     <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <span>自动标签: {ws.enableAutoTag ? "✓" : "✗"}</span>
                       <span>每日晨报: {ws.enableBriefing ? "✓" : "✗"}</span>
+                      <span className={ws.ragflowDatasetId ? "text-green-600" : "text-orange-600"}>
+                        RAGFlow: {ws.ragflowDatasetId ? "✓" : "未配置"}
+                      </span>
                     </div>
                   </div>
                   <div className="flex gap-1 ml-2">
+                    {!ws.ragflowDatasetId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleInitializeRAG(ws.id)}
+                        disabled={isInitializingRAG === ws.id}
+                        title="初始化 RAGFlow 知识库"
+                        className="text-blue-600 hover:text-blue-700"
+                      >
+                        {isInitializingRAG === ws.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Database className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"

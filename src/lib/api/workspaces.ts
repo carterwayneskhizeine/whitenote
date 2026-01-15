@@ -78,4 +78,21 @@ export const workspacesApi = {
       return { error: "Failed to delete workspace" }
     }
   },
+
+  /**
+   * 为现有 Workspace 初始化 RAGFlow 资源
+   * 用于默认工作区或其他没有 RAGFlow 资源的工作区
+   */
+  async initializeRAGFlow(id: string): Promise<WorkspaceResponse> {
+    try {
+      const response = await fetch(`/api/workspaces/${id}/initialize-ragflow`, {
+        method: "POST",
+      })
+      const data = await response.json()
+      return data
+    } catch (error) {
+      console.error("[Workspaces API] Error initializing RAGFlow:", error)
+      return { error: "Failed to initialize RAGFlow resources" }
+    }
+  },
 }
