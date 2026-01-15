@@ -2,14 +2,21 @@ import { useRef, useCallback } from 'react'
 
 interface UseDoubleClickOptions {
   onDoubleClick: () => void
-  delay?: number // 双击间隔时间（毫秒），默认 2000ms
+  delay?: number // 双击间隔时间（毫秒），桌面端默认 1000ms
+  forceMobile?: boolean // 强制使用移动端单击模式
 }
 
-export function useDoubleClick({ onDoubleClick, delay = 2000 }: UseDoubleClickOptions) {
+export function useDoubleClick({ onDoubleClick, delay = 1000, forceMobile }: UseDoubleClickOptions) {
   const lastClickTime = useRef<number>(0)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   return useCallback((e: React.MouseEvent) => {
+    // 移动端模式：直接触发单击
+    if (forceMobile) {
+      onDoubleClick()
+      return
+    }
+
     const now = Date.now()
     const timeSinceLastClick = now - lastClickTime.current
 
@@ -31,5 +38,5 @@ export function useDoubleClick({ onDoubleClick, delay = 2000 }: UseDoubleClickOp
         timerRef.current = null
       }, delay)
     }
-  }, [onDoubleClick, delay])
+  }, [onDoubleClick, delay, forceMobile])
 }

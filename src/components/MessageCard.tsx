@@ -189,17 +189,17 @@ export function MessageCard({
     setLightboxOpen(true)
   }
 
-  // 使用自定义双击处理，2秒内双击有效
-  const handleDoubleClick = useDoubleClick({
+  // 移动端单击、桌面端双击（1秒内）
+  const handleClick = useDoubleClick({
     onDoubleClick: () => router.push(`/status/${message.id}`),
-    delay: 2000,
+    forceMobile: isMobile,
   })
 
   return (
     <>
       <div
         className="p-4 border-b border-border hover:bg-muted/10 transition-colors cursor-pointer"
-        onClick={handleDoubleClick}
+        onClick={handleClick}
       >
         <div className="flex gap-3">
           {/* Avatar Column - h-8 to match reply as standard */}

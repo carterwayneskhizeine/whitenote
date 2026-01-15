@@ -17,10 +17,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Edit2, Trash2, MoreVertical } from "lucide-react"
 import { useDoubleClick } from "@/hooks/useDoubleClick"
+import { useMobile } from "@/hooks/use-mobile"
 
 export interface CommentItemProps {
   comment: Comment
-  // 点击行为（2秒内再次点击触发导航）
+  // 点击行为（移动端单击触发，桌面端双击触发）
   onClick?: () => void
   // 下拉菜单配置
   showMenu?: boolean
@@ -102,10 +103,11 @@ export function CommentItem({
 }: CommentItemProps) {
   const config = sizeConfig[size]
 
-  // 使用自定义双击处理，2秒内双击有效
+  // 移动端单击、桌面端双击（1秒内）
+  const isMobile = useMobile()
   const handleClick = useDoubleClick({
     onDoubleClick: () => onClick?.(),
-    delay: 2000,
+    forceMobile: isMobile,
   })
 
   return (
