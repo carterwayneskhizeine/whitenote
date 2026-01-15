@@ -177,13 +177,13 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
 
         /* Code blocks */
         .tipTap-viewer .ProseMirror pre {
-          background-color: hsl(var(--muted) / 0.5);
+          background-color: #1e1e1e;
           border-radius: 0.5rem;
           padding: 0.875rem 1rem;
           margin-top: 0.75rem;
           margin-bottom: 0.75rem;
           overflow-x: auto;
-          border: 1px solid hsl(var(--border));
+          border: 1px solid #333333;
           position: relative;
           pointer-events: auto;
         }
@@ -191,7 +191,7 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
         .tipTap-viewer .ProseMirror pre code {
           background-color: transparent;
           padding: 0;
-          font-size: 0.875em;
+          font-size: 1.0em;
           color: inherit;
           font-family: 'JetBrainsMono', 'Fira Code', Consolas, Monaco, monospace;
         }
