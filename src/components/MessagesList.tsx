@@ -14,9 +14,10 @@ interface MessagesListProps {
     rootOnly?: boolean
     workspaceId?: string // Add workspaceId to filters
   }
+  onMessagesLoaded?: () => void
 }
 
-export function MessagesList({ filters }: MessagesListProps) {
+export function MessagesList({ filters, onMessagesLoaded }: MessagesListProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,7 +38,13 @@ export function MessagesList({ filters }: MessagesListProps) {
       if (result.error) {
         setError(result.error)
       } else {
-        setMessages(result.data || [])
+        const newMessages = result.data || []
+        setMessages(newMessages)
+        // Notify parent that messages are loaded (even if empty, for scrolling purposes)
+        if (onMessagesLoaded && !showLoading) {
+          // Only call on refresh (not initial load) to allow time for DOM to update
+          setTimeout(() => onMessagesLoaded(), 50)
+        }
       }
     } catch (err) {
       console.error("Failed to fetch messages:", err)

@@ -48,7 +48,6 @@ interface MessageCardProps {
   onUpdate?: () => void
   onDelete?: (deletedId: string) => void
   onReply?: () => void
-  showChildren?: boolean
 }
 
 export function MessageCard({
@@ -56,7 +55,6 @@ export function MessageCard({
   onUpdate,
   onDelete,
   onReply,
-  showChildren = false,
 }: MessageCardProps) {
   const isMobile = useMobile()
   const [isStarred, setIsStarred] = useState(message.isStarred)
