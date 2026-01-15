@@ -51,4 +51,17 @@ export const tagsApi = {
     })
     return response.json()
   },
+
+  /**
+   * Get popular tags (sorted by usage count)
+   */
+  async getPopularTags(limit?: number): Promise<ApiResponse<Array<Tag & { count: number }>>> {
+    const searchParams = new URLSearchParams()
+    if (limit) searchParams.set('limit', limit.toString())
+
+    const response = await fetch(
+      `${API_BASE}/tags/popular?${searchParams.toString()}`
+    )
+    return response.json()
+  },
 }

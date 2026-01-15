@@ -1,11 +1,12 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from "react"
-import { Search, MoreHorizontal, Hash, Clock, X } from "lucide-react"
+import { Search, MoreHorizontal, Hash, Clock, X, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { searchApi } from "@/lib/api/search"
+import { tagsApi } from "@/lib/api/tags"
 import { MessageWithRelations } from "@/types/api"
 import { useRouter } from "next/navigation"
 
@@ -15,14 +16,23 @@ type SearchHistoryItem = {
   createdAt: string
 }
 
+type PopularTag = {
+  id: string
+  name: string
+  color: string | null
+  count: number
+}
+
 export function RightSidebar() {
   const router = useRouter()
   const dropdownRef = useRef<HTMLDivElement>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<MessageWithRelations[]>([])
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
+  const [popularTags, setPopularTags] = useState<PopularTag[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+  const [isLoadingPopularTags, setIsLoadingPopularTags] = useState(false)
   const [showResults, setShowResults] = useState(false)
   const [isDropdownHovered, setIsDropdownHovered] = useState(false)
 
@@ -40,6 +50,26 @@ export function RightSidebar() {
       setIsLoadingHistory(false)
     }
   }, [])
+
+  // 加载热门标签
+  const loadPopularTags = useCallback(async () => {
+    setIsLoadingPopularTags(true)
+    try {
+      const result = await tagsApi.getPopularTags(5)
+      if (result.data) {
+        setPopularTags(result.data)
+      }
+    } catch (error) {
+      console.error("Failed to load popular tags:", error)
+    } finally {
+      setIsLoadingPopularTags(false)
+    }
+  }, [])
+
+  // 初始化时加载热门标签
+  useEffect(() => {
+    loadPopularTags()
+  }, [loadPopularTags])
 
   // 防抖搜索（不记录历史）
   const debouncedSearch = useCallback(
@@ -263,24 +293,40 @@ export function RightSidebar() {
           <CardTitle className="text-xl font-extrabold">热门标签</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-0 px-0">
-          {['学习笔记', 'AI工具', 'React', 'NextJS', '产品设计'].map((tag, i) => (
-            <div
-              key={tag}
-              onClick={() => router.push(`/tags`)}
-              className="flex justify-between items-start px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors"
-            >
-              <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-1">
-                  <Hash className="h-4 w-4 text-muted-foreground" />
-                  <span className="font-bold text-base">{tag}</span>
-                </div>
-                <span className="text-xs text-muted-foreground">{10 - i * 2}.5K 条消息</span>
-              </div>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary">
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
+          {isLoadingPopularTags ? (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ))}
+          ) : popularTags.length === 0 ? (
+            <div className="p-4 text-center text-muted-foreground text-sm">
+              暂无热门标签
+            </div>
+          ) : (
+            popularTags.map((tag) => (
+              <div
+                key={tag.id}
+                onClick={() => router.push(`/tags?tag=${tag.name}`)}
+                className="flex justify-between items-start px-4 py-3 hover:bg-accent/50 cursor-pointer transition-colors"
+              >
+                <div className="flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1">
+                    <Hash className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-bold text-base">{tag.name}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {tag.count} 条消息
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:bg-primary/10 hover:text-primary"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </div>
+            ))
+          )}
         </CardContent>
       </Card>
 
