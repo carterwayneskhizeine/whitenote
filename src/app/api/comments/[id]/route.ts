@@ -22,7 +22,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     where: { id },
     include: {
       author: { select: { id: true, name: true, avatar: true, email: true } },
-      message: { select: { id: true, content: true } },
+      message: {
+        select: {
+          id: true,
+          content: true,
+          authorId: true,
+        },
+      },
       quotedMessage: {
         select: {
           id: true,
@@ -53,6 +59,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   if (!comment) {
     return Response.json({ error: "Comment not found" }, { status: 404 })
+  }
+
+  // 权限检查：只有消息作者可以查看评论（评论继承消息的权限）
+  // 系统消息（authorId 为 null）所有用户都可以查看
+  if (comment.message.authorId !== null && comment.message.authorId !== session.user.id) {
+    return Response.json({ error: "Forbidden" }, { status: 403 })
   }
 
   // 添加转发相关字段

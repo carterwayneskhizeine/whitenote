@@ -34,8 +34,15 @@ export async function getGraphData(workspaceId?: string): Promise<GraphData> {
         }
     })
 
-    // Fetch all comments with their relationships
+    // Fetch all comments with their relationships, filtered by workspaceId
     const comments = await prisma.comment.findMany({
+        where: workspaceId
+            ? {
+                message: {
+                    workspaceId: workspaceId
+                }
+            }
+            : undefined,
         select: {
             id: true,
             content: true,
@@ -146,12 +153,28 @@ export async function getGraphData(workspaceId?: string): Promise<GraphData> {
 
     // 6. Retweet counts (affects node size)
     const messageRetweets = await prisma.retweet.findMany({
-        where: { messageId: { not: null } },
+        where: {
+            messageId: { not: null },
+            ...(workspaceId ? {
+                message: {
+                    workspaceId: workspaceId
+                }
+            } : {})
+        },
         select: { messageId: true }
     })
 
     const commentRetweets = await prisma.retweet.findMany({
-        where: { commentId: { not: null } },
+        where: {
+            commentId: { not: null },
+            ...(workspaceId ? {
+                comment: {
+                    message: {
+                        workspaceId: workspaceId
+                    }
+                }
+            } : {})
+        },
         select: { commentId: true }
     })
 

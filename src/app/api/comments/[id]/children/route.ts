@@ -11,13 +11,27 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const session = await requireAuth()
     const { id } = await params
 
-    // 验证父评论存在
+    // 验证父评论存在并检查权限
   const parentComment = await prisma.comment.findUnique({
     where: { id },
+    include: {
+      message: {
+        select: {
+          id: true,
+          authorId: true,
+        },
+      },
+    },
   })
 
   if (!parentComment) {
     return Response.json({ error: "Comment not found" }, { status: 404 })
+  }
+
+  // 权限检查：只有消息作者可以查看评论（评论继承消息的权限）
+  // 系统消息（authorId 为 null）所有用户都可以查看
+  if (parentComment.message.authorId !== null && parentComment.message.authorId !== session.user.id) {
+    return Response.json({ error: "Forbidden" }, { status: 403 })
   }
 
   // 获取子评论，包含每个子评论的子评论数量
