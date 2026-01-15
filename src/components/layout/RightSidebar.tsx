@@ -172,7 +172,7 @@ export function RightSidebar() {
   }
 
   return (
-    <aside className="w-[390px] flex flex-col gap-4 px-4 pt-0 pb-4 hidden desktop:flex relative">
+    <aside className="w-[390px] flex flex-col gap-4 px-4 pt-0 pb-4 hidden desktop:flex sticky top-0 h-screen overflow-y-auto">
       {/* Search */}
       <div className="sticky top-0 bg-background z-50 pt-[6px] pb-2">
         <div className="relative group">
