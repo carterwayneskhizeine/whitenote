@@ -251,9 +251,7 @@ export function MobileNav() {
                       }`}
                       onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
                     >
-                      <span className="font-bold text-sm">
-                        {workspaces.find((w) => w.id === currentWorkspaceId)?.name || workspaces[2].name}
-                      </span>
+                      <span className="font-bold text-sm">{workspaces[2].name}</span>
                       <ChevronDown className={`h-4 w-4 transition-transform ${showWorkspaceMenu ? 'rotate-180' : ''}`} />
                       {currentWorkspaceId !== workspaces[0].id && currentWorkspaceId !== workspaces[1].id && (
                         <div className="absolute bottom-0 h-1 w-14 bg-primary rounded-full" />
