@@ -2,6 +2,8 @@ import { Server as SocketIOServer } from "socket.io"
 import { Server as HTTPServer } from "http"
 import { parse } from "cookie"
 import { verifySessionToken } from "./auth"
+import chokidar from "chokidar"
+import { importFromLocal } from "@/lib/sync-utils"
 
 interface SocketData {
   userId: string
@@ -129,6 +131,37 @@ export function initSocketServer(httpServer: HTTPServer) {
   // 保存到全局变量
   if (typeof global !== 'undefined') {
     global._io = io
+  }
+
+  // Initialize File Watcher for MD Sync
+  const SYNC_DIR = "D:\\Code\\whitenote-data\\link_md"
+  let watcher: ReturnType<typeof chokidar.watch> | null = null
+
+  try {
+    // ignoreInitial: true prevents syncing everything on startup, only changes
+    watcher = chokidar.watch(SYNC_DIR, {
+      ignored: /(^|[\/\\])\.{1,2}$/, // ignore dotfiles like .whitenote
+      persistent: true,
+      ignoreInitial: true
+    })
+
+    watcher.on('change', async (filePath) => {
+      console.log(`[FileWatcher] File changed: ${filePath}`)
+      const fileName = filePath.split(/[/\\]/).pop() // Get filename (handle both / and \)
+      if (fileName && fileName.endsWith('.md')) {
+        try {
+          await importFromLocal(fileName)
+        } catch (error) {
+          console.error(`[FileWatcher] Error importing ${fileName}:`, error)
+        }
+      }
+    })
+
+    watcher.on('error', error => console.error(`[FileWatcher] Error: ${error}`))
+
+    console.log('[FileWatcher] Started watching:', SYNC_DIR)
+  } catch (error) {
+    console.error('[FileWatcher] Failed to start watcher:', error)
   }
 
   return io

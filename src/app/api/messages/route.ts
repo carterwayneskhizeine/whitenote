@@ -329,6 +329,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Check if MD Sync is enabled
+    const aiConfig = await prisma.aiConfig.findUnique({
+      where: { userId: session.user.id }
+    })
+
+    if (aiConfig?.enableMdSync) {
+      // 9 seconds delay to allow AI tagging
+      await addTask("sync-to-local", {
+        type: "message",
+        id: message.id
+      }, {
+        delay: 9000
+      })
+    }
+
     // 通知同用户的其他设备有新消息
     const io = getSocketServer()
     if (io) {

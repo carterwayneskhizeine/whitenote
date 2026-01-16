@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import { Loader2, Save, CheckCircle, XCircle } from "lucide-react"
+import { Loader2, Save, CheckCircle, XCircle, FileDown, FileUp } from "lucide-react"
 import { configApi } from "@/lib/api/config"
 import { AIConfig } from "@/types/api"
 
@@ -18,6 +18,7 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [syncing, setSyncing] = useState<"export" | "import" | null>(null)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   // Session storage for user-inputted API keys (not persisted to backend as "***")
@@ -71,6 +72,7 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
         aiPersonality: config.aiPersonality,
         aiExpertise: config.aiExpertise ?? undefined,
         enableLinkSuggestion: config.enableLinkSuggestion,
+        enableMdSync: config.enableMdSync,
         asrApiUrl: config.asrApiUrl,
       }
 
@@ -146,6 +148,46 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
       })
     } finally {
       setTesting(false)
+    }
+  }
+
+  // Manual export to local files
+  const handleExportAll = async () => {
+    if (syncing) return
+    setSyncing("export")
+    try {
+      const response = await fetch("/api/sync/export-all", { method: "POST" })
+      const result = await response.json()
+      if (response.ok) {
+        showMessage("success", result.message || "导出成功")
+      } else {
+        showMessage("error", result.error || "导出失败")
+      }
+    } catch (error) {
+      console.error("Failed to export:", error)
+      showMessage("error", "导出失败")
+    } finally {
+      setSyncing(null)
+    }
+  }
+
+  // Manual import from local files
+  const handleImportAll = async () => {
+    if (syncing) return
+    setSyncing("import")
+    try {
+      const response = await fetch("/api/sync/import-all", { method: "POST" })
+      const result = await response.json()
+      if (response.ok) {
+        showMessage("success", result.message || "导入成功")
+      } else {
+        showMessage("error", result.error || "导入失败")
+      }
+    } catch (error) {
+      console.error("Failed to import:", error)
+      showMessage("error", "导入失败")
+    } finally {
+      setSyncing(null)
     }
   }
 
@@ -393,6 +435,73 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
           <div className="text-xs text-muted-foreground">
             <p>模型固定为: TeleAI/TeleSpeechASR</p>
             <p>支持格式: wav/mp3/pcm/opus/webm</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* MD Sync Configuration */}
+      <Card className="p-6">
+        <h3 className="text-lg font-bold mb-4">Markdown 同步 (Link MD)</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium">启用实时同步</div>
+              <div className="text-xs text-muted-foreground">
+                自动同步消息和评论到 D:\Code\whitenote-data\link_md
+              </div>
+            </div>
+            <Switch
+              checked={config.enableMdSync}
+              onCheckedChange={(checked) =>
+                setConfig({ ...config, enableMdSync: checked })
+              }
+            />
+          </div>
+          <div className="pt-2 border-t">
+            <div className="text-sm font-medium mb-2">手动同步</div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportAll}
+                disabled={syncing === "export" || syncing === "import"}
+              >
+                {syncing === "export" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    导出中...
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    导出 DB → 本地
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleImportAll}
+                disabled={syncing === "import" || syncing === "export"}
+              >
+                {syncing === "import" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    导入中...
+                  </>
+                ) : (
+                  <>
+                    <FileUp className="h-4 w-4 mr-2" />
+                    导入 本地 → DB
+                  </>
+                )}
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              导出：将数据库中的所有消息和评论导出为本地 MD 文件
+              <br />
+              导入：将本地修改过的 MD 文件导入到数据库并同步到 RAGFlow
+            </p>
           </div>
         </div>
       </Card>

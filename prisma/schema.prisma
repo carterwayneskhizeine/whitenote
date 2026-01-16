@@ -257,6 +257,7 @@ model AiConfig {
   aiPersonality        String    @default("friendly")
   aiExpertise          String?
   enableLinkSuggestion Boolean   @default(true)
+  enableMdSync         Boolean   @default(false)
   asrApiKey            String    @default("")
   asrApiUrl            String    @default("https://api.siliconflow.cn/v1/audio/transcriptions")
   updatedAt            DateTime  @updatedAt

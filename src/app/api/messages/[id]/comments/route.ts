@@ -144,6 +144,21 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       })
     }
 
+    // Check if MD Sync is enabled
+    const aiConfig = await prisma.aiConfig.findUnique({
+      where: { userId: session.user.id }
+    })
+
+    if (aiConfig?.enableMdSync) {
+      // 9 seconds delay to allow AI tagging
+      await addTask("sync-to-local", {
+        type: "comment",
+        id: comment.id
+      }, {
+        delay: 9000
+      })
+    }
+
     return Response.json({ data: comment }, { status: 201 })
   } catch (error) {
     if (error instanceof AuthError) {
