@@ -25,6 +25,7 @@ import { ImageLightbox } from "@/components/ImageLightbox"
 import { CompactReplyInput } from "@/components/CompactReplyInput"
 import { CommentItem } from "@/components/CommentItem"
 import { useMobile } from "@/hooks/use-mobile"
+import { detectAIMention } from "@/lib/utils/ai-detection"
 
 interface CommentsListProps {
   messageId: string
@@ -199,13 +200,15 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
       if (result.data) {
         setComments([...comments, result.data])
 
-        // Check if comment contains @goldierill and trigger AI reply
-        if (newComment.includes('@goldierill')) {
+        // Check if comment contains AI mentions and trigger AI reply
+        const aiDetection = detectAIMention(newComment)
+
+        if (aiDetection.hasMention && aiDetection.mode) {
           try {
-            const question = newComment.replace('@goldierill', '').trim()
             const aiResult = await aiApi.chat({
               messageId,
-              content: question || '请回复这条评论',
+              content: aiDetection.cleanedContent || '请回复这条评论',
+              mode: aiDetection.mode,
             })
             if (aiResult.data?.comment) {
               const aiComment = aiResult.data.comment
@@ -214,6 +217,8 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
             }
           } catch (aiError) {
             console.error("Failed to get AI reply:", aiError)
+            // TODO: Show toast notification to user
+            alert(`AI 回复失败: ${aiError instanceof Error ? aiError.message : '未知错误'}`)
           }
         }
 

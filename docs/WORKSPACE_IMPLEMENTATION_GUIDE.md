@@ -870,10 +870,10 @@ if (comment.message.authorId !== null && comment.message.authorId !== session.us
    - 修改 `src/components/InputMachine.tsx`
 
 2. **移动端 Workspace 切换**
-   - 在 MobileNav 中添加 Workspace 切换器
+   - 在 MobileNav 中添加 Workspace 切换器 （已添加）
 
 3. **跨 Workspace 搜索**
-   - 全局搜索模式，聚合多个 Workspace 的搜索结果
+   - 全局搜索模式，聚合多个 Workspace 的搜索结果 （先不修改）
 
 ---
 

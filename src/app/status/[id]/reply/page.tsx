@@ -16,6 +16,7 @@ import { ActionButtons } from "@/components/ActionButtons"
 import { getHandle } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
+import { detectAIMention } from "@/lib/utils/ai-detection"
 
 export default function MobileReplyPage() {
   const { id } = useParams() as { id: string }
@@ -147,16 +148,19 @@ export default function MobileReplyPage() {
       })
 
       if (result.data) {
-        // Check if comment contains @goldierill and trigger AI reply
-        if (content.includes('@goldierill')) {
+        // Check if comment contains AI mentions and trigger AI reply
+        const aiDetection = detectAIMention(content)
+
+        if (aiDetection.hasMention && aiDetection.mode) {
           try {
-            const question = content.replace('@goldierill', '').trim()
             await aiApi.chat({
               messageId: message.id,
-              content: question || '请回复这条评论',
+              content: aiDetection.cleanedContent || '请回复这条评论',
+              mode: aiDetection.mode,
             })
           } catch (aiError) {
             console.error("Failed to get AI reply:", aiError)
+            alert(`AI 回复失败: ${aiError instanceof Error ? aiError.message : '未知错误'}`)
           }
         }
 

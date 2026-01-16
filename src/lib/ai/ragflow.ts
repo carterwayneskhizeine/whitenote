@@ -54,43 +54,91 @@ export async function callRAGFlowWithChatId(
   chatId: string,
   messages: RAGFlowMessage[]
 ): Promise<{ content: string; references?: Array<{ content: string; source: string }> }> {
-  const response = await fetch(
-    `${ragflowBaseUrl}/api/v1/chats_openai/${chatId}/chat/completions`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${ragflowApiKey}`,
-      },
-      body: JSON.stringify({
-        model: "model",
-        messages,
-        stream: false,
-        extra_body: {
-          reference: true,
-        },
-      }),
-    }
-  )
+  // 添加请求日志
+  console.log('[RAGFlow] Starting chat request:', {
+    baseUrl: ragflowBaseUrl,
+    chatId: chatId,
+    messageCount: messages.length,
+    timestamp: new Date().toISOString()
+  })
 
-  if (!response.ok) {
-    const error = await response.text()
-    throw new Error(`RAGFlow API error: ${error}`)
+  const requestBody = {
+    model: "model",
+    messages,
+    stream: false,
+    extra_body: {
+      reference: true,
+    },
   }
 
-  const data: RAGFlowResponse = await response.json()
-  const message = data.choices[0]?.message
+  console.log('[RAGFlow] Request body:', JSON.stringify(requestBody, null, 2))
 
-  const references = message?.reference
-    ? message.reference.map((ref) => ({
-        content: ref.content,
-        source: ref.document_name,
-      }))
-    : undefined
+  try {
+    const response = await fetch(
+      `${ragflowBaseUrl}/api/v1/chats_openai/${chatId}/chat/completions`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${ragflowApiKey}`,
+        },
+        body: JSON.stringify(requestBody),
+      }
+    )
 
-  return {
-    content: message?.content || "",
-    references,
+    // 记录响应状态
+    console.log('[RAGFlow] Response status:', response.status, response.statusText)
+
+    if (!response.ok) {
+      const error = await response.text()
+      console.error('[RAGFlow] Error response:', error)
+      throw new Error(`RAGFlow API error (${response.status}): ${error}`)
+    }
+
+    const data: RAGFlowResponse = await response.json()
+    console.log('[RAGFlow] Response data:', JSON.stringify(data, null, 2))
+
+    // 验证响应结构
+    if (!data.choices || data.choices.length === 0) {
+      console.error('[RAGFlow] No choices in response')
+      throw new Error('RAGFlow returned empty response')
+    }
+
+    const message = data.choices[0]?.message
+    if (!message) {
+      console.error('[RAGFlow] No message in first choice')
+      throw new Error('RAGFlow returned invalid message structure')
+    }
+
+    if (!message.content) {
+      console.error('[RAGFlow] Empty content in message')
+      throw new Error('RAGFlow returned empty content')
+    }
+
+    const references = message?.reference
+      ? message.reference.map((ref) => ({
+          content: ref.content,
+          source: ref.document_name,
+        }))
+      : undefined
+
+    console.log('[RAGFlow] Success:', {
+      contentLength: message.content.length,
+      referenceCount: references?.length || 0,
+      timestamp: new Date().toISOString()
+    })
+
+    return {
+      content: message.content,
+      references,
+    }
+  } catch (error) {
+    console.error('[RAGFlow] Request failed:', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date().toISOString()
+    })
+    throw error
   }
 }
 

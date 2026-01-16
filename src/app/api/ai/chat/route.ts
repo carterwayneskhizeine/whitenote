@@ -53,8 +53,17 @@ export async function POST(request: NextRequest) {
     let quotedMessageId: string | undefined
 
     if (mode === 'ragflow') {
+      console.log('[AI Chat] RAGFlow mode requested', {
+        messageId,
+        hasRagflowChatId: !!message.workspace?.ragflowChatId,
+        ragflowChatId: message.workspace?.ragflowChatId,
+        hasBaseUrl: !!config.ragflowBaseUrl,
+        hasApiKey: !!config.ragflowApiKey
+      })
+
       // RAGFlow 模式：使用 Workspace 的 chatId 检索知识库
       if (!message.workspace?.ragflowChatId) {
+        console.error('[AI Chat] Missing RAGFlow chat ID for workspace')
         return Response.json(
           { error: "Workspace RAGFlow not configured. 请先在设置中配置 RAGFlow API Key，然后创建新 Workspace。" },
           { status: 400 }
@@ -62,6 +71,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (!config.ragflowBaseUrl || !config.ragflowApiKey) {
+        console.error('[AI Chat] Missing RAGFlow credentials in user config')
         return Response.json(
           { error: "请先在 AI 配置中设置 RAGFlow Base URL 和 API Key" },
           { status: 400 }
@@ -69,18 +79,42 @@ export async function POST(request: NextRequest) {
       }
 
       const messages = [{ role: "user" as const, content }]
-      const result = await callRAGFlowWithChatId(
-        config.ragflowBaseUrl,
-        config.ragflowApiKey,
-        message.workspace.ragflowChatId,
-        messages
-      )
-      aiResponse = result.content
-      references = result.references
 
-      // 从 references 中提取第一个（最相关）的 messageId
-      if (references && references.length > 0) {
-        quotedMessageId = extractMessageIdFromDocument(references[0].source) || undefined
+      console.log('[AI Chat] Calling RAGFlow...')
+
+      try {
+        const result = await callRAGFlowWithChatId(
+          config.ragflowBaseUrl,
+          config.ragflowApiKey,
+          message.workspace.ragflowChatId,
+          messages
+        )
+
+        console.log('[AI Chat] RAGFlow response received:', {
+          contentLength: result.content.length,
+          hasReferences: !!result.references,
+          referenceCount: result.references?.length || 0
+        })
+
+        aiResponse = result.content
+        references = result.references
+
+        // 从 references 中提取第一个（最相关）的 messageId
+        if (references && references.length > 0) {
+          quotedMessageId = extractMessageIdFromDocument(references[0].source) || undefined
+          console.log('[AI Chat] Extracted quoted message ID:', quotedMessageId)
+        }
+      } catch (error) {
+        console.error('[AI Chat] RAGFlow call failed:', error)
+        return Response.json(
+          {
+            error: error instanceof Error
+              ? `RAGFlow 调用失败: ${error.message}`
+              : "RAGFlow 调用失败",
+            details: error instanceof Error ? error.stack : undefined
+          },
+          { status: 500 }
+        )
       }
     } else {
       // OpenAI 模式（@goldierill）：直接使用 OpenAI，上下文仅为当前帖子
@@ -144,11 +178,21 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     if (error instanceof AuthError) {
+      console.error('[AI Chat] Auth error:', error.message)
       return Response.json({ error: error.message }, { status: 401 })
     }
-    console.error("AI chat error:", error)
+
+    console.error('[AI Chat] Unexpected error:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : 'Unknown'
+    })
+
     return Response.json(
-      { error: error instanceof Error ? error.message : "AI service error" },
+      {
+        error: error instanceof Error ? error.message : "AI service error",
+        type: error instanceof Error ? error.constructor.name : 'Unknown'
+      },
       { status: 500 }
     )
   }

@@ -22,6 +22,7 @@ import { SimpleTipTapEditor } from "@/components/SimpleTipTapEditor"
 import { templatesApi } from "@/lib/api/templates"
 import { Template } from "@/types/api"
 import { useState, useEffect, useRef } from "react"
+import { detectAIMention } from "@/lib/utils/ai-detection"
 
 interface ReplyTarget {
     id: string
@@ -155,16 +156,20 @@ export function ReplyDialog({
             })
 
             if (result.data) {
-                // Check if comment contains @goldierill and trigger AI reply
-                if (content.includes('@goldierill')) {
+                // Check if comment contains AI mentions and trigger AI reply
+                const aiDetection = detectAIMention(content)
+
+                if (aiDetection.hasMention && aiDetection.mode) {
                     try {
-                        const question = content.replace('@goldierill', '').trim()
                         await aiApi.chat({
                             messageId: messageId,
-                            content: question || '请回复这条评论',
+                            content: aiDetection.cleanedContent || '请回复这条评论',
+                            mode: aiDetection.mode, // Pass mode parameter
                         })
                     } catch (aiError) {
                         console.error("Failed to get AI reply:", aiError)
+                        // TODO: Show toast notification to user
+                        alert(`AI 回复失败: ${aiError instanceof Error ? aiError.message : '未知错误'}`)
                     }
                 }
 

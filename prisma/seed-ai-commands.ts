@@ -31,6 +31,13 @@ const builtinTemplates = [
     content: `  @goldierill  `,
     isBuiltIn: true,
   },
+  {
+    id: 'ragflow',
+    name: 'RAGFlow',
+    description: 'AI Assistant',
+    content: `  @ragflow  `,
+    isBuiltIn: true,
+  },
 ]
 
 async function main() {

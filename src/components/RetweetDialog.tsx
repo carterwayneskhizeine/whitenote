@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { messagesApi, commentsApi } from "@/lib/api"
+import { messagesApi, commentsApi, aiApi } from "@/lib/api"
 import { X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -24,6 +24,7 @@ import { templatesApi } from "@/lib/api/templates"
 import { Template } from "@/types/api"
 import { useState, useEffect, useRef } from "react"
 import { useWorkspaceStore } from "@/store/useWorkspaceStore"
+import { detectAIMention } from "@/lib/utils/ai-detection"
 
 interface RetweetTarget {
     id: string
@@ -167,6 +168,22 @@ export function RetweetDialog({
             const result = await messagesApi.createMessage(createData)
 
             if (result.data) {
+                // Check if content contains AI mentions and trigger AI reply
+                const aiDetection = detectAIMention(content)
+
+                if (aiDetection.hasMention && aiDetection.mode) {
+                    try {
+                        await aiApi.chat({
+                            messageId: result.data.id, // Use the new retweet message ID
+                            content: aiDetection.cleanedContent || '请回复这条消息',
+                            mode: aiDetection.mode,
+                        })
+                    } catch (aiError) {
+                        console.error("Failed to get AI reply:", aiError)
+                        // Don't alert on retweet to avoid disrupting the flow
+                    }
+                }
+
                 // 2. 调用转发 API 来增加原消息/评论的转发计数
                 if (targetType === 'message') {
                     await messagesApi.toggleRetweet(target.id)
