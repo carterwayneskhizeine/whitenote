@@ -55,12 +55,12 @@ export async function buildSystemPrompt(userId: string): Promise<string> {
 
   const personalities: Record<string, string> = {
     friendly: "你是一个友好、热情的 AI 助手，语气亲切自然。",
-    professional: "你是一个专业、严谨的 AI 助手，回答准确简洁。",
+    professional: "你是一个专业、严谨的 AI 助手。",
     casual: "你是一个轻松、幽默的 AI 伙伴，喜欢用轻松的方式交流。",
   }
 
   let prompt = personalities[config.aiPersonality] || personalities.friendly
-  prompt += " 你是用户的第二大脑助手 @goldierill。"
+  prompt += " You are a helpful assistant. Your name is GoldieRill."
 
   if (config.aiExpertise) {
     prompt += ` 你在 ${config.aiExpertise} 领域有深入的了解。`

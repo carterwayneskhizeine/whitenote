@@ -296,12 +296,9 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
       {/* AI Features */}
       <Card className="p-6">
         <h3 className="text-lg font-bold mb-4">AI 功能</h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          💡 提示：自动打标签和每日晨报功能可在各工作区的设置中单独开启/关闭
-        </p>
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-medium mb-1 block">自动打标签模型</label>
+            <label className="text-sm font-medium mb-1 block">自动 Tag 模型</label>
             <Input
               value={config.autoTagModel}
               onChange={(e) =>
