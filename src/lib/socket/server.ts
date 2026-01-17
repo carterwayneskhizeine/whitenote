@@ -140,7 +140,13 @@ export function initSocketServer(httpServer: HTTPServer) {
   try {
     // ignoreInitial: true prevents syncing everything on startup, only changes
     watcher = chokidar.watch(SYNC_DIR, {
-      ignored: /(^|[\/\\])\.{1,2}$/, // ignore dotfiles like .whitenote
+      ignored: (path) => {
+        // Ignore dotfiles like .whitenote
+        if (/(^|[\/\\])\.{1,2}$/.test(path)) return true
+        // Ignore specific directories
+        if (path.includes('.obsidian') || path.includes('Re_tags')) return true
+        return false
+      },
       persistent: true,
       ignoreInitial: true
     })
