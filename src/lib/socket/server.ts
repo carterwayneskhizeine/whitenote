@@ -138,22 +138,22 @@ export function initSocketServer(httpServer: HTTPServer) {
   let watcher: ReturnType<typeof chokidar.watch> | null = null
 
   try {
-    // ignoreInitial: true prevents syncing everything on startup, only changes
+    // Watch the entire directory recursively
     watcher = chokidar.watch(SYNC_DIR, {
-      ignored: (path) => {
-        // Ignore .whitenote directories (now in each workspace folder)
-        if (path.includes('.whitenote')) return true
-        // Ignore specific directories
-        if (path.includes('.obsidian') || path.includes('Re_tags')) return true
-        // Only watch .md files
-        if (!path.endsWith('.md')) return true
-        return false
-      },
       persistent: true,
-      ignoreInitial: true
+      ignoreInitial: true,
+      awaitWriteFinish: {
+        stabilityThreshold: 200,
+        pollInterval: 100
+      }
     })
 
     watcher.on('change', async (filePath) => {
+      // Only process .md files
+      if (!filePath.endsWith('.md')) {
+        return
+      }
+
       console.log(`[FileWatcher] File changed: ${filePath}`)
 
       // Extract workspace ID and filename from path
@@ -162,7 +162,9 @@ export function initSocketServer(httpServer: HTTPServer) {
       const fileName = pathParts.pop() // Get filename (handle both / and \)
       const workspaceId = pathParts.pop() // Get workspace ID
 
-      if (fileName && fileName.endsWith('.md') && workspaceId) {
+      console.log(`[FileWatcher] Parsed - Workspace: ${workspaceId}, File: ${fileName}`)
+
+      if (fileName && workspaceId) {
         try {
           await importFromLocal(workspaceId, fileName)
         } catch (error) {
@@ -172,6 +174,14 @@ export function initSocketServer(httpServer: HTTPServer) {
     })
 
     watcher.on('error', error => console.error(`[FileWatcher] Error: ${error}`))
+
+    watcher.on('ready', () => {
+      console.log(`[FileWatcher] Ready. Watching: ${SYNC_DIR}`)
+      const watched = watcher?.getWatched()
+      if (watched) {
+        console.log(`[FileWatcher] Watching paths:`, Object.keys(watched))
+      }
+    })
 
     console.log('[FileWatcher] Started watching:', SYNC_DIR)
   } catch (error) {
