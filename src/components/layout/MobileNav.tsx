@@ -59,7 +59,13 @@ export function MobileNav() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false)
   const [isLoadingWorkspaces, setIsLoadingWorkspaces] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const { currentWorkspaceId, setCurrentWorkspaceId } = useWorkspaceStore()
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // 加载用户的 Workspace 列表
   useEffect(() => {
@@ -118,6 +124,11 @@ export function MobileNav() {
   }, [lastScrollY])
 
   const isActive = (path: string) => pathname === path
+
+  // Prevent hydration mismatch by not rendering session-dependent content until mounted
+  if (!mounted) {
+    return null
+  }
 
   return (
     <>
