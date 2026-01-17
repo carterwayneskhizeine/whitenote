@@ -490,3 +490,57 @@ export async function importAllFromLocal() {
 
   return results
 }
+
+/**
+ * Delete local MD file and update workspace.json
+ */
+export async function deleteLocalFile(type: "message" | "comment", id: string, workspaceId: string) {
+  const workspaceDir = getWorkspaceDir(workspaceId)
+  const fileName = `${type}_${id}.md`
+  const filePath = path.join(workspaceDir, fileName)
+
+  // Delete the MD file if it exists
+  if (fs.existsSync(filePath)) {
+    try {
+      fs.unlinkSync(filePath)
+      console.log(`[SyncUtils] Deleted local file: ${workspaceId}/${fileName}`)
+    } catch (error) {
+      console.error(`[SyncUtils] Failed to delete local file ${filePath}:`, error)
+    }
+  }
+
+  // Update workspace.json
+  const ws = getWorkspaceData(workspaceId)
+  const fileKey = fileName.replace('.md', '')
+
+  // Remove from files metadata
+  if (ws.files[fileKey]) {
+    delete ws.files[fileKey]
+  }
+
+  // Remove from relations (for comments)
+  if (type === 'comment') {
+    // Find which message this comment belongs to
+    for (const [messageFileKey, relationData] of Object.entries(ws.relations)) {
+      if (relationData.comments.includes(fileKey)) {
+        relationData.comments = relationData.comments.filter(c => c !== fileKey)
+        // Clean up empty relations
+        if (relationData.comments.length === 0) {
+          delete ws.relations[messageFileKey]
+        }
+        break
+      }
+    }
+  } else if (type === 'message') {
+    // Remove the message from relations
+    if (ws.relations[fileKey]) {
+      delete ws.relations[fileKey]
+    }
+  }
+
+  // Save updated workspace.json
+  saveWorkspaceData(workspaceId, ws)
+
+  console.log(`[SyncUtils] Updated workspace.json for ${workspaceId}`)
+}
+

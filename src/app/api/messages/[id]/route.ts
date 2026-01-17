@@ -6,7 +6,7 @@ import { batchUpsertTags, cleanupUnusedTags } from "@/lib/tag-utils"
 import { unlink } from "fs/promises"
 import { join } from "path"
 import { existsSync } from "fs"
-import { exportToLocal } from "@/lib/sync-utils"
+import { exportToLocal, deleteLocalFile } from "@/lib/sync-utils"
 import { addTask } from "@/lib/queue"
 
 // Upload directory outside the codebase
@@ -385,6 +385,30 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
         // 继续删除其他文件，不因单个文件删除失败而中断
       }
     }
+  }
+
+  // 删除本地 MD 文件（如果启用了 MD Sync）
+  try {
+    const aiConfig = await prisma.aiConfig.findUnique({
+      where: { userId: session.user.id }
+    })
+
+    if (aiConfig?.enableMdSync && existing.workspaceId) {
+      // Delete the message MD file
+      await deleteLocalFile("message", id, existing.workspaceId)
+
+      // Delete all associated comment MD files
+      for (const comment of existing.comments) {
+        try {
+          await deleteLocalFile("comment", comment.id, existing.workspaceId)
+        } catch (error) {
+          console.error(`[DELETE Message] Failed to delete comment MD file ${comment.id}:`, error)
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`[DELETE Message] Failed to delete local MD files:`, error)
+    // 继续删除，不因本地文件删除失败而中断
   }
 
   // 先从 RAGFlow 删除对应的文档

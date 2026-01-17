@@ -6,7 +6,7 @@ import { join } from "path"
 import { existsSync } from "fs"
 import { batchUpsertTags } from "@/lib/tag-utils"
 import { deleteFromRAGFlow } from "@/lib/ai/ragflow"
-import { exportToLocal } from "@/lib/sync-utils"
+import { exportToLocal, deleteLocalFile } from "@/lib/sync-utils"
 
 // Upload directory outside the codebase
 const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), "..", "whitenote-data", "uploads")
@@ -176,6 +176,34 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
           // 继续删除其他文件，不因单个文件删除失败而中断
         }
       }
+    }
+
+    // 删除本地 MD 文件（如果启用了 MD Sync）
+    try {
+      const aiConfig = await prisma.aiConfig.findUnique({
+        where: { userId: session.user.id }
+      })
+
+      if (aiConfig?.enableMdSync) {
+        // Get workspace ID through the message
+        const commentWithWorkspace = await prisma.comment.findUnique({
+          where: { id },
+          select: {
+            message: {
+              select: {
+                workspaceId: true
+              }
+            }
+          }
+        })
+
+        if (commentWithWorkspace?.message?.workspaceId) {
+          await deleteLocalFile("comment", id, commentWithWorkspace.message.workspaceId)
+        }
+      }
+    } catch (error) {
+      console.error(`[DELETE Comment] Failed to delete local MD file:`, error)
+      // 继续删除，不因本地文件删除失败而中断
     }
 
     // 先从 RAGFlow 删除对应的文档（如果有配置）
