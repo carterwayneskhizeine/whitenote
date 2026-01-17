@@ -133,8 +133,10 @@ function HomeContent() {
               {/* First workspace (fixed) */}
               {workspaces[0] && (
                 <button
-                  className={`flex-1 py-4 hover:bg-secondary/50 transition-colors relative flex justify-center items-center gap-2 ${
-                    currentWorkspaceId === workspaces[0].id ? 'bg-secondary/30' : ''
+                  className={`flex-1 py-4 transition-colors relative flex justify-center items-center gap-2 ${
+                    currentWorkspaceId === workspaces[0].id
+                      ? 'bg-secondary/30 hover:bg-secondary/40'
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                   onClick={() => {
                     setCurrentWorkspaceId(workspaces[0].id)
@@ -151,8 +153,10 @@ function HomeContent() {
               {/* Second workspace (fixed) */}
               {workspaces[1] && (
                 <button
-                  className={`flex-1 py-4 hover:bg-secondary/50 transition-colors relative flex justify-center items-center gap-2 ${
-                    currentWorkspaceId === workspaces[1].id ? 'bg-secondary/30' : ''
+                  className={`flex-1 py-4 transition-colors relative flex justify-center items-center gap-2 ${
+                    currentWorkspaceId === workspaces[1].id
+                      ? 'bg-secondary/30 hover:bg-secondary/40'
+                      : 'hover:bg-gray-200 dark:hover:bg-gray-700'
                   }`}
                   onClick={() => {
                     setCurrentWorkspaceId(workspaces[1].id)
@@ -171,8 +175,10 @@ function HomeContent() {
                 <div className="relative flex-1 flex">
                   {/* Main button - clickable workspace name */}
                   <button
-                    className={`flex-1 py-4 hover:bg-secondary/50 transition-colors relative flex justify-center items-center ${
-                      currentWorkspaceId !== workspaces[0].id && currentWorkspaceId !== workspaces[1].id ? 'bg-secondary/30' : ''
+                    className={`flex-1 py-4 transition-colors relative flex justify-center items-center ${
+                      currentWorkspaceId !== workspaces[0].id && currentWorkspaceId !== workspaces[1].id
+                        ? 'bg-secondary/30 hover:bg-secondary/40'
+                        : 'hover:bg-gray-200 dark:hover:bg-gray-700'
                     }`}
                     onClick={() => {
                       const targetWorkspaceId = lastThirdAreaWorkspaceId || workspaces[2].id
@@ -190,7 +196,7 @@ function HomeContent() {
 
                   {/* Small dropdown arrow button */}
                   <button
-                    className="px-2 hover:bg-secondary/50 transition-colors relative flex items-center justify-center"
+                    className="px-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors relative flex items-center justify-center"
                     onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
                   >
                     <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showWorkspaceMenu ? 'rotate-180' : ''}`} />
