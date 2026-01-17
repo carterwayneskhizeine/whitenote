@@ -160,6 +160,7 @@ export async function POST(request: NextRequest) {
     if (workspace?.enableAutoTag) {
       await addTask("auto-tag-comment", {
         userId: session.user.id,
+        workspaceId: message.workspaceId, // Add workspaceId
         commentId: comment.id,
         contentType: 'comment',
       })
@@ -168,7 +169,7 @@ export async function POST(request: NextRequest) {
       await addTask("sync-ragflow", {
         userId: session.user.id,
         workspaceId: message.workspaceId,
-        messageId: comment.id,
+        messageId: comment.id, // Should be commentId for sync-ragflow
         contentType: 'comment',
       })
     }
