@@ -45,7 +45,7 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
       Markdown.configure({
         markedOptions: {
           gfm: true, // GitHub Flavored Markdown
-          breaks: true, // Convert \n to <br>
+          breaks: false, // Only \n\n creates new paragraph
         },
       }),
     ],
@@ -169,8 +169,8 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
 
         /* Paragraphs */
         .tipTap-viewer .ProseMirror p {
-          margin-top: 0.5rem;
-          margin-bottom: 0.5rem;
+          margin-top: 0;
+          margin-bottom: 0;
           line-height: 1.6;
         }
 

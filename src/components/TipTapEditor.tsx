@@ -28,6 +28,13 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
+// Helper function to compact multiple newlines to single
+function cleanMarkdown(markdown: string): string {
+  if (!markdown) return markdown
+  // Replace 2 or more consecutive newlines with single newline
+  return markdown.replace(/\n{2,}/g, '\n')
+}
+
 interface TipTapEditorProps {
   content: string
   onChange: (content: string) => void
@@ -68,7 +75,7 @@ export function TipTapEditor({
       Markdown.configure({
         markedOptions: {
           gfm: true,
-          breaks: true,
+          breaks: false,
         },
       }),
       Placeholder.configure({
@@ -79,6 +86,11 @@ export function TipTapEditor({
     immediatelyRender: false,
     content,
     contentType: 'markdown', // Parse content as Markdown
+    coreExtensionOptions: {
+      clipboardTextSerializer: {
+        blockSeparator: '\n', // Use single newline for copy/paste
+      },
+    },
     editorProps: {
       attributes: {
         class: 'prose prose-sm dark:prose-invert focus:outline-none min-h-[min(300px,100%)] h-full w-full',
@@ -86,7 +98,8 @@ export function TipTapEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      onChange(editor.getMarkdown())
+      // Clean excessive newlines before calling onChange
+      onChange(cleanMarkdown(editor.getMarkdown()))
     },
     onFocus: () => setIsFocused(true),
     onBlur: () => setIsFocused(false),
@@ -282,6 +295,11 @@ export function TipTapEditor({
           outline: none;
           overflow-y: auto !important;
           padding-right: 4px;
+        }
+        /* Remove default paragraph margins to prevent extra spacing */
+        .ProseMirror p {
+          margin-top: 0 !important;
+          margin-bottom: 0 !important;
         }
         /* Enhance blockquote styling */
         .ProseMirror blockquote {

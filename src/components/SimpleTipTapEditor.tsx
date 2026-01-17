@@ -12,6 +12,13 @@ import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Template } from '@/types/api'
 
+// Helper function to compact multiple newlines to single
+function cleanMarkdown(markdown: string): string {
+  if (!markdown) return markdown
+  // Replace 2 or more consecutive newlines with single newline
+  return markdown.replace(/\n{2,}/g, '\n')
+}
+
 interface SimpleTipTapEditorProps {
   value: string
   onChange: (value: string) => void
@@ -50,7 +57,7 @@ export function SimpleTipTapEditor({
       Markdown.configure({
         markedOptions: {
           gfm: true,
-          breaks: true,
+          breaks: false,
         },
       }),
       Placeholder.configure({
@@ -67,6 +74,11 @@ export function SimpleTipTapEditor({
     immediatelyRender: false,
     content: value,
     editable: !disabled && !isProcessingAI,
+    coreExtensionOptions: {
+      clipboardTextSerializer: {
+        blockSeparator: '\n', // Use single newline for copy/paste
+      },
+    },
     editorProps: {
       attributes: {
         class: `prose prose-sm dark:prose-invert focus:outline-none w-full bg-transparent text-lg leading-6 placeholder:text-muted-foreground/60 whitespace-normal break-words overflow-wrap-anywhere ${isProcessingAI ? 'opacity-50 cursor-wait' : ''}`,
@@ -74,7 +86,9 @@ export function SimpleTipTapEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      onChange(editor.getMarkdown())
+      // Clean excessive newlines when outputting
+      const markdown = cleanMarkdown(editor.getMarkdown())
+      onChange(markdown)
     },
   })
 
@@ -119,6 +133,14 @@ export function SimpleTipTapEditor({
           </div>
         </div>
       )}
+
+      <style jsx global>{`
+        /* Remove default paragraph margins to prevent extra spacing */
+        .ProseMirror p {
+          margin-top: 0 !important;
+          margin-bottom: 0 !important;
+        }
+      `}</style>
     </div>
   )
 }

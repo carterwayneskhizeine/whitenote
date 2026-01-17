@@ -32,6 +32,13 @@ import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUp
 import { useWorkspaceStore } from "@/store/useWorkspaceStore"
 import { getAvatarUrl } from "@/lib/utils"
 
+// Helper function to compact multiple newlines to single
+function cleanMarkdown(markdown: string): string {
+  if (!markdown) return markdown
+  // Replace 2 or more consecutive newlines with single newline
+  return markdown.replace(/\n{2,}/g, '\n')
+}
+
 interface InputMachineProps {
   onSuccess?: () => void
 }
@@ -382,7 +389,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
       Markdown.configure({
         markedOptions: {
           gfm: true,
-          breaks: true,
+          breaks: false,
         },
       }),
       Placeholder.configure({
@@ -395,6 +402,11 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     immediatelyRender: false,
     content: '',
     editable: !isProcessingAI,
+    coreExtensionOptions: {
+      clipboardTextSerializer: {
+        blockSeparator: '\n', // Use single newline for copy/paste
+      },
+    },
     editorProps: {
       attributes: {
         class: `prose prose-sm dark:prose-invert focus:outline-none min-h-[50px] w-full bg-transparent text-lg leading-6 placeholder:text-muted-foreground/60 whitespace-normal break-words overflow-wrap-anywhere ${isProcessingAI ? 'opacity-50 cursor-wait' : ''}`,
@@ -424,7 +436,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     // ⚡ 立即标记：正在发送消息（在API调用之前）
     markMessageSending()
 
-    let content = editor.getMarkdown() // Store as Markdown instead of HTML
+    let content = cleanMarkdown(editor.getMarkdown()) // Clean and store as Markdown
     const textContent = editor.getText() // Get plain text for @goldierill detection
 
     setIsPosting(true)
@@ -655,6 +667,14 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
           </div>
         </div>
       </div>
+
+      <style jsx global>{`
+        /* Remove default paragraph margins to prevent extra spacing */
+        .ProseMirror p {
+          margin-top: 0 !important;
+          margin-bottom: 0 !important;
+        }
+      `}</style>
     </div>
   )
 }
