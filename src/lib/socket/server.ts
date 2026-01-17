@@ -141,10 +141,12 @@ export function initSocketServer(httpServer: HTTPServer) {
     // ignoreInitial: true prevents syncing everything on startup, only changes
     watcher = chokidar.watch(SYNC_DIR, {
       ignored: (path) => {
-        // Ignore dotfiles like .whitenote
-        if (/(^|[\/\\])\.{1,2}$/.test(path)) return true
+        // Ignore .whitenote directories (now in each workspace folder)
+        if (path.includes('.whitenote')) return true
         // Ignore specific directories
         if (path.includes('.obsidian') || path.includes('Re_tags')) return true
+        // Only watch .md files
+        if (!path.endsWith('.md')) return true
         return false
       },
       persistent: true,
@@ -153,12 +155,18 @@ export function initSocketServer(httpServer: HTTPServer) {
 
     watcher.on('change', async (filePath) => {
       console.log(`[FileWatcher] File changed: ${filePath}`)
-      const fileName = filePath.split(/[/\\]/).pop() // Get filename (handle both / and \)
-      if (fileName && fileName.endsWith('.md')) {
+
+      // Extract workspace ID and filename from path
+      // Path format: SYNC_DIR/workspaceId/filename.md
+      const pathParts = filePath.split(/[/\\]/)
+      const fileName = pathParts.pop() // Get filename (handle both / and \)
+      const workspaceId = pathParts.pop() // Get workspace ID
+
+      if (fileName && fileName.endsWith('.md') && workspaceId) {
         try {
-          await importFromLocal(fileName)
+          await importFromLocal(workspaceId, fileName)
         } catch (error) {
-          console.error(`[FileWatcher] Error importing ${fileName}:`, error)
+          console.error(`[FileWatcher] Error importing ${workspaceId}/${fileName}:`, error)
         }
       }
     })
