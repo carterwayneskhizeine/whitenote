@@ -23,7 +23,16 @@ export async function GET(request: NextRequest) {
   const tagId = searchParams.get("tagId")
   const isStarred = searchParams.get("isStarred") === "true" ? true : undefined
   const isPinned = searchParams.get("isPinned") === "true" ? true : undefined
-  const workspaceId = searchParams.get("workspaceId")
+  let workspaceId = searchParams.get("workspaceId")
+
+  // 如果没有指定 workspaceId，使用用户的默认 Workspace
+  if (!workspaceId) {
+    const defaultWorkspace = await prisma.workspace.findFirst({
+      where: { userId: session.user.id, isDefault: true },
+      select: { id: true },
+    })
+    workspaceId = defaultWorkspace?.id || null
+  }
 
   // 构建基础查询条件
   const baseWhere: Record<string, unknown> = {}
