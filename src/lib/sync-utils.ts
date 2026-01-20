@@ -261,7 +261,7 @@ export function parseFilePath(filePath: string): {
       // Fall through
     }
 
-    // Fallback: try to extract ID from original filename format
+    // Fallback 1: try to extract ID from original filename format
     if (commentFileName.startsWith('comment_')) {
       const commentId = commentFileName.replace('comment_', '').replace('.md', '')
       return {
@@ -272,6 +272,36 @@ export function parseFilePath(filePath: string): {
         messageFilename: folderName,
         commentFolder: commentSubfolder,
         commentFilename: commentFileName
+      }
+    }
+
+    // Fallback 2: file is in a comment folder (parts.length === 3), find comment by folder name
+    // This handles manually renamed comment files (e.g., test_yupi_03.md -> test_yupi_04.md)
+    if (parts.length === 3) {
+      const commentSubfolder = parts[1] // e.g., "鱼皮"
+      const commentFileName = parts[2] // e.g., "test_yupi_04.md"
+
+      try {
+        const ws = getWorkspaceData(workspaceId) as WorkspaceDataV2
+        if (ws.version === 2) {
+          // Find any comment with this folderName
+          for (const [_originalFilename, comment] of Object.entries(ws.comments)) {
+            if (comment.folderName === commentSubfolder) {
+              console.log(`[parseFilePath] Found comment via folder name: ${commentSubfolder}, assuming file rename: ${commentFileName}`)
+              return {
+                workspaceId,
+                type: 'comment',
+                messageId: comment.messageId,
+                commentId: comment.id,
+                messageFilename: folderName,
+                commentFolder: commentSubfolder,
+                commentFilename: commentFileName
+              }
+            }
+          }
+        }
+      } catch {
+        // Fall through
       }
     }
   }
@@ -542,6 +572,22 @@ export async function exportToLocal(type: "message" | "comment", id: string) {
               console.log(`[SyncUtils] Found renamed comment folder '${subdir.name}' via file '${mdFile}'`)
               commentFolderName = subdir.name
               foundMessageFolder = true
+
+              // Update folderName for all comments of this message in workspace.json
+              console.log(`[SyncUtils] Updating folderName for all comments of message ${data.messageId}`)
+              for (const [_key, comment] of Object.entries(ws.comments)) {
+                if (comment.messageId === data.messageId && comment.folderName !== subdir.name) {
+                  console.log(`[SyncUtils]   - Updating comment ${comment.id}: '${comment.folderName}' -> '${subdir.name}'`)
+                  comment.folderName = subdir.name
+                }
+              }
+
+              // Update the message's commentFolderName as well
+              if (ws.messages[messageFilename]) {
+                console.log(`[SyncUtils] Updating message commentFolderName: '${ws.messages[messageFilename].commentFolderName}' -> '${subdir.name}'`)
+                ws.messages[messageFilename].commentFolderName = subdir.name
+              }
+
               break
             }
           }
@@ -617,6 +663,18 @@ export async function importFromLocal(workspaceId: string, filePath: string) {
   } else {
     originalFilename = `comment_${parsed.commentId}.md`
     meta = ws.comments[originalFilename]
+
+    // Fallback: if not found by ID, try to find by folderName and currentFilename
+    // This handles manually renamed comment files where we need to match the actual filename
+    if (!meta && parsed.commentFolder && parsed.commentFilename) {
+      for (const [_key, comment] of Object.entries(ws.comments)) {
+        if (comment.folderName === parsed.commentFolder && comment.currentFilename === parsed.commentFilename) {
+          console.log(`[SyncUtils] Found comment by folder+filename: ${parsed.commentFolder}/${parsed.commentFilename}`)
+          meta = comment
+          break
+        }
+      }
+    }
   }
 
   if (!meta) {
@@ -699,6 +757,13 @@ export async function importFromLocal(workspaceId: string, filePath: string) {
   if (!record) {
     console.log(`[SyncUtils] Record ${meta.type} ${meta.id} not found, skipping`)
     return
+  }
+
+  // Update currentFilename if file was manually renamed
+  const actualFileName = parsed.type === 'message' ? parsed.messageFilename : parsed.commentFilename
+  if (actualFileName && meta.currentFilename !== actualFileName) {
+    console.log(`[SyncUtils] Updating currentFilename: '${meta.currentFilename}' -> '${actualFileName}'`)
+    meta.currentFilename = actualFileName
   }
 
   // Update Workspace JSON with new modified time and tags
@@ -873,29 +938,62 @@ export async function importAllFromLocal() {
         }
       }
 
-      // Process comment files
-      for (const [originalFilename, meta] of Object.entries(ws.comments)) {
+      // Process comment files by scanning actual directories
+      const workspaceDirPath = getWorkspaceDir(workspaceId)
+      const dirs = fs.readdirSync(workspaceDirPath, { withFileTypes: true })
+      const commentFolders = dirs.filter(d => d.isDirectory() && d.name !== '.whitenote')
+      const processedComments = new Set<string>()
+
+      for (const folder of commentFolders) {
+        const folderPath = path.join(workspaceDirPath, folder.name)
         try {
-          const workspaceDirPath = getWorkspaceDir(workspaceId)
-          const filePath = path.join(workspaceDirPath, meta.folderName, meta.currentFilename)
+          const files = fs.readdirSync(folderPath)
+          const mdFiles = files.filter(f => f.endsWith('.md'))
 
-          if (!fs.existsSync(filePath)) {
-            results.skipped++
-            continue
-          }
+          for (const mdFile of mdFiles) {
+            const filePath = path.join(folderPath, mdFile)
 
-          const stats = fs.statSync(filePath)
-          const lastModified = stats.mtime.toISOString()
+            // Check if this file is in workspace.json
+            let commentEntry = Object.values(ws.comments).find(
+              c => c.folderName === folder.name && c.currentFilename === mdFile
+            )
 
-          if (meta.updated_at !== lastModified) {
-            await importFromLocal(workspaceId, filePath)
-            results.imported++
-          } else {
-            results.skipped++
+            // Fallback: if not found, try to find by folderName only (handles manually renamed files)
+            if (!commentEntry) {
+              commentEntry = Object.values(ws.comments).find(
+                c => c.folderName === folder.name && !processedComments.has(c.id)
+              )
+              if (commentEntry) {
+                console.log(`[SyncUtils] Found comment '${mdFile}' by folderName only, assuming manual rename from '${commentEntry.currentFilename}'`)
+              }
+            }
+
+            if (!commentEntry) {
+              // Unknown file, skip
+              results.skipped++
+              continue
+            }
+
+            // Mark this comment as processed
+            processedComments.add(commentEntry.id)
+
+            try {
+              const stats = fs.statSync(filePath)
+              const lastModified = stats.mtime.toISOString()
+
+              if (commentEntry.updated_at !== lastModified) {
+                await importFromLocal(workspaceId, filePath)
+                results.imported++
+              } else {
+                results.skipped++
+              }
+            } catch (error) {
+              console.error(`[SyncUtils] Error importing ${mdFile}:`, error)
+              results.errors++
+            }
           }
         } catch (error) {
-          console.error(`[SyncUtils] Error importing ${originalFilename}:`, error)
-          results.errors++
+          console.error(`[SyncUtils] Error reading folder ${folder.name}:`, error)
         }
       }
     } catch (error) {
