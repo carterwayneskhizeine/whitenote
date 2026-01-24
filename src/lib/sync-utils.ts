@@ -197,10 +197,61 @@ export function parseFilePath(filePath: string): {
   // parts[1] = message file OR message comment folder
   // parts[2...] = nested comment structure
 
+  // Helper: Find workspaceId by friendly folder name
+  function getWorkspaceIdFromFolderName(folderName: string): string | null {
+    // First, check if folderName is already a workspaceId
+    const defaultPath = path.join(SYNC_DIR, folderName, ".whitenote", "workspace.json")
+    if (fs.existsSync(defaultPath)) {
+      try {
+        const data = JSON.parse(fs.readFileSync(defaultPath, "utf-8"))
+        if (data.version === 2 && data.workspace?.id) {
+          return data.workspace.id
+        }
+      } catch {
+        // Continue to scan
+      }
+    }
+
+    // If not found, scan all directories to find the one with matching workspace.json
+    if (!fs.existsSync(SYNC_DIR)) {
+      return null
+    }
+
+    try {
+      const dirs = fs.readdirSync(SYNC_DIR, { withFileTypes: true })
+      const workspaceDirs = dirs.filter(d => d.isDirectory())
+
+      for (const dir of workspaceDirs) {
+        const workspaceFile = path.join(SYNC_DIR, dir.name, ".whitenote", "workspace.json")
+        if (fs.existsSync(workspaceFile)) {
+          try {
+            const data = JSON.parse(fs.readFileSync(workspaceFile, "utf-8"))
+            if (data.version === 2 && data.workspace?.currentFolderName === folderName) {
+              console.log(`[parseFilePath] Found workspaceId '${data.workspace.id}' for folder '${folderName}'`)
+              return data.workspace.id
+            }
+          } catch {
+            // Continue searching
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[parseFilePath] Error scanning workspace directories:', error)
+    }
+
+    return null
+  }
+
   if (parts.length === 2 && parts[1].endsWith('.md')) {
     // Direct message file in workspace root
     const fileName = parts[1]
-    const workspaceId = parts[0]
+    const folderName = parts[0]
+    const workspaceId = getWorkspaceIdFromFolderName(folderName)
+
+    if (!workspaceId) {
+      console.log(`[parseFilePath] Could not find workspaceId for folder '${folderName}'`)
+      return null
+    }
 
     // First check if it's an original filename (message_xyz.md)
     if (fileName.startsWith('message_')) {
@@ -251,8 +302,15 @@ export function parseFilePath(filePath: string): {
 
   if (parts.length >= 3 && parts[parts.length - 1].endsWith('.md')) {
     // Comment in subfolder
-    const workspaceId = parts[0]
-    const folderName = parts[1] // Could be message filename or friendly folder name
+    const folderName = parts[0]
+    const workspaceId = getWorkspaceIdFromFolderName(folderName)
+
+    if (!workspaceId) {
+      console.log(`[parseFilePath] Could not find workspaceId for folder '${folderName}'`)
+      return null
+    }
+
+    const messageFolder = parts[1] // Could be message filename or friendly folder name
     const commentSubfolder = parts[2] // e.g., "great-reply"
     const commentFileName = parts[parts.length - 1] // e.g., "comment_abc123.md" or friendly name
 
@@ -268,7 +326,7 @@ export function parseFilePath(filePath: string): {
               type: 'comment',
               messageId: comment.messageId,
               commentId: comment.id,
-              messageFilename: folderName,
+              messageFilename: messageFolder,
               commentFolder: commentSubfolder,
               commentFilename: commentFileName
             }
@@ -285,9 +343,9 @@ export function parseFilePath(filePath: string): {
       return {
         workspaceId,
         type: 'comment',
-        messageId: folderName.replace('message_', '').replace('.md', ''),
+        messageId: messageFolder.replace('message_', '').replace('.md', ''),
         commentId,
-        messageFilename: folderName,
+        messageFilename: messageFolder,
         commentFolder: commentSubfolder,
         commentFilename: commentFileName
       }
@@ -311,7 +369,7 @@ export function parseFilePath(filePath: string): {
                 type: 'comment',
                 messageId: comment.messageId,
                 commentId: comment.id,
-                messageFilename: folderName,
+                messageFilename: messageFolder,
                 commentFolder: commentSubfolder,
                 commentFilename: commentFileName
               }

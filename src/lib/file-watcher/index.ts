@@ -167,8 +167,8 @@ function scanWorkspaceFolder(workspacePath: string, folderName: string) {
 
       // Check file size - skip very small files (likely being edited)
       const stats = fs.statSync(filePath)
-      if (stats.size < 10) {
-        console.log(`[FileWatcher] Skipping small file (${stats.size} bytes): ${file.name}`)
+      if (stats.size < 5) {
+        console.log(`[FileWatcher] Skipping empty file (0 bytes): ${file.name}`)
         continue
       }
 
