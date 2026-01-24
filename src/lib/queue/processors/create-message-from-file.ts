@@ -3,6 +3,11 @@ import prisma from "@/lib/prisma"
 import { parseMdFile } from "@/lib/sync-utils"
 import { batchUpsertTags } from "@/lib/tag-utils"
 import { addTask } from "@/lib/queue"
+import {
+  getWorkspaceDir,
+  getWorkspaceMetadataPath,
+  writeWorkspaceMetadata
+} from "@/lib/workspace-discovery"
 import * as fs from "fs"
 import * as path from "path"
 
@@ -106,38 +111,11 @@ async function updateWorkspaceMetadata(
   userId: string
 ) {
   const syncUtils = await import("@/lib/sync-utils")
-
   const { generateFriendlyName } = syncUtils
 
-  // Use the same directory structure as sync-utils
-  const SYNC_DIR = process.env.FILE_WATCHER_DIR || "D:\\Code\\whitenote-data\\link_md"
-
-  // Try to find the workspace directory (it might have been renamed)
-  let workspaceDir = path.join(SYNC_DIR, workspaceId)
-
-  // If default path doesn't exist, scan for renamed folder
-  if (!fs.existsSync(workspaceDir)) {
-    const dirs = fs.readdirSync(SYNC_DIR, { withFileTypes: true })
-    const workspaceDirs = dirs.filter(d => d.isDirectory())
-
-    for (const dir of workspaceDirs) {
-      const workspaceFile = path.join(SYNC_DIR, dir.name, ".whitenote", "workspace.json")
-      if (fs.existsSync(workspaceFile)) {
-        try {
-          const data = JSON.parse(fs.readFileSync(workspaceFile, "utf-8"))
-          if (data.version === 2 && data.workspace?.id === workspaceId) {
-            workspaceDir = path.join(SYNC_DIR, dir.name)
-            console.log(`[CreateMessage] Found renamed workspace folder: ${dir.name}`)
-            break
-          }
-        } catch {
-          // Continue searching
-        }
-      }
-    }
-  }
-
-  const workspaceFile = path.join(workspaceDir, ".whitenote", "workspace.json")
+  // Use workspace-discovery utility to find workspace directory
+  const workspaceDir = getWorkspaceDir(workspaceId)
+  const workspaceFile = getWorkspaceMetadataPath(workspaceId)
 
   if (!fs.existsSync(workspaceFile)) {
     console.warn(`[CreateMessage] workspace.json not found at ${workspaceFile}`)
@@ -183,11 +161,12 @@ async function updateWorkspaceMetadata(
 
   ws.workspace.lastSyncedAt = new Date().toISOString()
 
-  // Write back to file
-  try {
-    fs.writeFileSync(workspaceFile, JSON.stringify(ws, null, 2))
+  // Write back to file using workspace-discovery utility (auto-clears cache)
+  const success = writeWorkspaceMetadata(workspaceId, ws)
+
+  if (success) {
     console.log(`[CreateMessage] Updated workspace.json with message: ${messageId} (total messages: ${Object.keys(ws.messages).length})`)
-  } catch (error) {
-    console.error(`[CreateMessage] Failed to write workspace.json:`, error)
+  } else {
+    console.error(`[CreateMessage] Failed to write workspace.json`)
   }
 }

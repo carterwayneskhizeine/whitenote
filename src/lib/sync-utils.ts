@@ -2,6 +2,13 @@ import * as fs from "fs"
 import * as path from "path"
 import prisma from "@/lib/prisma"
 import { addTask } from "@/lib/queue"
+import {
+  getWorkspaceDir,
+  getWorkspaceMetadataPath,
+  readWorkspaceMetadata,
+  getWorkspaceIdByFolderName,
+  clearWorkspaceCache
+} from "@/lib/workspace-discovery"
 
 const SYNC_DIR = "D:\\Code\\whitenote-data\\link_md"
 
@@ -125,54 +132,11 @@ export function generateFriendlyName(content: string): string {
 }
 
 /**
- * Get workspace directory path (handles renamed folders)
- */
-function getWorkspaceDir(workspaceId: string): string {
-  const defaultPath = path.join(SYNC_DIR, workspaceId)
-
-  // If default path exists, use it (folder wasn't renamed)
-  if (fs.existsSync(defaultPath)) {
-    return defaultPath
-  }
-
-  // Default path doesn't exist, folder might have been manually renamed
-  // Scan all directories to find the one with matching workspace.json
-  if (!fs.existsSync(SYNC_DIR)) {
-    return defaultPath
-  }
-
-  try {
-    const dirs = fs.readdirSync(SYNC_DIR, { withFileTypes: true })
-    const workspaceDirs = dirs.filter(d => d.isDirectory())
-
-    for (const dir of workspaceDirs) {
-      const workspaceFile = path.join(SYNC_DIR, dir.name, ".whitenote", "workspace.json")
-      if (fs.existsSync(workspaceFile)) {
-        try {
-          const data = JSON.parse(fs.readFileSync(workspaceFile, "utf-8"))
-          if (data.version === 2 && data.workspace?.id === workspaceId) {
-            // Found the renamed folder (e.g., MD_SYNC)
-            console.log(`[SyncUtils] Found renamed workspace folder: ${dir.name} for workspaceId: ${workspaceId}`)
-            return path.join(SYNC_DIR, dir.name)
-          }
-        } catch {
-          // Continue searching
-        }
-      }
-    }
-  } catch (error) {
-    console.error('[SyncUtils] Error scanning workspace directories:', error)
-  }
-
-  // Fallback to default path (will be created if it doesn't exist)
-  return defaultPath
-}
-
-/**
  * Get workspace.json file path for a specific workspace
+ * Uses workspace-discovery utility for better performance
  */
 function getWorkspaceFile(workspaceId: string): string {
-  return path.join(getWorkspaceDir(workspaceId), ".whitenote", "workspace.json")
+  return getWorkspaceMetadataPath(workspaceId)
 }
 
 /**
@@ -197,49 +161,9 @@ export function parseFilePath(filePath: string): {
   // parts[1] = message file OR message comment folder
   // parts[2...] = nested comment structure
 
-  // Helper: Find workspaceId by friendly folder name
+  // Helper: Find workspaceId by friendly folder name using workspace-discovery
   function getWorkspaceIdFromFolderName(folderName: string): string | null {
-    // First, check if folderName is already a workspaceId
-    const defaultPath = path.join(SYNC_DIR, folderName, ".whitenote", "workspace.json")
-    if (fs.existsSync(defaultPath)) {
-      try {
-        const data = JSON.parse(fs.readFileSync(defaultPath, "utf-8"))
-        if (data.version === 2 && data.workspace?.id) {
-          return data.workspace.id
-        }
-      } catch {
-        // Continue to scan
-      }
-    }
-
-    // If not found, scan all directories to find the one with matching workspace.json
-    if (!fs.existsSync(SYNC_DIR)) {
-      return null
-    }
-
-    try {
-      const dirs = fs.readdirSync(SYNC_DIR, { withFileTypes: true })
-      const workspaceDirs = dirs.filter(d => d.isDirectory())
-
-      for (const dir of workspaceDirs) {
-        const workspaceFile = path.join(SYNC_DIR, dir.name, ".whitenote", "workspace.json")
-        if (fs.existsSync(workspaceFile)) {
-          try {
-            const data = JSON.parse(fs.readFileSync(workspaceFile, "utf-8"))
-            if (data.version === 2 && data.workspace?.currentFolderName === folderName) {
-              console.log(`[parseFilePath] Found workspaceId '${data.workspace.id}' for folder '${folderName}'`)
-              return data.workspace.id
-            }
-          } catch {
-            // Continue searching
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[parseFilePath] Error scanning workspace directories:', error)
-    }
-
-    return null
+    return getWorkspaceIdByFolderName(folderName)
   }
 
   if (parts.length === 2 && parts[1].endsWith('.md')) {
@@ -393,10 +317,12 @@ export function parseFilePath(filePath: string): {
 
 /**
  * Read Workspace JSON for a specific workspace
+ * Uses workspace-discovery utility for better performance
  */
 export function getWorkspaceData(workspaceId: string): WorkspaceData {
-  const workspaceFile = getWorkspaceFile(workspaceId)
-  if (!fs.existsSync(workspaceFile)) {
+  const data = readWorkspaceMetadata(workspaceId)
+
+  if (!data) {
     // Return default v2 structure
     return {
       version: 2,
@@ -411,27 +337,13 @@ export function getWorkspaceData(workspaceId: string): WorkspaceData {
       comments: {}
     }
   }
-  try {
-    const data = JSON.parse(fs.readFileSync(workspaceFile, "utf-8"))
-    // If v1, migrate to v2
-    if (!data.version || data.version < 2) {
-      return migrateV1ToV2(data as WorkspaceDataV1, workspaceId)
-    }
-    return data as WorkspaceDataV2
-  } catch {
-    return {
-      version: 2,
-      workspace: {
-        id: workspaceId,
-        originalFolderName: workspaceId,
-        currentFolderName: workspaceId,
-        name: "",
-        lastSyncedAt: new Date().toISOString()
-      },
-      messages: {},
-      comments: {}
-    }
+
+  // If v1, migrate to v2
+  if (!data.version || data.version < 2) {
+    return migrateV1ToV2(data as WorkspaceDataV1, workspaceId)
   }
+
+  return data as WorkspaceDataV2
 }
 
 /**
@@ -489,16 +401,20 @@ function migrateV1ToV2(v1: WorkspaceDataV1, workspaceId: string): WorkspaceDataV
 
 /**
  * Write Workspace JSON for a specific workspace
+ * Uses workspace-discovery utility for better performance
  */
 function saveWorkspaceData(workspaceId: string, data: WorkspaceData) {
+  const { writeWorkspaceMetadata } = require("@/lib/workspace-discovery")
   const workspaceDir = getWorkspaceDir(workspaceId)
-  const metaDir = path.join(workspaceDir, ".whitenote")
 
   // Ensure directories exist before writing
+  const metaDir = path.join(workspaceDir, ".whitenote")
   ensureDirectoryExists(metaDir)
 
-  const workspaceFile = getWorkspaceFile(workspaceId)
-  fs.writeFileSync(workspaceFile, JSON.stringify(data, null, 2))
+  // Write using workspace-discovery utility (auto-clears cache)
+  writeWorkspaceMetadata(workspaceId, data)
+
+  console.log(`[SyncUtils] Saved workspace data for ${workspaceId}`)
 }
 
 /**
