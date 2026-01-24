@@ -20,6 +20,10 @@ const IGNORED_FOLDERS = new Set([
 const processedFiles = new Set<string>()
 const processedFolders = new Set<string>()
 
+// Track file skip counts to handle frequently-saved files
+const fileSkipCounts = new Map<string, number>()
+const MAX_SKIP_COUNT = 3 // Allow file to be skipped 3 times before forcing process
+
 /**
  * Check if a folder should be ignored
  */
@@ -175,9 +179,22 @@ function scanWorkspaceFolder(workspacePath: string, folderName: string) {
       // Check file age - skip files created/modified in the last 2 seconds
       const fileAge = Date.now() - stats.mtimeMs
       if (fileAge < 2000) {
-        console.log(`[FileWatcher] Skipping recent file (${fileAge}ms ago): ${file.name}`)
-        // Don't mark as processed, will retry on next scan
-        continue
+        // Increment skip count
+        const currentSkipCount = fileSkipCounts.get(fileKey) || 0
+        fileSkipCounts.set(fileKey, currentSkipCount + 1)
+
+        if (currentSkipCount < MAX_SKIP_COUNT) {
+          console.log(`[FileWatcher] Skipping recent file (${fileAge}ms ago, skip ${currentSkipCount + 1}/${MAX_SKIP_COUNT}): ${file.name}`)
+          // Don't mark as processed, will retry on next scan
+          continue
+        } else {
+          console.log(`[FileWatcher] File skipped ${MAX_SKIP_COUNT} times, forcing process: ${file.name}`)
+          // Clear skip count and proceed to process
+          fileSkipCounts.delete(fileKey)
+        }
+      } else {
+        // File is old enough, clear skip count
+        fileSkipCounts.delete(fileKey)
       }
 
       console.log(`[FileWatcher] New message file detected: ${file.name} in workspace ${actualWorkspaceId}`)

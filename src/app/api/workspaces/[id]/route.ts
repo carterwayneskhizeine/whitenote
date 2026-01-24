@@ -54,7 +54,7 @@ export async function PATCH(
 
 // DELETE /api/workspaces/[id] - 删除 Workspace（同时删除 RAGFlow 资源）
 export async function DELETE(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -107,9 +107,13 @@ export async function DELETE(
     // 2. 删除 RAGFlow Chat
     if (workspace.ragflowChatId && config.ragflowBaseUrl && config.ragflowApiKey) {
       try {
-        await fetch(`${config.ragflowBaseUrl}/api/v1/chats/${workspace.ragflowChatId}`, {
+        await fetch(`${config.ragflowBaseUrl}/api/v1/chats`, {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${config.ragflowApiKey}` }
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.ragflowApiKey}`
+          },
+          body: JSON.stringify({ ids: [workspace.ragflowChatId] })
         })
         console.log(`[Workspaces API] Deleted RAGFlow chat: ${workspace.ragflowChatId}`)
       } catch (error) {
