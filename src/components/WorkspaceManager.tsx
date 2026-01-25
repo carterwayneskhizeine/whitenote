@@ -363,7 +363,7 @@ export function WorkspaceManager() {
                         size="sm"
                         onClick={() => handleInitializeRAG(ws.id)}
                         disabled={isInitializingRAG === ws.id}
-                        className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                        className="text-white border-orange-600 hover:bg-orange-50"
                       >
                         {isInitializingRAG === ws.id ? (
                           <>
