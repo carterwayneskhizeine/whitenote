@@ -70,10 +70,6 @@ const UserInfo = () => (
       <span className="font-bold text-base leading-tight">User Name</span>
       <span className="text-muted-foreground text-sm">@username</span>
     </div>
-    <div className="flex gap-4 text-sm">
-      <span className="text-muted-foreground"><span className="font-bold text-foreground">123</span> Following</span>
-      <span className="text-muted-foreground"><span className="font-bold text-foreground">45</span> Followers</span>
-    </div>
   </div>
 )
 
@@ -134,7 +130,9 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
 
         {/* Navigation */}
         <nav className="flex flex-col gap-1">
-          {navItems.map((item) => {
+          {navItems
+            .filter(item => !isMobile || ["/", "/tags", "/notifications"].includes(item.href))
+            .map((item) => {
             const isActive = pathname === item.href
             return (
               <Link

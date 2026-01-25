@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Hash, Bell, Bookmark, List, Settings, PenLine, LogOut, ChevronDown, Loader2 } from "lucide-react"
+import { Hash, Bell, Bookmark, Settings, PenLine, LogOut, ChevronDown, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn, getAvatarUrl } from "@/lib/utils"
@@ -175,33 +175,21 @@ export function MobileNav() {
                   <span className="font-bold text-lg leading-tight">{userName}</span>
                   <span className="text-muted-foreground text-sm">{userEmail}</span>
                 </div>
-                <div className="flex gap-4 text-sm pt-1">
-                  <span className="text-muted-foreground"><span className="font-bold text-foreground">123</span> Following</span>
-                  <span className="text-muted-foreground"><span className="font-bold text-foreground">45</span> Followers</span>
-                </div>
               </div>
 
               <div className="h-px bg-border mx-4" />
 
-              <nav className="flex-1 overflow-y-auto py-2">
-                <Link href="/favorites" className="flex items-center gap-4 px-4 py-3 text-xl font-bold hover:bg-secondary/50 transition-colors">
-                  <Bookmark className="h-6 w-6" />
-                  收藏
-                </Link>
-                <Link href="/lists" className="flex items-center gap-4 px-4 py-3 text-xl font-bold hover:bg-secondary/50 transition-colors">
-                  <List className="h-6 w-6" />
-                  列表
-                </Link>
-                <Link href="/settings" className="flex items-center gap-4 px-4 py-3 text-xl font-bold hover:bg-secondary/50 transition-colors">
-                  <Settings className="h-6 w-6" />
-                  设置与隐私
-                </Link>
-              </nav>
-
-              <div className="h-px bg-border mx-4" />
-
               <div className="p-4">
-                <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold text-red-500">
+                <Button variant="ghost" asChild className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold">
+                  <Link href="/settings">
+                    <Settings className="h-6 w-6" />
+                    设置与隐私
+                  </Link>
+                </Button>
+              </div>
+
+              <div className="mt-auto p-4">
+                <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold">
                   <LogOut className="h-6 w-6" />
                   退出登录
                 </Button>
@@ -217,12 +205,6 @@ export function MobileNav() {
             >
               <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93" />
             </svg>
-          </Link>
-
-          <Link href="/settings">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Settings className="h-5 w-5" />
-            </Button>
           </Link>
         </div>
 
