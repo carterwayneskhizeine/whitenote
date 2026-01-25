@@ -248,6 +248,7 @@ export interface AIConfig {
   aiExpertise: string | null
   enableLinkSuggestion: boolean
   enableMdSync: boolean
+  mdSyncDir: string | null
   asrApiKey: string
   asrApiUrl: string
   updatedAt: string
@@ -268,6 +269,7 @@ export interface UpdateAIConfigInput {
   aiExpertise?: string
   enableLinkSuggestion?: boolean
   enableMdSync?: boolean
+  mdSyncDir?: string
   asrApiKey?: string
   asrApiUrl?: string
 }

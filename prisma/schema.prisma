@@ -258,6 +258,7 @@ model AiConfig {
   aiExpertise          String?
   enableLinkSuggestion Boolean   @default(true)
   enableMdSync         Boolean   @default(false)
+  mdSyncDir            String?   @default("D:\\Code\\whitenote-data\\link_md")
   asrApiKey            String    @default("")
   asrApiUrl            String    @default("https://api.siliconflow.cn/v1/audio/transcriptions")
   updatedAt            DateTime  @updatedAt

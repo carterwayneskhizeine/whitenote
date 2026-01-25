@@ -73,6 +73,7 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
         aiExpertise: config.aiExpertise ?? undefined,
         enableLinkSuggestion: config.enableLinkSuggestion,
         enableMdSync: config.enableMdSync,
+        mdSyncDir: config.mdSyncDir ?? undefined,
         asrApiUrl: config.asrApiUrl,
       }
 
@@ -463,11 +464,24 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
       <Card className="p-6">
         <h3 className="text-lg font-bold mb-4">Markdown 同步 (Link MD)</h3>
         <div className="space-y-4">
+          <div>
+            <label className="text-sm font-medium mb-1 block">同步目录路径</label>
+            <Input
+              value={config.mdSyncDir ?? ""}
+              onChange={(e) =>
+                setConfig({ ...config, mdSyncDir: e.target.value })
+              }
+              placeholder="D:\Code\whitenote-data\link_md"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              指定消息和评论同步到本地的目录路径
+            </p>
+          </div>
           <div className="flex items-center justify-between">
             <div>
               <div className="text-sm font-medium">启用实时同步</div>
               <div className="text-xs text-muted-foreground">
-                自动同步消息和评论到 D:\Code\whitenote-data\link_md
+                自动同步消息和评论到指定目录
               </div>
             </div>
             <Switch

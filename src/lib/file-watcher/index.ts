@@ -12,6 +12,7 @@ const IGNORED_FOLDERS = new Set([
   '.git',
   '.DS_Store',
   '新建文件夹',
+  '新建 文本文档',
   '未命名',
   'New Folder',
   'Untitled'

@@ -69,6 +69,7 @@ export async function PUT(request: NextRequest) {
       "aiExpertise",
       "enableLinkSuggestion",
       "enableMdSync",
+      "mdSyncDir",
       "asrApiKey",
       "asrApiUrl",
     ]
