@@ -149,7 +149,12 @@ export function WorkspaceManager() {
     const workspace = workspaces.find((w) => w.id === id)
     if (!workspace) return
 
-    if (!confirm(`为工作区 "${workspace.name}" 初始化 RAGFlow 资源？\n\n这将创建：\n- 独立的知识库（Dataset）\n- 独立的 AI 助手对话（Chat）\n\n请确保您已在 AI 设置中配置了 RAGFlow Base URL 和 API Key。`)) {
+    const hasExisting = !!workspace.ragflowDatasetId
+    const confirmMessage = hasExisting
+      ? `重新为工作区 "${workspace.name}" 初始化 RAGFlow 资源？\n\n⚠️ 这将删除现有的知识库和对话配置，并创建新的：\n- 新的知识库（Dataset）\n- 新的 AI 助手对话（Chat）\n\n请确保您已在 AI 设置中配置了 RAGFlow Base URL 和 API Key。`
+      : `为工作区 "${workspace.name}" 初始化 RAGFlow 资源？\n\n这将创建：\n- 独立的知识库（Dataset）\n- 独立的 AI 助手对话（Chat）\n\n请确保您已在 AI 设置中配置了 RAGFlow Base URL 和 API Key。`
+
+    if (!confirm(confirmMessage)) {
       return
     }
 
@@ -331,20 +336,45 @@ export function WorkspaceManager() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-1 ml-2">
-                    {!ws.ragflowDatasetId && (
+                  <div className="flex flex-wrap gap-2 ml-2">
+                    {!ws.ragflowDatasetId ? (
                       <Button
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         onClick={() => handleInitializeRAG(ws.id)}
                         disabled={isInitializingRAG === ws.id}
-                        title="初始化 RAGFlow 知识库"
-                        className="text-blue-600 hover:text-blue-700"
+                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
                       >
                         {isInitializingRAG === ws.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <>
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            初始化中...
+                          </>
                         ) : (
-                          <Database className="h-4 w-4" />
+                          <>
+                            <Database className="h-4 w-4 mr-1" />
+                            初始化 RAGFlow
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleInitializeRAG(ws.id)}
+                        disabled={isInitializingRAG === ws.id}
+                        className="text-orange-600 border-orange-600 hover:bg-orange-50"
+                      >
+                        {isInitializingRAG === ws.id ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            重新初始化中...
+                          </>
+                        ) : (
+                          <>
+                            <Database className="h-4 w-4 mr-1" />
+                            重新初始化 RAGFlow
+                          </>
                         )}
                       </Button>
                     )}

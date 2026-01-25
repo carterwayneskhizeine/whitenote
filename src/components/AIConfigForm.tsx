@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import { Loader2, Save, CheckCircle, XCircle, FileDown, FileUp } from "lucide-react"
+import { Loader2, Save, CheckCircle, XCircle, FileDown, FileUp, Database } from "lucide-react"
 import { configApi } from "@/lib/api/config"
 import { AIConfig } from "@/types/api"
 
@@ -18,7 +18,7 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [syncing, setSyncing] = useState<"export" | "import" | null>(null)
+  const [syncing, setSyncing] = useState<"export" | "import" | "ragflow" | null>(null)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   // Session storage for user-inputted API keys (not persisted to backend as "***")
@@ -186,6 +186,26 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
     } catch (error) {
       console.error("Failed to import:", error)
       showMessage("error", "导入失败")
+    } finally {
+      setSyncing(null)
+    }
+  }
+
+  // Manual sync all DB content to RAGFlow
+  const handleSyncAllRAGFlow = async () => {
+    if (syncing) return
+    setSyncing("ragflow")
+    try {
+      const response = await fetch("/api/sync/sync-all-ragflow", { method: "POST" })
+      const result = await response.json()
+      if (response.ok) {
+        showMessage("success", result.message || "同步完成")
+      } else {
+        showMessage("error", result.error || "同步失败")
+      }
+    } catch (error) {
+      console.error("Failed to sync to RAGFlow:", error)
+      showMessage("error", "同步失败")
     } finally {
       setSyncing(null)
     }
@@ -459,12 +479,12 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
           </div>
           <div className="pt-2 border-t">
             <div className="text-sm font-medium mb-2">手动同步</div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleExportAll}
-                disabled={syncing === "export" || syncing === "import"}
+                disabled={syncing === "export" || syncing === "import" || syncing === "ragflow"}
               >
                 {syncing === "export" ? (
                   <>
@@ -482,7 +502,7 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
                 variant="outline"
                 size="sm"
                 onClick={handleImportAll}
-                disabled={syncing === "import" || syncing === "export"}
+                disabled={syncing === "import" || syncing === "export" || syncing === "ragflow"}
               >
                 {syncing === "import" ? (
                   <>
@@ -496,11 +516,31 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
                   </>
                 )}
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSyncAllRAGFlow}
+                disabled={syncing === "ragflow" || syncing === "export" || syncing === "import"}
+              >
+                {syncing === "ragflow" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    同步中...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-4 w-4 mr-2" />
+                    同步 DB → RAGFlow
+                  </>
+                )}
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               导出：将数据库中的所有消息和评论导出为本地 MD 文件
               <br />
               导入：将本地修改过的 MD 文件导入到数据库并同步到 RAGFlow
+              <br />
+              同步 DB → RAGFlow：将数据库中的所有内容同步到 RAGFlow 知识库（用于迁移到新的 RAGFlow 服务器）
             </p>
           </div>
         </div>

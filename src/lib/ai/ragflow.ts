@@ -191,9 +191,17 @@ async function uploadImageToRAGFlow(
     }
 
     const uploadResult = await uploadResponse.json()
+    console.log("[RAGFlow] Upload response:", JSON.stringify(uploadResult, null, 2))
+
     const documentId = uploadResult.data?.[0]?.id
 
     if (!documentId) {
+      console.error("[RAGFlow] Upload response structure:", {
+        hasData: !!uploadResult.data,
+        dataArray: uploadResult.data,
+        firstItem: uploadResult.data?.[0],
+        fullResponse: uploadResult
+      })
       throw new Error("No document ID returned from upload")
     }
 
@@ -414,23 +422,28 @@ export async function syncToRAGFlowWithDatasetId(
         if (media.type === "image" || media.type.startsWith("image/")) {
           console.log("[RAGFlow] Processing image:", media.id)
 
-          const description = await uploadImageToRAGFlow(
-            { ragflowBaseUrl, ragflowApiKey, ragflowDatasetId: datasetId },
-            messageId,
-            media
-          )
+          try {
+            const description = await uploadImageToRAGFlow(
+              { ragflowBaseUrl, ragflowApiKey, ragflowDatasetId: datasetId },
+              messageId,
+              media
+            )
 
-          if (description) {
-            // 更新 Media 记录的描述
-            try {
-              await prisma.media.update({
-                where: { id: media.id },
-                data: { description },
-              })
-              console.log("[RAGFlow] Updated media description:", media.id)
-            } catch (error) {
-              console.error("[RAGFlow] Failed to update media description:", error)
+            if (description) {
+              // 更新 Media 记录的描述
+              try {
+                await prisma.media.update({
+                  where: { id: media.id },
+                  data: { description },
+                })
+                console.log("[RAGFlow] Updated media description:", media.id)
+              } catch (error) {
+                console.error("[RAGFlow] Failed to update media description:", error)
+              }
             }
+          } catch (error) {
+            // 图片处理失败只记录警告，不影响主同步流程
+            console.warn("[RAGFlow] Failed to process image (skipping):", media.id, error instanceof Error ? error.message : String(error))
           }
         }
       }

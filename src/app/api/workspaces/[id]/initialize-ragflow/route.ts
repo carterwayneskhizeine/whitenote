@@ -9,6 +9,7 @@ export const runtime = 'nodejs'
 /**
  * POST /api/workspaces/[id]/initialize-ragflow
  * 为现有 Workspace 初始化 RAGFlow 资源（Dataset 和 Chat）
+ * 支持重新初始化（会删除旧的资源并创建新的）
  */
 export async function POST(
   request: NextRequest,
@@ -35,24 +36,46 @@ export async function POST(
       return Response.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    // 2. 检查是否已经初始化过
-    if (workspace.ragflowDatasetId && workspace.ragflowChatId) {
-      return Response.json({
-        error: "Workspace already has RAGFlow resources",
-        data: {
-          datasetId: workspace.ragflowDatasetId,
-          chatId: workspace.ragflowChatId
-        }
-      }, { status: 400 })
-    }
+    const isReinitializing = !!(workspace.ragflowDatasetId && workspace.ragflowChatId)
 
-    // 3. 获取用户的 RAGFlow 配置
+    // 2. 获取用户的 RAGFlow 配置
     const config = await getAiConfig(session.user.id)
 
     if (!config.ragflowBaseUrl || !config.ragflowApiKey) {
       return Response.json({
         error: "RAGFlow not configured. Please set RAGFlow Base URL and API Key in AI settings first."
       }, { status: 400 })
+    }
+
+    // 3. 如果是重新初始化，先删除旧的 RAGFlow 资源
+    if (isReinitializing) {
+      console.log(`[Workspaces API] Deleting old RAGFlow resources for workspace ${id}...`)
+
+      // 删除旧的 Chat
+      if (workspace.ragflowChatId) {
+        try {
+          await fetch(`${config.ragflowBaseUrl}/api/v1/chats/${workspace.ragflowChatId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${config.ragflowApiKey}` }
+          })
+          console.log(`[Workspaces API] Deleted old chat: ${workspace.ragflowChatId}`)
+        } catch (error) {
+          console.error(`[Workspaces API] Failed to delete old chat:`, error)
+        }
+      }
+
+      // 删除旧的 Dataset
+      if (workspace.ragflowDatasetId) {
+        try {
+          await fetch(`${config.ragflowBaseUrl}/api/v1/datasets/${workspace.ragflowDatasetId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${config.ragflowApiKey}` }
+          })
+          console.log(`[Workspaces API] Deleted old dataset: ${workspace.ragflowDatasetId}`)
+        } catch (error) {
+          console.error(`[Workspaces API] Failed to delete old dataset:`, error)
+        }
+      }
     }
 
     // 4. 调用 RAGFlow provision 函数
@@ -72,7 +95,7 @@ export async function POST(
       }
     })
 
-    console.log(`[Workspaces API] Initialized RAGFlow for workspace ${id}: dataset=${datasetId}, chat=${chatId}`)
+    console.log(`[Workspaces API] ${isReinitializing ? 'Re-initialized' : 'Initialized'} RAGFlow for workspace ${id}: dataset=${datasetId}, chat=${chatId}`)
 
     return Response.json({
       success: true,
