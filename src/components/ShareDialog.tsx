@@ -76,11 +76,6 @@ export function ShareDialog({
                 </DialogHeader>
 
                 <div className="space-y-4 pt-2">
-                    {/* Description */}
-                    <p className="text-sm text-muted-foreground">
-                        复制下面的链接，分享给其他人查看此{type === 'comment' ? '评论' : '帖子'}
-                    </p>
-
                     {/* URL Input Box */}
                     <div className="flex items-center gap-2">
                         <div className="flex-1 relative">
@@ -126,16 +121,6 @@ export function ShareDialog({
                             <Share2 className="h-4 w-4" />
                             在新窗口打开
                         </Button>
-                    </div>
-
-                    {/* Tip */}
-                    <div className="flex items-start gap-2 p-3 bg-muted/50 rounded-lg">
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                            💡
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                            任何拥有此链接的人都可以查看此{type === 'comment' ? '评论' : '帖子'}，无需登录
-                        </p>
                     </div>
                 </div>
             </DialogContent>

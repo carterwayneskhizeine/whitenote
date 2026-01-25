@@ -353,19 +353,19 @@ export function MobileNav() {
         isVisible ? "translate-y-0" : "translate-y-full"
       )}>
         <Link href="/" className="flex flex-col items-center justify-center w-full h-full">
-          <MobileXHome isActive={isActive("/")} className={cn("h-7 w-7", isActive("/") && "text-white")} />
+          <MobileXHome isActive={isActive("/")} className={cn("h-7 w-7", isActive("/") && "text-foreground")} />
         </Link>
 
         <Link href="/tags" className="flex flex-col items-center justify-center w-full h-full">
-          <XIcon icon={Hash} filled={isActive("/tags")} className={cn("h-7 w-7", isActive("/tags") && "text-white")} />
+          <XIcon icon={Hash} filled={isActive("/tags")} className={cn("h-7 w-7", isActive("/tags") && "text-foreground")} />
         </Link>
 
         <Link href="/notifications" className="flex flex-col items-center justify-center w-full h-full">
-          <XIcon icon={Bell} filled={isActive("/notifications")} className={cn("h-7 w-7", isActive("/notifications") && "text-white")} />
+          <XIcon icon={Bell} filled={isActive("/notifications")} className={cn("h-7 w-7", isActive("/notifications") && "text-foreground")} />
         </Link>
 
         <Link href="/favorites" className="flex flex-col items-center justify-center w-full h-full">
-          <XIcon icon={Bookmark} filled={isActive("/favorites")} className={cn("h-7 w-7", isActive("/favorites") && "text-white")} />
+          <XIcon icon={Bookmark} filled={isActive("/favorites")} className={cn("h-7 w-7", isActive("/favorites") && "text-foreground")} />
         </Link>
       </div>
     </>
