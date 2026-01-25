@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Hash, Bell, Bookmark, Settings, PenLine, LogOut, ChevronDown, Loader2 } from "lucide-react"
+import { Hash, Bell, Bookmark, Settings, PenLine, LogOut, ChevronDown, Loader2, Search } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn, getAvatarUrl } from "@/lib/utils"
@@ -205,6 +205,12 @@ export function MobileNav() {
             >
               <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93" />
             </svg>
+          </Link>
+
+          <Link href="/search">
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <Search className="h-5 w-5" />
+            </Button>
           </Link>
         </div>
 
