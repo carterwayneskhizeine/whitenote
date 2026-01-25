@@ -57,138 +57,155 @@ export default function SettingsPage() {
         return <TemplateManager />
       case 'appearance':
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>主题</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">颜色主题</span>
-                <div className="flex gap-2">
+          <div className="divide-y divide-border -mx-4 border-t border-border">
+            <div className="px-6 py-4 bg-muted/20 border-b border-border">
+              <h3 className="text-lg font-bold">显示与外观</h3>
+              <p className="text-xs text-muted-foreground mt-1">管理应用的主题和视觉效果</p>
+            </div>
+            <div className="px-4 py-6 hover:bg-muted/30 transition-colors">
+              <div className="px-2 flex items-center justify-between">
+                <div>
+                  <p className="font-bold">深浅模式</p>
+                  <p className="text-sm text-muted-foreground">选择您喜欢的界面外观</p>
+                </div>
+                <div className="flex bg-muted p-1 rounded-full">
                   <Button
-                    variant="outline"
-                    size="icon"
+                    variant={useTheme().theme === "light" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="rounded-full h-8 px-4"
                     onClick={() => setTheme("light")}
-                    title="浅色"
                   >
-                    <Sun className="h-4 w-4" />
+                    <Sun className="h-4 w-4 mr-2" />
+                    浅色
                   </Button>
                   <Button
-                    variant="outline"
-                    size="icon"
+                    variant={useTheme().theme === "dark" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="rounded-full h-8 px-4"
                     onClick={() => setTheme("dark")}
-                    title="深色"
                   >
-                    <Moon className="h-4 w-4" />
+                    <Moon className="h-4 w-4 mr-2" />
+                    深色
                   </Button>
                   <Button
-                    variant="outline"
-                    size="icon"
+                    variant={useTheme().theme === "system" ? "secondary" : "ghost"}
+                    size="sm"
+                    className="rounded-full h-8 px-4"
                     onClick={() => setTheme("system")}
-                    title="跟随系统"
                   >
-                    <Monitor className="h-4 w-4" />
+                    <Monitor className="h-4 w-4 mr-2" />
+                    系统
                   </Button>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )
       case 'privacy':
         return (
           <div className="space-y-6">
             <PasswordChangeForm />
-            <Card>
-              <CardHeader>
-                <CardTitle>隐私设置</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
+            <div className="divide-y divide-border -mx-4 border-t border-border">
+              <div className="px-6 py-4 bg-muted/20 border-b border-border">
+                <h3 className="text-lg font-bold">隐私与安全</h3>
+                <p className="text-xs text-muted-foreground mt-1">管理您的账户隐私和登录安全</p>
+              </div>
+              <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
+                <div className="px-2 flex items-center justify-between">
                   <div>
-                    <p className="font-medium">私密账户</p>
+                    <p className="font-bold">私密账户</p>
                     <p className="text-sm text-muted-foreground">只有您批准的关注者才能看到您的内容</p>
                   </div>
-                  <Button variant="outline" size="sm">更改</Button>
+                  <Button variant="outline" size="sm" className="rounded-full">更改</Button>
                 </div>
-                <div className="flex items-center justify-between">
+              </div>
+              <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
+                <div className="px-2 flex items-center justify-between">
                   <div>
-                    <p className="font-medium">安全登录</p>
+                    <p className="font-bold">安全登录</p>
                     <p className="text-sm text-muted-foreground">启用两步验证保护您的账户</p>
                   </div>
-                  <Button variant="outline" size="sm">启用</Button>
+                  <Button variant="outline" size="sm" className="rounded-full">启用</Button>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         )
       case 'notifications':
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>通知设置</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+          <div className="divide-y divide-border -mx-4 border-t border-border">
+            <div className="px-6 py-4 bg-muted/20 border-b border-border">
+              <h3 className="text-lg font-bold">通知设置</h3>
+              <p className="text-xs text-muted-foreground mt-1">管理您接收通知的方式和内容</p>
+            </div>
+            <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
+              <div className="px-2 flex items-center justify-between">
                 <div>
-                  <p className="font-medium">推送通知</p>
-                  <p className="text-sm text-muted-foreground">在设备上接收通知</p>
+                  <p className="font-bold">推送通知</p>
+                  <p className="text-sm text-muted-foreground">在设备上接收实时通知</p>
                 </div>
-                <Button variant="outline" size="sm">管理</Button>
+                <Button variant="outline" size="sm" className="rounded-full">管理</Button>
               </div>
-              <div className="flex items-center justify-between">
+            </div>
+            <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
+              <div className="px-2 flex items-center justify-between">
                 <div>
-                  <p className="font-medium">邮件通知</p>
-                  <p className="text-sm text-muted-foreground">通过邮件接收摘要</p>
+                  <p className="font-bold">邮件通知</p>
+                  <p className="text-sm text-muted-foreground">通过邮件接收摘要和动态</p>
                 </div>
-                <Button variant="outline" size="sm">管理</Button>
+                <Button variant="outline" size="sm" className="rounded-full">管理</Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )
       case 'language':
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>语言偏好</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+          <div className="divide-y divide-border -mx-4 border-t border-border">
+            <div className="px-6 py-4 bg-muted/20 border-b border-border">
+              <h3 className="text-lg font-bold">语言偏好</h3>
+              <p className="text-xs text-muted-foreground mt-1">选择应用显示的语言</p>
+            </div>
+            <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
+              <div className="px-2 flex items-center justify-between">
                 <div>
-                  <p className="font-medium">显示语言</p>
+                  <p className="font-bold">显示语言</p>
                   <p className="text-sm text-muted-foreground">当前: 简体中文</p>
                 </div>
-                <select className="rounded-md border border-input bg-background px-3 py-2 text-sm">
+                <select className="rounded-full border border-border bg-background px-4 py-1.5 text-sm outline-none focus:ring-2 focus:ring-primary/20">
                   <option>简体中文</option>
                   <option>English</option>
                   <option>日本語</option>
                 </select>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )
       case 'help':
         return (
-          <Card>
-            <CardHeader>
-              <CardTitle>帮助选项</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+          <div className="divide-y divide-border -mx-4 border-t border-border">
+            <div className="px-6 py-4 bg-muted/20 border-b border-border">
+              <h3 className="text-lg font-bold">帮助中心</h3>
+              <p className="text-xs text-muted-foreground mt-1">获取帮助、报告问题或联系支持</p>
+            </div>
+            <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
+              <div className="px-2 flex items-center justify-between">
                 <div>
-                  <p className="font-medium">常见问题</p>
+                  <p className="font-bold">常见问题</p>
                   <p className="text-sm text-muted-foreground">查找常见问题的解答</p>
                 </div>
-                <Button variant="outline" size="sm">查看</Button>
+                <Button variant="outline" size="sm" className="rounded-full">查看</Button>
               </div>
-              <div className="flex items-center justify-between">
+            </div>
+            <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
+              <div className="px-2 flex items-center justify-between">
                 <div>
-                  <p className="font-medium">联系我们</p>
+                  <p className="font-bold">联系我们</p>
                   <p className="text-sm text-muted-foreground">向我们发送反馈或报告问题</p>
                 </div>
-                <Button variant="outline" size="sm">发送</Button>
+                <Button variant="outline" size="sm" className="rounded-full">发送</Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )
       default:
         return <ProfileEditForm />

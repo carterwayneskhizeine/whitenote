@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react"
 import { aiCommandsApi } from "@/lib/api"
 import { AICommand } from "@/types/api"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Plus, Pencil, Trash2, Loader2, Sparkles } from "lucide-react"
+import { Plus, Pencil, Trash2, Loader2, Sparkles, Command, X, ChevronRight } from "lucide-react"
 import { AICommandEditDialog } from "./AICommandEditDialog"
+import { cn } from "@/lib/utils"
 
 export function AICommandManager() {
   const [commands, setCommands] = useState<AICommand[]>([])
@@ -64,187 +64,154 @@ export function AICommandManager() {
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-32 bg-muted animate-pulse rounded" />
-        ))}
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   return (
     <>
-      <div className="space-y-4">
-        {/* Create New Command Button */}
-        <Button onClick={() => setIsCreating(!isCreating)}>
-          <Plus className="w-4 h-4 mr-2" />
-          新建命令
-        </Button>
+      <div className="divide-y divide-border -mx-4">
+        {/* Header & Create Toggle */}
+        <div className="px-6 py-4 flex items-center justify-between bg-muted/20">
+          <div>
+            <h3 className="text-xl font-bold">AI 命令</h3>
+            <p className="text-xs text-muted-foreground">管理自定义 AI 处理指令</p>
+          </div>
+          <Button 
+            size="sm" 
+            className="rounded-full h-8 px-4 font-bold"
+            onClick={() => setIsCreating(!isCreating)}
+          >
+            {isCreating ? "取消" : "新建命令"}
+          </Button>
+        </div>
 
         {/* Create Command Form */}
         {isCreating && (
-          <Card className="border-dashed">
-            <CardHeader>
-              <CardTitle>创建新AI命令</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <Label>
-                  标签 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  placeholder="例如：总结"
-                  value={newCommand.label}
-                  onChange={(e) =>
-                    setNewCommand({ ...newCommand, label: e.target.value })
-                  }
-                />
+          <div className="px-6 py-6 bg-muted/10 animate-in fade-in slide-in-from-top-2">
+            <div className="space-y-4 max-w-xl">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-sm font-bold px-1">标签</label>
+                  <Input
+                    placeholder="例如：总结"
+                    value={newCommand.label}
+                    onChange={(e) => setNewCommand({ ...newCommand, label: e.target.value })}
+                    className="rounded-xl border-border bg-background"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-bold px-1">标识符</label>
+                  <Input
+                    placeholder="例如：summarize"
+                    value={newCommand.action}
+                    onChange={(e) => setNewCommand({ ...newCommand, action: e.target.value })}
+                    className="rounded-xl border-border bg-background font-mono"
+                  />
+                </div>
               </div>
-
-              <div className="space-y-2">
-                <Label>
-                  描述 <span className="text-red-500">*</span>
-                </Label>
+              <div className="space-y-1">
+                <label className="text-sm font-bold px-1">描述</label>
                 <Input
-                  placeholder="例如：总结内容的要点"
+                  placeholder="简要说明命令的作用"
                   value={newCommand.description}
-                  onChange={(e) =>
-                    setNewCommand({ ...newCommand, description: e.target.value })
-                  }
+                  onChange={(e) => setNewCommand({ ...newCommand, description: e.target.value })}
+                  className="rounded-xl border-border bg-background"
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label>
-                  动作标识 <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  placeholder="例如：summarize"
-                  value={newCommand.action}
-                  onChange={(e) =>
-                    setNewCommand({ ...newCommand, action: e.target.value })
-                  }
-                />
-                <p className="text-xs text-muted-foreground">
-                  唯一标识符，只能包含小写字母、数字和连字符
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  提示词模板 <span className="text-red-500">*</span>
-                </Label>
+              <div className="space-y-1">
+                <label className="text-sm font-bold px-1">提示词模板</label>
                 <Textarea
-                  placeholder="请输入提示词模板，{content} 会被替换为用户输入的内容"
+                  placeholder="输入提示词模板，使用 {content} 作为占位符"
                   value={newCommand.prompt}
-                  onChange={(e) =>
-                    setNewCommand({ ...newCommand, prompt: e.target.value })
-                  }
-                  className="min-h-[120px] font-mono text-sm"
+                  onChange={(e) => setNewCommand({ ...newCommand, prompt: e.target.value })}
+                  className="rounded-xl border-border bg-background min-h-[120px] font-mono text-sm"
                 />
-                <p className="text-xs text-muted-foreground">
-                  使用 {'{content}'} 作为占位符，它将被替换为用户输入的实际内容
-                </p>
               </div>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setIsCreating(false)
-                    setNewCommand({ label: "", description: "", action: "", prompt: "" })
-                  }}
-                >
-                  取消
-                </Button>
-                <Button
-                  onClick={handleCreate}
-                  disabled={
-                    !newCommand.label ||
-                    !newCommand.description ||
-                    !newCommand.action ||
-                    !newCommand.prompt
-                  }
-                >
-                  创建
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              <Button
+                onClick={handleCreate}
+                disabled={!newCommand.label || !newCommand.description || !newCommand.action || !newCommand.prompt}
+                className="rounded-full w-full font-bold"
+              >
+                创建命令
+              </Button>
+            </div>
+          </div>
         )}
 
         {/* Commands List */}
-        <div className="space-y-3">
+        <div className="divide-y divide-border">
           {commands.map((command) => (
-            <Card key={command.id}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-base font-medium flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  {command.label}
-                  {command.isBuiltIn && (
-                    <span className="ml-2 text-xs bg-secondary px-2 py-0.5 rounded">
-                      系统
-                    </span>
-                  )}
-                </CardTitle>
-                {!command.isBuiltIn && (
-                  <div className="flex gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEdit(command)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(command.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-2">
-                  {command.description}
-                </p>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium text-muted-foreground">动作:</span>
-                    <code className="px-2 py-0.5 bg-muted rounded text-xs">
-                      {command.action}
+            <div 
+              key={command.id}
+              className="px-4 py-4 hover:bg-muted/20 transition-colors group"
+            >
+              <div className="px-2 flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Sparkles className="h-4 w-4 text-primary shrink-0" />
+                    <h4 className="font-bold text-lg truncate">{command.label}</h4>
+                    {command.isBuiltIn && (
+                      <span className="bg-secondary text-secondary-foreground text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        系统
+                      </span>
+                    )}
+                    <code className="text-[10px] bg-muted px-1.5 py-0.5 rounded font-mono text-muted-foreground">
+                      /{command.action}
                     </code>
                   </div>
-                  <div className="space-y-1">
-                    <span className="font-medium text-muted-foreground text-sm">提示词:</span>
-                    <pre className="bg-muted p-3 rounded text-xs overflow-x-auto whitespace-pre-wrap font-mono">
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-1">
+                    {command.description}
+                  </p>
+                  <div className="relative">
+                    <pre className="bg-muted/50 p-3 rounded-xl text-xs overflow-hidden max-h-20 whitespace-pre-wrap font-mono text-muted-foreground group-hover:text-foreground transition-colors">
                       {command.prompt}
                     </pre>
+                    <div className="absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-muted/50 to-transparent group-hover:from-muted/20" />
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                
+                <div className="flex flex-col gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {!command.isBuiltIn && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-full h-8 w-8"
+                        onClick={() => handleEdit(command)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="rounded-full h-8 w-8 text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDelete(command.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
           ))}
         </div>
 
         {/* Empty State */}
         {commands.length === 0 && !isCreating && (
-          <div className="text-center py-12 text-muted-foreground">
-            <p>还没有AI命令</p>
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => setIsCreating(true)}
-            >
+          <div className="py-20 text-center">
+            <Command className="h-12 w-12 text-muted/30 mx-auto mb-4" />
+            <p className="text-muted-foreground font-medium">还没有 AI 命令</p>
+            <Button variant="link" className="mt-2 text-primary" onClick={() => setIsCreating(true)}>
               创建第一个命令
             </Button>
           </div>
         )}
       </div>
 
-      {/* Edit Dialog */}
       <AICommandEditDialog
         command={editingCommand}
         open={isEditDialogOpen}

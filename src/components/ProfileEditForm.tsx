@@ -4,10 +4,10 @@ import { useState, useEffect, useRef } from "react"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { authApi } from "@/lib/api"
-import { Loader2, Upload } from "lucide-react"
+import { Loader2, Upload, Trash2, RotateCcw } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 export function ProfileEditForm() {
   const { data: session, update } = useSession()
@@ -24,13 +24,11 @@ export function ProfileEditForm() {
   // Initialize form with current user data
   useEffect(() => {
     const loadUserData = async () => {
-      // First try to get from API for fresh data
       const result = await authApi.getCurrentUser()
       if (result.data) {
         setName(result.data.name || "")
         setAvatar(result.data.avatar || "")
       } else if (session?.user) {
-        // Fallback to session data
         setName(session.user.name || "")
         setAvatar(session.user.image || "")
       }
@@ -56,12 +54,7 @@ export function ProfileEditForm() {
     const newName = name.trim()
     const newAvatar = avatar.trim()
 
-    // Always send the data to backend for comparison
-    if (newName) {
-      updateData.name = newName
-    }
-
-    // Send avatar even if empty (to clear it)
+    if (newName) updateData.name = newName
     updateData.avatar = newAvatar
 
     const result = await authApi.updateProfile(updateData)
@@ -71,12 +64,9 @@ export function ProfileEditForm() {
       setLoading(false)
     } else {
       setMessage({ type: "success", text: "资料更新成功" })
-
-      // Update the form state with the new values
       setName(result.data?.name || newName)
       setAvatar(result.data?.avatar || newAvatar)
 
-      // Update NextAuth session
       await update({
         ...session,
         user: {
@@ -87,16 +77,11 @@ export function ProfileEditForm() {
       })
 
       setLoading(false)
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setMessage(null)
-      }, 3000)
+      setTimeout(() => setMessage(null), 3000)
     }
   }
 
   const handleCancel = async () => {
-    // Reload from API
     const result = await authApi.getCurrentUser()
     if (result.data) {
       setName(result.data.name || "")
@@ -109,14 +94,12 @@ export function ProfileEditForm() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]
     if (!allowedTypes.includes(file.type)) {
       setMessage({ type: "error", text: "只支持 JPG、PNG、WebP、GIF 格式的图片" })
       return
     }
 
-    // Validate file size (5MB)
     const maxSize = 5 * 1024 * 1024
     if (file.size > maxSize) {
       setMessage({ type: "error", text: "图片大小不能超过 5MB" })
@@ -132,173 +115,176 @@ export function ProfileEditForm() {
       setMessage({ type: "error", text: result.error })
       setUploading(false)
     } else if (result.data?.url) {
-      // Update avatar URL with the uploaded file URL
       setAvatar(result.data.url)
       setMessage({ type: "success", text: "图片上传成功" })
       setUploading(false)
-
-      // Clear success message after 3 seconds
-      setTimeout(() => {
-        setMessage(null)
-      }, 3000)
+      setTimeout(() => setMessage(null), 3000)
     }
 
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""
-    }
+    if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
   if (initializing) {
     return (
-      <Card>
-        <CardContent className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </CardContent>
-      </Card>
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Avatar Preview */}
-      <Card>
-        <CardHeader>
-          <CardTitle>头像预览</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4">
-            <Avatar className="h-20 w-20">
+    <form onSubmit={handleSubmit} className="divide-y divide-border -mx-4">
+      {/* Avatar Section */}
+      <div className="px-4 py-6">
+        <h3 className="text-xl font-bold mb-4 px-2">修改个人头像</h3>
+        <div className="flex items-center gap-6 px-2">
+          <div className="relative group">
+            <Avatar className="h-24 w-24 border-2 border-border ring-offset-2 ring-primary transition-all group-hover:ring-2">
               {avatar && <AvatarImage src={avatar} className="object-cover" />}
-              <AvatarFallback className="text-2xl">{userInitials}</AvatarFallback>
+              <AvatarFallback className="text-3xl font-bold">{userInitials}</AvatarFallback>
             </Avatar>
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground mb-3">
-                头像会显示在你的个人资料和消息旁边
-              </p>
-              <div className="flex gap-2 flex-wrap">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  {uploading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      上传中
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      上传图片
-                    </>
-                  )}
-                </Button>
-              </div>
+            <div 
+              className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-6 w-6 text-white" />
             </div>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex-1 space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : "上传新图片"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="rounded-full text-destructive hover:bg-destructive/10"
+                onClick={() => setAvatar("")}
+              >
+                移除头像
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              推荐使用正方形图片，支持 JPG、PNG、GIF。
+            </p>
+          </div>
+        </div>
+      </div>
 
-      {/* Name Field */}
-      <Card>
-        <CardHeader>
-          <CardTitle>昵称</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="输入你的昵称"
-            className="max-w-md"
-          />
+      {/* Name Section */}
+      <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
+        <div className="px-2 space-y-4">
+          <div className="flex flex-col">
+            <label className="text-sm font-bold mb-1 text-foreground group-focus-within:text-primary transition-colors">
+              昵称
+            </label>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="输入你的昵称"
+              className="max-w-md border-transparent bg-transparent px-0 text-lg focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1"
+            />
+          </div>
           <p className="text-sm text-muted-foreground">
-            这将是你显示在应用中的名称
+            这是你在应用中显示的公开名称。
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Avatar URL Field */}
-      <Card>
-        <CardHeader>
-          <CardTitle>头像链接（可选）</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <Input
-            type="url"
-            value={avatar}
-            onChange={(e) => setAvatar(e.target.value)}
-            placeholder="https://example.com/avatar.jpg"
-            className="max-w-md"
-          />
-          <p className="text-sm text-muted-foreground">
-            或者输入图片 URL 作为你的头像
-          </p>
-          <div className="flex gap-2 flex-wrap">
+      {/* Avatar URL Section */}
+      <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
+        <div className="px-2 space-y-4">
+          <div className="flex flex-col">
+            <label className="text-sm font-bold mb-1 text-foreground group-focus-within:text-primary transition-colors">
+              头像链接
+            </label>
+            <Input
+              type="url"
+              value={avatar}
+              onChange={(e) => setAvatar(e.target.value)}
+              placeholder="https://example.com/avatar.jpg"
+              className="w-full max-w-2xl border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1 font-mono"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setAvatar("https://api.dicebear.com/7.x/avataaars/svg?seed=" + name)}
+              className="rounded-full"
+              onClick={() => setAvatar("https://api.dicebear.com/7.x/avataaars/svg?seed=" + (name || Date.now().toString()))}
             >
-              随机生成头像
+              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+              随机生成
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="sm"
+              className="rounded-full"
               onClick={() => setAvatar("")}
             >
-              使用默认头像
+              使用默认
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Status Message */}
-      {message && (
-        <div
-          className={`p-4 rounded-lg ${
-            message.type === "success"
-              ? "bg-green-900/20 border border-green-800 text-green-400"
-              : "bg-red-900/20 border border-red-800 text-red-400"
-          }`}
-        >
-          {message.text}
         </div>
-      )}
+      </div>
 
-      {/* Action Buttons */}
-      <div className="flex gap-3">
-        <Button type="submit" disabled={loading} className="min-w-30">
-          {loading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              保存中
-            </>
-          ) : (
-            "保存更改"
-          )}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleCancel}
-          disabled={loading}
-        >
-          取消
-        </Button>
+      {/* Message & Actions */}
+      <div className="px-4 py-8 space-y-6">
+        {message && (
+          <div
+            className={cn(
+              "p-4 rounded-xl text-sm font-medium mx-2 transition-all animate-in fade-in slide-in-from-top-2",
+              message.type === "success"
+                ? "bg-green-500/10 text-green-600 border border-green-500/20"
+                : "bg-red-500/10 text-red-600 border border-red-500/20"
+            )}
+          >
+            {message.text}
+          </div>
+        )}
+
+        <div className="flex items-center gap-3 px-2">
+          <Button 
+            type="submit" 
+            disabled={loading} 
+            className="rounded-full px-8 font-bold bg-foreground text-background hover:bg-foreground/90 transition-all"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              "保存"
+            )}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="rounded-full px-8 font-bold"
+            onClick={handleCancel}
+            disabled={loading}
+          >
+            取消
+          </Button>
+        </div>
       </div>
     </form>
   )
 }
+
