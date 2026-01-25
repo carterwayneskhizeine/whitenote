@@ -1,6 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { addTask } from "@/lib/queue"
+import redis from "@/lib/redis"
 
 const WATCH_DIR = process.env.FILE_WATCHER_DIR || "D:\\Code\\whitenote-data\\link_md"
 const DEBOUNCE_DELAY = 1000 // 1 second
@@ -56,8 +57,15 @@ export function startFileWatcher() {
   scanDirectory()
 
   // Watch for changes
-  watcher = fs.watch(WATCH_DIR, { recursive: true }, (eventType, filename) => {
+  watcher = fs.watch(WATCH_DIR, { recursive: true }, async (eventType, filename) => {
     if (!filename) return
+
+    // Check if watcher is paused via Redis (for distributed coordination)
+    const isPaused = await redis.get("file-watcher:paused")
+    if (isPaused) {
+      console.log(`[FileWatcher] Watcher paused, ignoring change: ${filename}`)
+      return
+    }
 
     // Debounce rapid file changes
     if (watchTimeout) {

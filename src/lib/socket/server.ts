@@ -4,6 +4,7 @@ import { parse } from "cookie"
 import { verifySessionToken } from "./auth"
 import chokidar from "chokidar"
 import { importFromLocal, parseFilePath } from "@/lib/sync-utils"
+import redis from "@/lib/redis"
 
 interface SocketData {
   userId: string
@@ -183,6 +184,13 @@ export function initSocketServer(httpServer: HTTPServer) {
     watcher.on('change', async (filePath) => {
       // Only process .md files
       if (!filePath.endsWith('.md')) {
+        return
+      }
+
+      // Check if watcher is paused via Redis (for distributed coordination)
+      const isPaused = await redis.get("file-watcher:paused")
+      if (isPaused) {
+        console.log(`[FileWatcher] Watcher paused, ignoring change: ${filePath}`)
         return
       }
 

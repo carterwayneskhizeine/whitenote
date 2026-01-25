@@ -118,13 +118,35 @@ export async function processCreateMessageFromFile(
   }
 
   // Check if message already exists (by matching content) - fallback method
-  const existingMessage = await prisma.message.findFirst({
+  let existingMessage = await prisma.message.findFirst({
     where: {
       workspaceId,
       content,
       authorId: workspace.user.id
     }
   })
+
+  // Fallback: Try matching trimmed content to handle whitespace differences
+  if (!existingMessage) {
+    // Fetch recent messages to check for soft match (optimization: limit to recent/all messages)
+    // We fetch all messages in workspace because the file could correspond to an old message
+    const candidates = await prisma.message.findMany({
+      where: {
+        workspaceId,
+        authorId: workspace.user.id
+      },
+      select: { id: true, content: true, tags: true, createdAt: true, updatedAt: true, workspaceId: true, authorId: true }
+    })
+
+    const trimmedContent = content.trim()
+    const match = candidates.find(m => m.content.trim() === trimmedContent)
+    
+    if (match) {
+      console.log(`[CreateMessage] Found existing message by trimmed content match: ${match.id}`)
+      // Convert partial match to full message object (though we only need id for update usually)
+      existingMessage = match as any
+    }
+  }
 
   if (existingMessage) {
     console.log(`[CreateMessage] Message already exists (by content match), updating metadata`)

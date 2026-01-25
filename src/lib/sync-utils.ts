@@ -337,9 +337,9 @@ function saveWorkspaceData(workspaceId: string, data: WorkspaceData) {
  * Parse MD Content to extract tags and body
  */
 export function parseMdFile(content: string) {
-  const lines = content.split("\n")
+  const lines = content.split(/\r?\n/)
   const firstLine = lines[0] || ""
-  const body = lines.slice(1).join("\n").trim()
+  const body = lines.slice(1).join("\n").trimStart()
 
   // Extract tags from first line (e.g., "#tag1 #tag2")
   const tags = firstLine.match(/#[\w\u4e00-\u9fa5]+/g) || []
