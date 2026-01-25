@@ -57,11 +57,7 @@ export default function SettingsPage() {
         return <TemplateManager />
       case 'appearance':
         return (
-          <div className="divide-y divide-border -mx-4 border-t border-border">
-            <div className="px-6 py-4 bg-muted/20 border-b border-border">
-              <h3 className="text-lg font-bold">显示与外观</h3>
-              <p className="text-xs text-muted-foreground mt-1">管理应用的主题和视觉效果</p>
-            </div>
+          <div className="divide-y divide-border -mx-4">
             <div className="px-4 py-6 hover:bg-muted/30 transition-colors">
               <div className="px-2 flex items-center justify-between">
                 <div>
@@ -106,10 +102,6 @@ export default function SettingsPage() {
           <div className="space-y-6">
             <PasswordChangeForm />
             <div className="divide-y divide-border -mx-4 border-t border-border">
-              <div className="px-6 py-4 bg-muted/20 border-b border-border">
-                <h3 className="text-lg font-bold">隐私与安全</h3>
-                <p className="text-xs text-muted-foreground mt-1">管理您的账户隐私和登录安全</p>
-              </div>
               <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
                 <div className="px-2 flex items-center justify-between">
                   <div>
@@ -133,11 +125,7 @@ export default function SettingsPage() {
         )
       case 'notifications':
         return (
-          <div className="divide-y divide-border -mx-4 border-t border-border">
-            <div className="px-6 py-4 bg-muted/20 border-b border-border">
-              <h3 className="text-lg font-bold">通知设置</h3>
-              <p className="text-xs text-muted-foreground mt-1">管理您接收通知的方式和内容</p>
-            </div>
+          <div className="divide-y divide-border -mx-4">
             <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
               <div className="px-2 flex items-center justify-between">
                 <div>
@@ -160,11 +148,7 @@ export default function SettingsPage() {
         )
       case 'language':
         return (
-          <div className="divide-y divide-border -mx-4 border-t border-border">
-            <div className="px-6 py-4 bg-muted/20 border-b border-border">
-              <h3 className="text-lg font-bold">语言偏好</h3>
-              <p className="text-xs text-muted-foreground mt-1">选择应用显示的语言</p>
-            </div>
+          <div className="divide-y divide-border -mx-4">
             <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
               <div className="px-2 flex items-center justify-between">
                 <div>
@@ -182,11 +166,7 @@ export default function SettingsPage() {
         )
       case 'help':
         return (
-          <div className="divide-y divide-border -mx-4 border-t border-border">
-            <div className="px-6 py-4 bg-muted/20 border-b border-border">
-              <h3 className="text-lg font-bold">帮助中心</h3>
-              <p className="text-xs text-muted-foreground mt-1">获取帮助、报告问题或联系支持</p>
-            </div>
+          <div className="divide-y divide-border -mx-4">
             <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
               <div className="px-2 flex items-center justify-between">
                 <div>

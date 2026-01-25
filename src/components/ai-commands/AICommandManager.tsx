@@ -76,7 +76,6 @@ export function AICommandManager() {
         {/* Header & Create Toggle */}
         <div className="px-6 py-4 flex items-center justify-between bg-muted/20">
           <div>
-            <h3 className="text-xl font-bold">AI 命令</h3>
             <p className="text-xs text-muted-foreground">管理自定义 AI 处理指令</p>
           </div>
           <Button 

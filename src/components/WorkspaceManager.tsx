@@ -145,7 +145,6 @@ export function WorkspaceManager() {
       {/* Header & Create Toggle */}
       <div className="px-6 py-4 flex items-center justify-between bg-muted/20">
         <div>
-          <h3 className="text-xl font-bold">工作区管理</h3>
           <p className="text-xs text-muted-foreground">管理独立的知识库和同步配置</p>
         </div>
         <Button 

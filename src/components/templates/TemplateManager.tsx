@@ -72,7 +72,6 @@ export function TemplateManager() {
         {/* Header & Create Toggle */}
         <div className="px-6 py-4 flex items-center justify-between bg-muted/20">
           <div>
-            <h3 className="text-xl font-bold">模板管理</h3>
             <p className="text-xs text-muted-foreground">管理和编辑消息快捷模板</p>
           </div>
           <Button 
