@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: [
         { isPinned: "desc" },
-        { createdAt: "desc" },
+        { updatedAt: "desc" },
       ],
       skip,
       take: limit,

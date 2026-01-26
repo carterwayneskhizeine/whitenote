@@ -104,6 +104,9 @@ export function UserInfoWithTags({
   // Check if content has been edited
   const isEdited = updatedAt && new Date(updatedAt).getTime() > new Date(createdAt).getTime() + 1000
 
+  // Use updated time if edited, otherwise use created time
+  const displayTime = isEdited ? updatedAt : createdAt
+
   // Check if this is an AI assistant
   const isAI = isAIBot || !author
 
@@ -160,7 +163,7 @@ export function UserInfoWithTags({
       {/* Separator */}
       <span className={cn("text-muted-foreground", config.time)}>·</span>
 
-      {/* Time */}
+      {/* Time - show edited time if content was edited */}
       <span
         className={cn(
           "text-muted-foreground",
@@ -169,10 +172,10 @@ export function UserInfoWithTags({
           timeClassName
         )}
       >
-        {formatTime(createdAt)}
+        {formatTime(displayTime)}
       </span>
 
-      {/* Edited indicator */}
+      {/* Edited indicator - only show if edited (for clarity) */}
       {isEdited && (
         <>
           <span className={cn("text-muted-foreground", config.time)}>·</span>

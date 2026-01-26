@@ -65,7 +65,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         select: { id: true },
       },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: { updatedAt: "desc" },
   })
 
   // 添加转发相关字段（只统计 Retweet 表的记录，避免与引用转发重复计数）
