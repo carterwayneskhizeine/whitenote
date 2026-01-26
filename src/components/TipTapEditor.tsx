@@ -62,6 +62,7 @@ export function TipTapEditor({
           levels: [1, 2, 3, 4],
         },
         codeBlock: false, // Disable default code block, use CodeBlockLowlight instead
+        link: false, // Disable automatic link conversion - only convert explicit markdown links [text](url)
       }),
       Table.configure({
         resizable: true,
