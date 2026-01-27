@@ -25,6 +25,21 @@ services:
     depends_on:
       - postgres
 
+  redis:
+    image: redis:latest
+    container_name: redis
+    command: redis-server --appendonly yes
+    ports:
+      - "4338:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
 volumes:
   pg16_data:
   pgadmin_data:
+  redis_data:
