@@ -11,6 +11,18 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 
+interface HealthStatus {
+  ragflow: {
+    connected: boolean
+    baseUrl: string | null
+    error: string | null
+  }
+  worker: {
+    running: boolean
+    error: string | null
+  }
+}
+
 export function WorkspaceManager() {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -19,6 +31,7 @@ export function WorkspaceManager() {
   const [isInitializingRAG, setIsInitializingRAG] = useState<string | null>(null)
   const [isSyncingRAG, setIsSyncingRAG] = useState<string | null>(null)
   const [isResettingRAG, setIsResettingRAG] = useState<string | null>(null)
+  const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null)
   const [newName, setNewName] = useState("")
   const [newDescription, setNewDescription] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -40,8 +53,21 @@ export function WorkspaceManager() {
     }
   }
 
+  const fetchHealthStatus = async () => {
+    try {
+      const response = await fetch('/api/health/ragflow')
+      if (response.ok) {
+        const data = await response.json()
+        setHealthStatus(data.status)
+      }
+    } catch (error) {
+      console.error("Failed to fetch health status:", error)
+    }
+  }
+
   useEffect(() => {
     fetchWorkspaces()
+    fetchHealthStatus()
   }, [])
 
   const handleCreate = async () => {
@@ -185,11 +211,35 @@ export function WorkspaceManager() {
     <div className="divide-y divide-border -mx-4">
       {/* Header & Create Toggle */}
       <div className="px-6 py-4 flex items-center justify-between bg-muted/20">
-        <div>
+        <div className="flex-1">
           <p className="text-xs text-muted-foreground">管理独立的知识库和同步配置</p>
+          {healthStatus && (
+            <div className="flex items-center gap-3 mt-2">
+              <div className="flex items-center gap-1.5">
+                <div className={cn(
+                  "h-2 w-2 rounded-full",
+                  healthStatus.ragflow.connected ? "bg-green-500" : "bg-red-500"
+                )} />
+                <span className="text-[10px] text-muted-foreground">
+                  RAGFlow {healthStatus.ragflow.connected ? "已连接" : "未连接"}
+                  {healthStatus.ragflow.error && ` (${healthStatus.ragflow.error})`}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className={cn(
+                  "h-2 w-2 rounded-full",
+                  healthStatus.worker.running ? "bg-green-500" : "bg-red-500"
+                )} />
+                <span className="text-[10px] text-muted-foreground">
+                  Worker {healthStatus.worker.running ? "运行中" : "离线"}
+                  {healthStatus.worker.error && ` (${healthStatus.worker.error})`}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
-        <Button 
-          size="sm" 
+        <Button
+          size="sm"
           className="rounded-full h-8 px-4 font-bold"
           onClick={() => setShowCreateForm(!showCreateForm)}
         >
@@ -307,12 +357,30 @@ export function WorkspaceManager() {
                       <div className={cn("h-1.5 w-1.5 rounded-full", ws.enableBriefing ? "bg-green-500" : "bg-muted-foreground/30")} />
                       每日晨报
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs font-medium">
-                      <div className={cn("h-1.5 w-1.5 rounded-full", ws.ragflowDatasetId ? "bg-green-500" : "bg-orange-500")} />
-                      <span className={cn(ws.ragflowDatasetId ? "text-green-600" : "text-orange-600")}>
-                        RAGFlow {ws.ragflowDatasetId ? "就绪" : "待初始化"}
-                      </span>
-                    </div>
+                    {ws.ragflowDatasetId && (
+                      <div className="flex items-center gap-1.5 text-xs font-medium">
+                        <div className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          // 只有当 RAGFlow 已配置、服务可连接、Worker 运行时才显示绿色
+                          healthStatus?.ragflow.connected && healthStatus?.worker.running
+                            ? "bg-green-500"
+                            : "bg-orange-500"
+                        )} />
+                        <span className={cn(
+                          healthStatus?.ragflow.connected && healthStatus?.worker.running
+                            ? "text-green-600"
+                            : "text-orange-600"
+                        )}>
+                          RAGFlow {healthStatus?.ragflow.connected && healthStatus?.worker.running
+                            ? "就绪"
+                            : !healthStatus?.ragflow.connected
+                            ? "未连接"
+                            : !healthStatus?.worker.running
+                            ? "Worker 离线"
+                            : "未知"}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 

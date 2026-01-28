@@ -2,6 +2,7 @@ import "dotenv/config"
 import { startWorker } from "@/lib/queue/worker"
 import { addCronTask } from "@/lib/queue"
 import { startFileWatcher, stopFileWatcher } from "@/lib/file-watcher"
+import Redis from "ioredis"
 
 async function main() {
   console.log("Starting WhiteNote Worker...")
@@ -21,9 +22,25 @@ async function main() {
   await addCronTask("daily-briefing", {}, "0 8 * * *")
   console.log("Registered daily briefing cron job (every day at 08:00)")
 
+  // 在 Redis 中标记 Worker 为运行状态
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
+  const redis = new Redis(redisUrl)
+  const workerStatusKey = 'worker:status'
+
+  // 写入 Worker 状态（包含启动时间）
+  await redis.set(workerStatusKey, JSON.stringify({
+    running: true,
+    startedAt: new Date().toISOString(),
+    pid: process.pid
+  }))
+  console.log('[Worker] Status written to Redis')
+
   // 优雅退出
   process.on("SIGTERM", async () => {
     console.log("Shutting down worker...")
+    // 删除 Worker 状态标记
+    await redis.del(workerStatusKey)
+    await redis.quit()
     await worker.close()
     stopFileWatcher()
     process.exit(0)
