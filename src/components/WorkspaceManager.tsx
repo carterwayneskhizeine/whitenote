@@ -357,30 +357,6 @@ export function WorkspaceManager() {
                       <div className={cn("h-1.5 w-1.5 rounded-full", ws.enableBriefing ? "bg-green-500" : "bg-muted-foreground/30")} />
                       每日晨报
                     </div>
-                    {ws.ragflowDatasetId && (
-                      <div className="flex items-center gap-1.5 text-xs font-medium">
-                        <div className={cn(
-                          "h-1.5 w-1.5 rounded-full",
-                          // 只有当 RAGFlow 已配置、服务可连接、Worker 运行时才显示绿色
-                          healthStatus?.ragflow.connected && healthStatus?.worker.running
-                            ? "bg-green-500"
-                            : "bg-orange-500"
-                        )} />
-                        <span className={cn(
-                          healthStatus?.ragflow.connected && healthStatus?.worker.running
-                            ? "text-green-600"
-                            : "text-orange-600"
-                        )}>
-                          RAGFlow {healthStatus?.ragflow.connected && healthStatus?.worker.running
-                            ? "就绪"
-                            : !healthStatus?.ragflow.connected
-                            ? "未连接"
-                            : !healthStatus?.worker.running
-                            ? "Worker 离线"
-                            : "未知"}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
                 
@@ -400,24 +376,23 @@ export function WorkspaceManager() {
                     <>
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="rounded-full h-8 text-blue-600 border-blue-200 hover:bg-blue-50"
+                        size="icon"
+                        className="rounded-full h-8 w-8 text-blue-600 border-blue-200 hover:bg-blue-50"
                         onClick={() => handleSyncToRAG(ws.id)}
                         disabled={isSyncingRAG === ws.id}
+                        title="SYNC DB RAGFlow"
                       >
-                        {isSyncingRAG === ws.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                        SYNC DB RAGFlow
+                        {isSyncingRAG === ws.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                       </Button>
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="rounded-full h-8 text-orange-600 border-orange-200 hover:bg-orange-50"
+                        size="icon"
+                        className="rounded-full h-8 w-8 text-orange-600 border-orange-200 hover:bg-orange-50"
                         onClick={() => handleResetRAG(ws.id)}
                         disabled={isResettingRAG === ws.id}
-                        title="删除旧的 RAGFlow 资源并重新创建"
+                        title="Reset RAGFlow"
                       >
-                        {isResettingRAG === ws.id ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Database className="h-3 w-3 mr-1" />}
-                        Reset RAGFlow
+                        {isResettingRAG === ws.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
                       </Button>
                     </>
                   )}
