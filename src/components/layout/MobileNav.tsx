@@ -146,7 +146,7 @@ export function MobileNav() {
     <>
       {/* Top Navigation Bar */}
       <div className={cn(
-        "desktop:hidden fixed top-0 left-0 right-0 z-40 bg-background/85 backdrop-blur-md border-b border-border transition-transform duration-300",
+        "md:hidden fixed top-0 left-0 right-0 z-40 bg-background/85 backdrop-blur-md border-b border-border transition-transform duration-300",
         isVisible ? "translate-y-0" : "-translate-y-full"
       )}>
         {/* Main Header Row */}
@@ -327,7 +327,7 @@ export function MobileNav() {
         <Link
           href="/compose"
           className={cn(
-            "desktop:hidden fixed bottom-[70px] right-4 z-50 transition-all duration-300",
+            "md:hidden fixed bottom-[70px] right-4 z-50 transition-all duration-300",
             isVisible ? "translate-y-0 scale-100 opacity-100" : "translate-y-20 scale-0 opacity-0"
           )}
         >
@@ -342,7 +342,7 @@ export function MobileNav() {
 
       {/* Bottom Navigation Bar */}
       <div className={cn(
-        "desktop:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 h-[53px] flex items-center justify-between px-4 pb-[env(safe-area-inset-bottom)] transition-transform duration-300",
+        "md:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 h-[53px] flex items-center justify-between px-4 pb-[env(safe-area-inset-bottom)] transition-transform duration-300",
         isVisible ? "translate-y-0" : "translate-y-full"
       )}>
         <Link href="/" className="flex flex-col items-center justify-center w-full h-full">
