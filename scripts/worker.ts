@@ -23,7 +23,7 @@ async function main() {
   console.log("Registered daily briefing cron job (every day at 08:00)")
 
   // 在 Redis 中标记 Worker 为运行状态
-  const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379'
+  const redisUrl = process.env.REDIS_URL || 'redis://localhost:16379'
   const redis = new Redis(redisUrl)
   const workerStatusKey = 'worker:status'
 
