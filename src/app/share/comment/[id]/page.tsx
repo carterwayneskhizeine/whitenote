@@ -22,6 +22,7 @@ interface Comment {
   createdAt: string
   updatedAt: string | null
   isAIBot: boolean
+  parentId: string | null
   tags: Array<{ tag: { id: string; name: string; color: string | null } }>
   medias: Array<{ id: string; url: string; type: string; description: string | null }>
   author: {
@@ -193,7 +194,14 @@ export default function CommentSharePage() {
                             variant="ghost"
                             size="icon"
                             className="rounded-full h-9 w-9"
-                            onClick={() => router.push(`/share/${comment.message.id}`)}
+                            onClick={() => {
+                                // 如果有父评论，返回到父评论；否则返回到消息
+                                if (comment.parentId) {
+                                    router.push(`/share/comment/${comment.parentId}`)
+                                } else {
+                                    router.push(`/share/${comment.message.id}`)
+                                }
+                            }}
                         >
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
