@@ -15,6 +15,7 @@ import { QuotedMessageCard } from "@/components/QuotedMessageCard"
 import { ImageLightbox } from "@/components/ImageLightbox"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { Badge } from "@/components/ui/badge"
+import { PublicCommentsList } from "@/components/PublicCommentsList"
 
 export default function SharePage() {
     const { id } = useParams() as { id: string }
@@ -297,6 +298,9 @@ export default function SharePage() {
                         </div>
                     </div>
                 </div>
+
+                {/* Comments Section */}
+                <PublicCommentsList messageId={id} />
             </div>
 
             {/* Image Lightbox */}

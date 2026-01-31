@@ -14,6 +14,7 @@ import { QuotedMessageCard } from "@/components/QuotedMessageCard"
 import { ImageLightbox } from "@/components/ImageLightbox"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { Badge } from "@/components/ui/badge"
+import { CommentItem } from "@/components/CommentItem"
 
 interface Comment {
   id: string
@@ -40,9 +41,12 @@ export default function CommentSharePage() {
     const { id } = useParams() as { id: string }
     const router = useRouter()
     const [comment, setComment] = useState<Comment | null>(null)
+    const [childComments, setChildComments] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [childrenLoading, setChildrenLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const [copiedChildId, setCopiedChildId] = useState<string | null>(null)
     const [lightboxOpen, setLightboxOpen] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState(0)
     const [isExpanded, setIsExpanded] = useState(false)
@@ -71,8 +75,24 @@ export default function CommentSharePage() {
             }
         }
 
+        const fetchChildComments = async () => {
+            setChildrenLoading(true)
+            try {
+                const response = await fetch(`/api/public/comments/${id}/children`)
+                if (response.ok) {
+                    const result = await response.json()
+                    setChildComments(result.data)
+                }
+            } catch (err) {
+                console.error("Failed to fetch child comments:", err)
+            } finally {
+                setChildrenLoading(false)
+            }
+        }
+
         if (id) {
             fetchComment()
+            fetchChildComments()
         }
     }, [id])
 
@@ -109,6 +129,22 @@ export default function CommentSharePage() {
         e.stopPropagation()
         setLightboxIndex(index)
         setLightboxOpen(true)
+    }
+
+    const handleCopyChildComment = async (childComment: any, e: React.MouseEvent) => {
+        e.stopPropagation()
+        try {
+            await navigator.clipboard.writeText(childComment.content)
+            setCopiedChildId(childComment.id)
+            setTimeout(() => setCopiedChildId(null), 1000)
+        } catch (error) {
+            console.error("Failed to copy comment:", error)
+        }
+    }
+
+    const handleShareChildComment = (childId: string, e: React.MouseEvent) => {
+        e.stopPropagation()
+        router.push(`/share/comment/${childId}`)
     }
 
     if (isLoading) {
@@ -157,7 +193,7 @@ export default function CommentSharePage() {
                             variant="ghost"
                             size="icon"
                             className="rounded-full h-9 w-9"
-                            onClick={() => router.push('/')}
+                            onClick={() => router.push(`/share/${comment.message.id}`)}
                         >
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
@@ -274,6 +310,36 @@ export default function CommentSharePage() {
                         </span>
                     </div>
                 </div>
+
+                {/* Child Comments */}
+                {childComments.length > 0 && (
+                    <>
+                        <Separator />
+                        <div className="px-6 py-4 bg-muted/30">
+                            <div className="font-bold text-sm">回复 ({childComments.length})</div>
+                        </div>
+                        <div className="flex flex-col">
+                            {childComments.map(child => (
+                                <CommentItem
+                                    key={child.id}
+                                    comment={child}
+                                    onClick={() => router.push(`/share/comment/${child.id}`)}
+                                    showMenu={false}
+                                    onReply={undefined}
+                                    onRetweet={undefined}
+                                    onToggleStar={undefined}
+                                    copied={copiedChildId === child.id}
+                                    onCopy={(e) => handleCopyChildComment(child, e)}
+                                    onShare={(e) => handleShareChildComment(child.id, e)}
+                                    replyCount={child._count?.replies || 0}
+                                    retweetCount={child.retweetCount ?? 0}
+                                    size="sm"
+                                    actionRowSize="sm"
+                                />
+                            ))}
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Image Lightbox */}
