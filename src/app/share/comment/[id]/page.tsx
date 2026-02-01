@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Link2, Loader2, ArrowLeft, Share2, MessageCircle, Bot } from "lucide-react"
+import { Link2, Loader2, ArrowLeft, Share2, MessageCircle, Bot, Copy, Check } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { TipTapViewer } from "@/components/TipTapViewer"
@@ -47,6 +47,7 @@ export default function CommentSharePage() {
     const [childrenLoading, setChildrenLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
+    const [contentCopied, setContentCopied] = useState(false)
     const [copiedChildId, setCopiedChildId] = useState<string | null>(null)
     const [lightboxOpen, setLightboxOpen] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState(0)
@@ -123,6 +124,26 @@ export default function CommentSharePage() {
             setTimeout(() => setCopied(false), 2000)
         } catch (error) {
             console.error("Failed to copy link:", error)
+        }
+    }
+
+    const handleCopyContent = async () => {
+        if (!comment) return
+        try {
+            const authorName = comment.author?.name || "GoldieRill"
+            const authorHandle = getHandle(comment.author?.email || null, !!comment.author)
+            const time = formatTime(comment.createdAt)
+            const tags = comment.tags.length > 0
+                ? '\n' + comment.tags.map(({ tag }) => `#${tag.name}`).join(' ')
+                : ''
+
+            const fullContent = `${authorName} (@${authorHandle})\n${time}${tags}\n\n${comment.content}`
+
+            await navigator.clipboard.writeText(fullContent)
+            setContentCopied(true)
+            setTimeout(() => setContentCopied(false), 2000)
+        } catch (error) {
+            console.error("Failed to copy content:", error)
         }
     }
 
@@ -210,14 +231,28 @@ export default function CommentSharePage() {
                             <h1 className="text-lg font-bold">分享评论</h1>
                         </div>
                     </div>
-                    <Button
-                        variant={copied ? "default" : "outline"}
-                        size="icon"
-                        className="rounded-full h-9 w-9"
-                        onClick={handleCopyLink}
-                    >
-                        <Link2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant={copied ? "default" : "outline"}
+                            size="icon"
+                            className="rounded-full h-9 w-9"
+                            onClick={handleCopyLink}
+                        >
+                            <Link2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant={contentCopied ? "default" : "outline"}
+                            size="icon"
+                            className="rounded-full h-9 w-9"
+                            onClick={handleCopyContent}
+                        >
+                            {contentCopied ? (
+                                <Check className="h-4 w-4" />
+                            ) : (
+                                <Copy className="h-4 w-4" />
+                            )}
+                        </Button>
+                    </div>
                 </div>
             </div>
 
