@@ -56,6 +56,7 @@ export interface Message {
   }
   retweetCount?: number
   isRetweeted?: boolean
+  authorCommentSortOrder?: boolean
 }
 
 export interface CreateMessageInput {

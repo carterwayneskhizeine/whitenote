@@ -9,9 +9,10 @@ import { getCommentSortOrder } from "@/lib/comment-sort"
 
 interface PublicCommentsListProps {
   messageId: string
+  authorCommentSortOrder?: boolean
 }
 
-export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
+export function PublicCommentsList({ messageId, authorCommentSortOrder }: PublicCommentsListProps) {
   const router = useRouter()
   const [comments, setComments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,7 +28,8 @@ export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const newestFirst = getCommentSortOrder()
+        // 使用 API 返回的作者偏好，如果没有提供则使用本地存储的偏好
+        const newestFirst = authorCommentSortOrder ?? getCommentSortOrder()
         const response = await fetch(`/api/public/messages/${messageId}/comments?newestFirst=${newestFirst}`)
         if (response.ok) {
           const result = await response.json()
@@ -43,7 +45,7 @@ export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
       }
     }
     fetchComments()
-  }, [messageId])
+  }, [messageId, authorCommentSortOrder])
 
   const handleCopy = async (comment: any, e: React.MouseEvent) => {
     e.stopPropagation()

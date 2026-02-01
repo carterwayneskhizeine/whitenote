@@ -311,7 +311,10 @@ export default function SharePage() {
                 </div>
 
                 {/* Comments Section */}
-                <PublicCommentsList messageId={id} />
+                <PublicCommentsList
+                    messageId={id}
+                    authorCommentSortOrder={message?.authorCommentSortOrder}
+                />
             </div>
 
             {/* Image Lightbox */}

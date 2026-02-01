@@ -159,6 +159,7 @@ export interface Comment {
   }
   retweetCount?: number
   isRetweeted?: boolean
+  messageAuthorCommentSortOrder?: boolean
 }
 
 export interface CreateCommentInput {

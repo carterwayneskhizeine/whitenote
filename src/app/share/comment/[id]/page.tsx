@@ -37,6 +37,7 @@ interface Comment {
     id: string
     content: string
   }
+  messageAuthorCommentSortOrder?: boolean
 }
 
 export default function CommentSharePage() {
@@ -83,7 +84,8 @@ export default function CommentSharePage() {
         const fetchChildComments = async () => {
             setChildrenLoading(true)
             try {
-                const newestFirst = getCommentSortOrder()
+                // 使用 API 返回的消息作者偏好，如果没有则使用本地存储的偏好
+                const newestFirst = comment?.messageAuthorCommentSortOrder ?? getCommentSortOrder()
                 const response = await fetch(`/api/public/comments/${id}/children?newestFirst=${newestFirst}`)
                 if (response.ok) {
                     const result = await response.json()
