@@ -8,7 +8,7 @@ interface RouteContext {
 /**
  * GET /api/public/comments/[id]
  * 公开的 API 端点，用于分享页面，不需要认证
- * 返回评论及其所属消息作者的评论排序偏好
+ * 返回评论及其排序偏好（硬编码）
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   const { id } = await context.params
@@ -56,21 +56,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return Response.json({ error: "Comment not found" }, { status: 404 })
   }
 
-  // 获取消息作者的评论排序偏好
-  let messageAuthorSortPreference = true // 默认最新靠前
-  if (comment.message?.author) {
-    const messageAuthorConfig = await prisma.aiConfig.findUnique({
-      where: { userId: comment.message.author.id },
-      select: { shareCommentsOrderNewestFirst: true },
-    })
-    if (messageAuthorConfig) {
-      messageAuthorSortPreference = messageAuthorConfig.shareCommentsOrderNewestFirst
-    }
-  }
+  // 硬编码评论排序偏好：true = 最新靠前，false = 最早靠前
+  const HARDCODED_SORT_ORDER = false
 
   const commentData = {
     ...comment,
-    messageAuthorCommentSortOrder: messageAuthorSortPreference,
+    messageAuthorCommentSortOrder: HARDCODED_SORT_ORDER,
   }
 
   return Response.json({ data: commentData })

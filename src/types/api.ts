@@ -308,7 +308,6 @@ export interface AIConfig {
   mdSyncDir: string | null
   asrApiKey: string
   asrApiUrl: string
-  shareCommentsOrderNewestFirst: boolean
   updatedAt: string
 }
 
@@ -330,7 +329,6 @@ export interface UpdateAIConfigInput {
   mdSyncDir?: string
   asrApiKey?: string
   asrApiUrl?: string
-  shareCommentsOrderNewestFirst?: boolean
 }
 
 export interface AIConfigResponse {

@@ -1,13 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Switch } from "@/components/ui/switch"
-import { Loader2, Save } from "lucide-react"
+import { Loader2 } from "lucide-react"
 import { configApi } from "@/lib/api/config"
 import { AIConfig } from "@/types/api"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { setCommentSortOrder } from "@/lib/comment-sort"
 
 interface PrivacySettingsFormProps {
   onSuccess?: () => void
@@ -43,16 +41,11 @@ export function PrivacySettingsForm({ onSuccess }: PrivacySettingsFormProps) {
 
     setSaving(true)
     try {
-      const updateData = {
-        shareCommentsOrderNewestFirst: config.shareCommentsOrderNewestFirst,
-      }
-
-      const result = await configApi.updateConfig(updateData)
+      // 评论排序方式已改为硬编码，无需保存
+      const result = await configApi.updateConfig({})
 
       if (result.data) {
         setConfig({ ...config, ...result.data })
-        // Also save to localStorage for public share pages
-        setCommentSortOrder(config.shareCommentsOrderNewestFirst)
         showMessage("success", "设置保存成功")
         onSuccess?.()
       } else if (result.error) {
@@ -83,28 +76,12 @@ export function PrivacySettingsForm({ onSuccess }: PrivacySettingsFormProps) {
 
   return (
     <div className="divide-y divide-border -mx-4 border-t border-border">
-      {/* Share Comments Sort Order */}
-      <div className="px-4 py-6 hover:bg-muted/30 transition-colors">
-        <div className="px-2 flex items-center justify-between">
-          <div>
-            <label className="text-sm font-bold block">分享帖子的评论区排序</label>
-            <p className="text-xs text-muted-foreground mt-1">
-              {config.shareCommentsOrderNewestFirst
-                ? "最新的评论和回复将显示在前面"
-                : "最早的评论和回复将显示在前面"}
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">
-              {config.shareCommentsOrderNewestFirst ? "最新靠前" : "最早靠前"}
-            </span>
-            <Switch
-              checked={config.shareCommentsOrderNewestFirst}
-              onCheckedChange={(checked) =>
-                setConfig({ ...config, shareCommentsOrderNewestFirst: checked })
-              }
-            />
-          </div>
+      {/* 说明文本 */}
+      <div className="px-4 py-8 bg-muted/30">
+        <div className="px-2">
+          <p className="text-sm text-muted-foreground">
+            分享帖子的评论区排序方式已设置为硬编码：最早靠前
+          </p>
         </div>
       </div>
 

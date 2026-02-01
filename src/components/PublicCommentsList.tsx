@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { CommentItem } from "@/components/CommentItem"
 import { ImageLightbox } from "@/components/ImageLightbox"
-import { getCommentSortOrder } from "@/lib/comment-sort"
 
 interface PublicCommentsListProps {
   messageId: string
@@ -28,9 +27,8 @@ export function PublicCommentsList({ messageId, authorCommentSortOrder }: Public
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        // 使用 API 返回的作者偏好，如果没有提供则使用本地存储的偏好
-        const newestFirst = authorCommentSortOrder ?? getCommentSortOrder()
-        const response = await fetch(`/api/public/messages/${messageId}/comments?newestFirst=${newestFirst}`)
+        // API 已使用硬编码排序，无需传递参数
+        const response = await fetch(`/api/public/messages/${messageId}/comments`)
         if (response.ok) {
           const result = await response.json()
           setComments(result.data)
@@ -45,7 +43,7 @@ export function PublicCommentsList({ messageId, authorCommentSortOrder }: Public
       }
     }
     fetchComments()
-  }, [messageId, authorCommentSortOrder])
+  }, [messageId])
 
   const handleCopy = async (comment: any, e: React.MouseEvent) => {
     e.stopPropagation()

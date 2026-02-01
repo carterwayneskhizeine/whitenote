@@ -15,7 +15,6 @@ import { ImageLightbox } from "@/components/ImageLightbox"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { Badge } from "@/components/ui/badge"
 import { CommentItem } from "@/components/CommentItem"
-import { getCommentSortOrder } from "@/lib/comment-sort"
 
 interface Comment {
   id: string
@@ -84,9 +83,8 @@ export default function CommentSharePage() {
         const fetchChildComments = async () => {
             setChildrenLoading(true)
             try {
-                // 使用 API 返回的消息作者偏好，如果没有则使用本地存储的偏好
-                const newestFirst = comment?.messageAuthorCommentSortOrder ?? getCommentSortOrder()
-                const response = await fetch(`/api/public/comments/${id}/children?newestFirst=${newestFirst}`)
+                // API 已使用硬编码排序，无需传递参数
+                const response = await fetch(`/api/public/comments/${id}/children`)
                 if (response.ok) {
                     const result = await response.json()
                     setChildComments(result.data)
