@@ -323,10 +323,18 @@ export default function MobileCommentReplyPage() {
 
       {/* Image Lightbox */}
       <ImageLightbox
-        media={[
-          ...(comment?.medias || []),
-          ...markdownImages.map(url => ({ url, type: 'image' }))
-        ]}
+        media={(() => {
+          // 去重：提取 comment.medias 中的 URL 集合
+          const mediaUrls = new Set(comment?.medias?.map(m => m.url) || [])
+
+          // 过滤掉 markdownImages 中与 comment.medias 重复的图片
+          const uniqueMarkdownImages = markdownImages.filter(url => !mediaUrls.has(url))
+
+          return [
+            ...(comment?.medias || []),
+            ...uniqueMarkdownImages.map(url => ({ url, type: 'image' as const }))
+          ]
+        })()}
         initialIndex={lightboxIndex}
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}

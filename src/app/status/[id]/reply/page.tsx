@@ -322,10 +322,18 @@ export default function MobileReplyPage() {
 
       {/* Image Lightbox */}
       <ImageLightbox
-        media={[
-          ...(message?.medias || []),
-          ...markdownImages.map(url => ({ url, type: 'image' }))
-        ]}
+        media={(() => {
+          // 去重：提取 message.medias 中的 URL 集合
+          const mediaUrls = new Set(message?.medias?.map(m => m.url) || [])
+
+          // 过滤掉 markdownImages 中与 message.medias 重复的图片
+          const uniqueMarkdownImages = markdownImages.filter(url => !mediaUrls.has(url))
+
+          return [
+            ...(message?.medias || []),
+            ...uniqueMarkdownImages.map(url => ({ url, type: 'image' as const }))
+          ]
+        })()}
         initialIndex={lightboxIndex}
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}

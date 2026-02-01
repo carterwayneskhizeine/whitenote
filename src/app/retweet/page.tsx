@@ -334,10 +334,18 @@ function MobileRetweetPageContent() {
 
       {/* Image Lightbox */}
       <ImageLightbox
-        media={[
-          ...(target?.medias || []),
-          ...markdownImages.map(url => ({ url, type: 'image' }))
-        ]}
+        media={(() => {
+          // 去重：提取 target.medias 中的 URL 集合
+          const mediaUrls = new Set(target?.medias?.map(m => m.url) || [])
+
+          // 过滤掉 markdownImages 中与 target.medias 重复的图片
+          const uniqueMarkdownImages = markdownImages.filter(url => !mediaUrls.has(url))
+
+          return [
+            ...(target?.medias || []),
+            ...uniqueMarkdownImages.map(url => ({ url, type: 'image' as const }))
+          ]
+        })()}
         initialIndex={lightboxIndex}
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}

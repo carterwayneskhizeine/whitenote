@@ -115,6 +115,7 @@ export default function CommentDetailPage() {
         if (childrenResult.data) {
           // 过滤掉自引用的评论（parentId 指向自己的评论）
           const filteredChildren = childrenResult.data.filter(c => c.id !== commentId)
+
           setChildComments(filteredChildren)
 
           // Initialize starred state for all comments
@@ -360,9 +361,16 @@ export default function CommentDetailPage() {
 
   const handleMarkdownImageClick = (index: number, url: string) => {
     const mediaCount = comment?.medias?.length || 0
+
+    // 去重：提取已上传媒体的 URL 集合
+    const mediaUrls = new Set(comment?.medias?.map(m => m.url) || [])
+
+    // 过滤掉 markdownImages 中与媒体重复的图片
+    const uniqueMarkdownImages = markdownImages.filter(img => !mediaUrls.has(img))
+
     setCurrentMedias([
       ...(comment?.medias || []),
-      ...markdownImages.map(img => ({ url: img, type: 'image' as const, id: img }))
+      ...uniqueMarkdownImages.map(img => ({ url: img, type: 'image' as const, id: img }))
     ])
     setLightboxIndex(mediaCount + index)
     setLightboxOpen(true)
@@ -662,10 +670,18 @@ export default function CommentDetailPage() {
 
       {/* Image Lightbox */}
       <ImageLightbox
-        media={[
-          ...(currentMedias || []),
-          ...markdownImages.map(url => ({ url, type: 'image' }))
-        ]}
+        media={(() => {
+          // 去重：提取 currentMedias 中的 URL 集合
+          const mediaUrls = new Set(currentMedias?.map(m => m.url) || [])
+
+          // 过滤掉 markdownImages 中与 currentMedias 重复的图片
+          const uniqueMarkdownImages = markdownImages.filter(url => !mediaUrls.has(url))
+
+          return [
+            ...(currentMedias || []),
+            ...uniqueMarkdownImages.map(url => ({ url, type: 'image' as const }))
+          ]
+        })()}
         initialIndex={lightboxIndex}
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}

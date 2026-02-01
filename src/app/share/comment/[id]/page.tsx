@@ -51,6 +51,7 @@ export default function CommentSharePage() {
     const [copiedChildId, setCopiedChildId] = useState<string | null>(null)
     const [lightboxOpen, setLightboxOpen] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState(0)
+    const [markdownImages, setMarkdownImages] = useState<string[]>([])
     const [isExpanded, setIsExpanded] = useState(false)
     const [hasMore, setHasMore] = useState(false)
     const contentRef = useRef<HTMLDivElement>(null)
@@ -116,6 +117,19 @@ export default function CommentSharePage() {
         }
     }, [comment?.content])
 
+    // Extract markdown images from content
+    useEffect(() => {
+        if (!comment?.content) return
+        // 使用 Set 去重，确保相同的 URL 只出现一次
+        const images = Array.from(new Set(
+            comment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+                const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+                return url || ''
+            }).filter(url => url && !url.startsWith('data:')) || []
+        ))
+        setMarkdownImages(images)
+    }, [comment?.content])
+
     const handleCopyLink = async () => {
         try {
             const shareUrl = window.location.href
@@ -150,6 +164,12 @@ export default function CommentSharePage() {
     const handleImageClick = (index: number, e: React.MouseEvent) => {
         e.stopPropagation()
         setLightboxIndex(index)
+        setLightboxOpen(true)
+    }
+
+    const handleMarkdownImageClick = (index: number, url: string) => {
+        const mediaCount = comment?.medias?.length || 0
+        setLightboxIndex(mediaCount + index)
         setLightboxOpen(true)
     }
 
@@ -317,7 +337,7 @@ export default function CommentSharePage() {
                             WebkitBoxOrient: 'vertical',
                         } : {}}
                     >
-                        <TipTapViewer content={comment.content} />
+                        <TipTapViewer content={comment.content} onImageClick={handleMarkdownImageClick} />
                     </div>
                     {hasMore && !isExpanded && (
                         <button
@@ -376,7 +396,18 @@ export default function CommentSharePage() {
 
             {/* Image Lightbox */}
             <ImageLightbox
-                media={comment?.medias || []}
+                media={(() => {
+                    // 去重：提取 comment.medias 中的 URL 集合
+                    const mediaUrls = new Set(comment?.medias?.map(m => m.url) || [])
+
+                    // 过滤掉 markdownImages 中与 comment.medias 重复的图片
+                    const uniqueMarkdownImages = markdownImages.filter(url => !mediaUrls.has(url))
+
+                    return [
+                        ...(comment?.medias || []),
+                        ...uniqueMarkdownImages.map(url => ({ url, type: 'image' as const }))
+                    ]
+                })()}
                 initialIndex={lightboxIndex}
                 open={lightboxOpen}
                 onClose={() => setLightboxOpen(false)}
