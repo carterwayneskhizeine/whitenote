@@ -100,6 +100,35 @@ export function generateFriendlyName(content: string): string {
 }
 
 /**
+ * Sanitize workspace name for use as folder name
+ * Preserves meaningful characters while removing filesystem-unsafe chars
+ */
+export function sanitizeFolderName(name: string): string {
+  if (!name || name.trim() === '') {
+    return 'untitled-workspace'
+  }
+
+  // Remove filesystem-unsafe characters
+  let sanitized = name
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '') // Remove unsafe chars
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Collapse multiple hyphens
+    .trim()
+
+  // Limit length
+  if (sanitized.length > 100) {
+    sanitized = sanitized.substring(0, 100)
+  }
+
+  // Fallback if result is empty
+  if (!sanitized) {
+    return 'untitled-workspace'
+  }
+
+  return sanitized
+}
+
+/**
  * Get workspace.json file path for a specific workspace
  * Uses workspace-discovery utility for better performance
  */
@@ -765,13 +794,15 @@ export async function exportAllToLocal(userId: string) {
     }
   })
 
-  const workspaceGroups = new Map<string, { messages: any[], comments: any[] }>()
+  const workspaceGroups = new Map<string, { messages: any[], comments: any[], workspaceName: string }>()
 
   for (const message of messages) {
     const wsId = message.workspaceId
     if (!wsId) continue
     if (!workspaceGroups.has(wsId)) {
-      workspaceGroups.set(wsId, { messages: [], comments: [] })
+      const wsName = message.workspace?.name || wsId
+      console.log(`[SyncUtils] Found workspace for messages: ${wsId} -> ${wsName}`)
+      workspaceGroups.set(wsId, { messages: [], comments: [], workspaceName: wsName })
     }
     workspaceGroups.get(wsId)!.messages.push(message)
   }
@@ -780,10 +811,63 @@ export async function exportAllToLocal(userId: string) {
     const wsId = comment.message.workspaceId
     if (!wsId) continue
     if (!workspaceGroups.has(wsId)) {
-      workspaceGroups.set(wsId, { messages: [], comments: [] })
+      const wsName = comment.message.workspace?.name || wsId
+      console.log(`[SyncUtils] Found workspace for comments: ${wsId} -> ${wsName}`)
+      workspaceGroups.set(wsId, { messages: [], comments: [], workspaceName: wsName })
     }
     workspaceGroups.get(wsId)!.comments.push(comment)
   }
+
+  // ============================================================
+  // PRE-CREATE ALL WORKSPACE DIRECTORIES WITH MEANINGFUL NAMES
+  // ============================================================
+
+  console.log(`[SyncUtils] Pre-creating ${workspaceGroups.size} workspace directories...`)
+
+  for (const [workspaceId, { workspaceName }] of workspaceGroups) {
+    const sanitizedFolderName = sanitizeFolderName(workspaceName)
+    const workspaceDir = path.join(SYNC_DIR, sanitizedFolderName)
+
+    console.log(`[SyncUtils] Workspace: ${workspaceId} -> "${workspaceName}" -> "${sanitizedFolderName}"`)
+
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(workspaceDir)) {
+      ensureDirectoryExists(workspaceDir)
+      console.log(`[SyncUtils] Created workspace directory: ${sanitizedFolderName}`)
+    }
+
+    // Create .whitenote directory
+    const metaDir = path.join(workspaceDir, ".whitenote")
+    if (!fs.existsSync(metaDir)) {
+      fs.mkdirSync(metaDir, { recursive: true })
+    }
+
+    // Write workspace.json directly to establish the mapping
+    const workspaceJsonPath = path.join(metaDir, "workspace.json")
+    const workspaceData = {
+      version: 2,
+      workspace: {
+        id: workspaceId,
+        originalFolderName: sanitizedFolderName,
+        currentFolderName: sanitizedFolderName,
+        name: workspaceName,
+        lastSyncedAt: new Date().toISOString()
+      },
+      messages: {},
+      comments: {}
+    }
+
+    fs.writeFileSync(workspaceJsonPath, JSON.stringify(workspaceData, null, 2))
+    console.log(`[SyncUtils] ✓ Initialized workspace metadata for: ${sanitizedFolderName} (${workspaceId})`)
+  }
+
+  // Clear cache to ensure new mappings are discovered
+  const { clearWorkspaceCache } = require("@/lib/workspace-discovery")
+  clearWorkspaceCache()
+
+  // ============================================================
+  // NOW EXPORT ALL MESSAGES AND COMMENTS
+  // ============================================================
 
   let totalMessages = 0
   let totalComments = 0
