@@ -99,6 +99,7 @@ export default function CommentDetailPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true)
+        console.log('[CommentDetailPage] Fetching comment:', commentId)
 
         // 并行获取数据
         const [commentResult, childrenResult] = await Promise.all([
@@ -107,12 +108,14 @@ export default function CommentDetailPage() {
         ])
 
         if (commentResult.data) {
+          console.log('[CommentDetailPage] Fetched comment:', commentResult.data.id, 'content:', commentResult.data.content.substring(0, 50))
           setComment(commentResult.data)
         } else {
           setError(commentResult.error || "Comment not found")
         }
 
         if (childrenResult.data) {
+          console.log('[CommentDetailPage] Fetched', childrenResult.data.length, 'child comments')
           // 过滤掉自引用的评论（parentId 指向自己的评论）
           const filteredChildren = childrenResult.data.filter(c => c.id !== commentId)
 

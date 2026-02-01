@@ -49,6 +49,8 @@ export default function EditCommentPage() {
 
     setIsSaving(true)
     try {
+      console.log('[EditCommentPage] Saving comment:', comment.id, 'new content:', content.substring(0, 50))
+
       // 更新内容和标签
       const result = await commentsApi.updateComment(comment.id, {
         content,
@@ -56,8 +58,9 @@ export default function EditCommentPage() {
       })
 
       if (result.data) {
-        // Replace the current edit page in history with the comment detail page
-        router.replace(`/status/${id}/comment/${comment.id}`)
+        console.log('[EditCommentPage] Saved successfully, navigating to:', `/status/${id}/comment/${comment.id}`)
+        // 使用 router.push 而不是 router.replace，确保页面重新加载数据
+        router.push(`/status/${id}/comment/${comment.id}`)
       }
     } catch (error) {
       console.error("Failed to save comment:", error)

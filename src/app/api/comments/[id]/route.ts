@@ -236,12 +236,19 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
  * 更新评论
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // 在文件顶部立即输出日志，确保一定会执行
+  console.error('========== [PATCH /api/comments/[id]] CALLED ==========')
+
   try {
     const session = await requireAuth()
     const { id } = await params
 
+    console.error('[PATCH /api/comments/[id]] Updating comment:', id)
+
     const body = await request.json()
     const { content, tags } = body
+
+    console.error('[PATCH /api/comments/[id]] Request body content:', content?.substring(0, 50))
 
     if (!content || typeof content !== 'string') {
       return Response.json({ error: "Content is required" }, { status: 400 })
@@ -254,8 +261,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     })
 
     if (!comment) {
+      console.error('[PATCH /api/comments/[id]] Comment not found:', id)
       return Response.json({ error: "Comment not found" }, { status: 404 })
     }
+
+    console.error('[PATCH /api/comments/[id]] Found comment:', comment.id, 'current content:', comment.content.substring(0, 50))
 
     // 授权检查：
     // 1. 如果评论有作者（普通评论），只有作者可以编辑
@@ -318,6 +328,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         },
       },
     })
+
+    console.log('[PATCH /api/comments/[id]] Updated comment:', updatedComment.id, 'new content:', updatedComment.content.substring(0, 50))
 
     // 同步更新 RAGFlow 文档（异步执行，不阻塞响应）
     // 触发条件：内容变化 或 标签变化

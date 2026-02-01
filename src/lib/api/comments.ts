@@ -39,8 +39,14 @@ export const commentsApi = {
    * Get comment by ID
    */
   async getComment(commentId: string): Promise<CommentResponse> {
-    const response = await fetch(`${API_BASE}/comments/${commentId}`)
-    return response.json()
+    console.log('[commentsApi] Fetching comment:', commentId)
+    const response = await fetch(`${API_BASE}/comments/${commentId}`, {
+      // 禁用缓存确保获取最新数据
+      cache: 'no-store',
+    })
+    const result = await response.json()
+    console.log('[commentsApi] Fetched comment:', result.data?.id, result.data?.content?.substring(0, 50))
+    return result
   },
 
   /**
@@ -101,11 +107,16 @@ export const commentsApi = {
    * Update comment
    */
   async updateComment(commentId: string, data: { content: string; tags?: string[] }): Promise<CommentResponse> {
+    console.log('[commentsApi] Updating comment:', commentId, 'with data:', data)
     const response = await fetch(`${API_BASE}/comments/${commentId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
+      // 禁用缓存确保获取最新数据
+      cache: 'no-store',
       body: JSON.stringify(data),
     })
-    return response.json()
+    const result = await response.json()
+    console.log('[commentsApi] Update result:', result.data?.id, result.data?.content?.substring(0, 50))
+    return result
   },
 }

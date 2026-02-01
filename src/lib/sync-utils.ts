@@ -276,10 +276,29 @@ export function parseFilePath(filePath: string): {
 
       try {
         const ws = getWorkspaceData(workspaceId)
-        // Find any comment with this folderName
+        // Find comment by folderName AND currentFilename to ensure we get the right comment
+        for (const [_originalFilename, comment] of Object.entries(ws.comments)) {
+          if (comment.folderName === commentSubfolder && comment.currentFilename === commentFileName) {
+            console.log(`[parseFilePath] Found comment via folder+filename: ${commentSubfolder}/${commentFileName} -> ${comment.id}`)
+            return {
+              workspaceId,
+              type: 'comment',
+              messageId: comment.messageId,
+              commentId: comment.id,
+              messageFilename: messageFolder,
+              commentFolder: commentSubfolder,
+              commentFilename: commentFileName
+            }
+          }
+        }
+
+        // Fallback: If no exact match found, try matching by folderName only (for backward compatibility)
+        // But log a warning to help identify the issue
+        console.warn(`[parseFilePath] No exact match found for ${commentSubfolder}/${commentFileName}, trying folderName match only`)
         for (const [_originalFilename, comment] of Object.entries(ws.comments)) {
           if (comment.folderName === commentSubfolder) {
-            console.log(`[parseFilePath] Found comment via folder name: ${commentSubfolder}, assuming file rename: ${commentFileName}`)
+            console.warn(`[parseFilePath] WARNING: Using first matching comment with folderName ${commentSubfolder}: ${comment.id}`)
+            console.warn(`[parseFilePath] This may cause data to be imported to the wrong comment!`)
             return {
               workspaceId,
               type: 'comment',
@@ -561,8 +580,10 @@ export async function exportToLocal(type: "message" | "comment", id: string) {
       console.log(`[SyncUtils] Using existing filename for comment ${id}: ${currentFilename}`)
     } else {
       // Generate new friendly filename for first-time export
+      // Include comment ID suffix to ensure uniqueness
       const friendlyName = generateFriendlyName(data.content)
-      currentFilename = `${friendlyName}.md`
+      const idSuffix = data.id.slice(-6) // Last 6 chars of comment ID for uniqueness
+      currentFilename = `${friendlyName}-${idSuffix}.md`
       console.log(`[SyncUtils] Generated new filename for comment ${id}: ${currentFilename}`)
     }
 
