@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -44,6 +44,22 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
   const router = useRouter()
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
+  const [markdownImages, setMarkdownImages] = useState<string[]>([])
+
+  // Extract markdown images from content
+  useEffect(() => {
+    const images = message.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+      const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+      return url || ''
+    }).filter(url => url && !url.startsWith('data:')) || []
+    setMarkdownImages(images)
+  }, [message.content])
+
+  const handleMarkdownImageClick = (index: number, url: string) => {
+    const mediaCount = message.medias?.length || 0
+    setLightboxIndex(mediaCount + index)
+    setLightboxOpen(true)
+  }
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -87,7 +103,7 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
 
       {/* Message Content - truncated to 2 lines */}
       <div className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-        <TipTapViewer content={message.content} />
+        <TipTapViewer content={message.content} onImageClick={handleMarkdownImageClick} />
       </div>
 
       {/* Media Display - grid layout */}
@@ -100,7 +116,10 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
 
     {/* Image Lightbox */}
     <ImageLightbox
-      media={message.medias || []}
+      media={[
+        ...(message.medias || []),
+        ...markdownImages.map(url => ({ url, type: 'image' }))
+      ]}
       initialIndex={lightboxIndex}
       open={lightboxOpen}
       onClose={() => setLightboxOpen(false)}

@@ -71,6 +71,7 @@ export default function CommentDetailPage() {
   const { showShareDialog, setShowShareDialog, handleShare, shareItemId } = useShare()
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
+  const [markdownImages, setMarkdownImages] = useState<string[]>([])
   const [currentMedias, setCurrentMedias] = useState<Comment['medias']>([])
   const contentRef = useRef<HTMLDivElement>(null)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -136,6 +137,17 @@ export default function CommentDetailPage() {
       fetchData()
     }
   }, [commentId, refreshKey])
+
+  // Extract markdown images from content
+  useEffect(() => {
+    if (comment?.content) {
+      const images = comment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+        const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+        return url || ''
+      }).filter(url => url && !url.startsWith('data:')) || []
+      setMarkdownImages(images)
+    }
+  }, [comment?.content])
 
   // 检测内容是否需要"显示更多"按钮
   useEffect(() => {
@@ -341,6 +353,16 @@ export default function CommentDetailPage() {
     setLightboxOpen(true)
   }
 
+  const handleMarkdownImageClick = (index: number, url: string) => {
+    const mediaCount = comment?.medias?.length || 0
+    setCurrentMedias([
+      ...(comment?.medias || []),
+      ...markdownImages.map(img => ({ url: img, type: 'image' as const, id: img }))
+    ])
+    setLightboxIndex(mediaCount + index)
+    setLightboxOpen(true)
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -456,7 +478,7 @@ export default function CommentDetailPage() {
             WebkitBoxOrient: 'vertical',
           } : {}}
         >
-          <TipTapViewer content={comment.content} />
+          <TipTapViewer content={comment.content} onImageClick={handleMarkdownImageClick} />
         </div>
         {hasMore && !isExpanded && (
           <button
@@ -635,7 +657,10 @@ export default function CommentDetailPage() {
 
       {/* Image Lightbox */}
       <ImageLightbox
-        media={currentMedias || []}
+        media={[
+          ...(currentMedias || []),
+          ...markdownImages.map(url => ({ url, type: 'image' }))
+        ]}
         initialIndex={lightboxIndex}
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}

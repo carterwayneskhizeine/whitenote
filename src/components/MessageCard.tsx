@@ -68,6 +68,7 @@ export function MessageCard({
   const [hasMore, setHasMore] = useState(false)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
+  const [markdownImages, setMarkdownImages] = useState<string[]>([])
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -185,6 +186,23 @@ export function MessageCard({
     setLightboxOpen(true)
   }
 
+  // Handle markdown image click to open lightbox
+  const handleMarkdownImageClick = (index: number, url: string) => {
+    // Calculate index: uploaded media + markdown image index
+    const mediaCount = message.medias?.length || 0
+    setLightboxIndex(mediaCount + index)
+    setLightboxOpen(true)
+  }
+
+  // Extract markdown images from content
+  useEffect(() => {
+    const images = message.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+      const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+      return url || ''
+    }).filter(url => url && !url.startsWith('data:')) || []
+    setMarkdownImages(images)
+  }, [message.content])
+
   // 移动端单击、桌面端双击（1秒内）
   const handleClick = useDoubleClick({
     onDoubleClick: () => router.push(`/status/${message.id}`),
@@ -265,7 +283,7 @@ export function MessageCard({
                   WebkitBoxOrient: 'vertical',
                 } : {}}
               >
-                <TipTapViewer content={message.content} />
+                <TipTapViewer content={message.content} onImageClick={handleMarkdownImageClick} />
               </div>
               {hasMore && !isExpanded && (
                 <button
@@ -379,7 +397,10 @@ export function MessageCard({
 
       {/* Image Lightbox */}
       <ImageLightbox
-        media={message.medias || []}
+        media={[
+          ...(message.medias || []),
+          ...markdownImages.map(url => ({ url, type: 'image' }))
+        ]}
         initialIndex={lightboxIndex}
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}

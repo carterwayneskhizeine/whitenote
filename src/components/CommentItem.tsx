@@ -211,7 +211,11 @@ export function CommentItem({
                 WebkitBoxOrient: 'vertical',
               } : {}}
             >
-              <TipTapViewer content={comment.content} />
+              <TipTapViewer content={comment.content} onImageClick={(index, url) => {
+                // Calculate index: uploaded media + markdown image index
+                const mediaCount = comment.medias?.length || 0
+                onImageClick?.(mediaCount + index, { stopPropagation: () => {} } as any)
+              }} />
             </div>
             {hasMore && !isExpanded && (
               <button

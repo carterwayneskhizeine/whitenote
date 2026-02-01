@@ -16,15 +16,22 @@ import { cn } from "@/lib/utils"
 interface TipTapViewerProps {
   content: string
   className?: string
+  onImageClick?: (index: number, url: string) => void
 }
 
 /**
  * Read-only TipTap viewer that supports Markdown content rendering.
  * Use this to display message content with proper Markdown formatting.
  */
-export function TipTapViewer({ content, className }: TipTapViewerProps) {
+export function TipTapViewer({ content, className, onImageClick }: TipTapViewerProps) {
   // Create lowlight instance for syntax highlighting
   const lowlight = createLowlight(common)
+
+  // Extract all image URLs from markdown content
+  const imageUrls = content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+    const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+    return url || ''
+  }).filter(url => url && !url.startsWith('data:')) || []
 
   const editor = useEditor({
     extensions: [
@@ -128,6 +135,55 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
       observer.disconnect()
     }
   }, [editor])
+
+  // Add click handlers to images for lightbox
+  useEffect(() => {
+    if (!editor || !onImageClick) return
+
+    const addImageClickHandlers = () => {
+      const images = editor.view.dom.querySelectorAll('img')
+      images.forEach((img: Element) => {
+        const imageElement = img as HTMLImageElement
+        const src = imageElement.src
+
+        // Find the index of this image in our imageUrls array
+        const index = imageUrls.indexOf(src)
+
+        if (index !== -1 && !imageElement.dataset.lightboxHandled) {
+          imageElement.dataset.lightboxHandled = 'true'
+
+          const handleClick = (e: MouseEvent) => {
+            e.preventDefault()
+            e.stopPropagation()
+            onImageClick(index, src)
+          }
+
+          imageElement.addEventListener('click', handleClick)
+        }
+      })
+    }
+
+    // Delay to ensure editor is fully rendered
+    const timer = setTimeout(() => {
+      addImageClickHandlers()
+    }, 150)
+
+    // Watch for content changes
+    const observer = new MutationObserver(() => {
+      addImageClickHandlers()
+    })
+
+    const editorElement = editor.view.dom
+    observer.observe(editorElement, {
+      childList: true,
+      subtree: true,
+    })
+
+    return () => {
+      clearTimeout(timer)
+      observer.disconnect()
+    }
+  }, [editor, onImageClick, imageUrls])
 
   if (!editor) {
     return null

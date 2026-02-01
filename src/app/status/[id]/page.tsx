@@ -55,6 +55,7 @@ export default function StatusPage() {
     const [copied, setCopied] = useState(false)
     const [lightboxOpen, setLightboxOpen] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState(0)
+    const [markdownImages, setMarkdownImages] = useState<string[]>([])
     const contentRef = useRef<HTMLDivElement>(null)
     const [isExpanded, setIsExpanded] = useState(false)
     const [hasMore, setHasMore] = useState(false)
@@ -80,6 +81,17 @@ export default function StatusPage() {
             fetchMessage()
         }
     }, [id, refreshKey])
+
+    // Extract markdown images from content
+    useEffect(() => {
+        if (message?.content) {
+            const images = message.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+                const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+                return url || ''
+            }).filter(url => url && !url.startsWith('data:')) || []
+            setMarkdownImages(images)
+        }
+    }, [message?.content])
 
     // 检测内容是否需要"显示更多"按钮
     useEffect(() => {
@@ -144,6 +156,12 @@ export default function StatusPage() {
     const handleImageClick = (index: number, e: React.MouseEvent) => {
         e.stopPropagation()
         setLightboxIndex(index)
+        setLightboxOpen(true)
+    }
+
+    const handleMarkdownImageClick = (index: number, url: string) => {
+        const mediaCount = message?.medias?.length || 0
+        setLightboxIndex(mediaCount + index)
         setLightboxOpen(true)
     }
 
@@ -260,7 +278,7 @@ export default function StatusPage() {
                         WebkitBoxOrient: 'vertical',
                     } : {}}
                 >
-                    <TipTapViewer content={message.content} />
+                    <TipTapViewer content={message.content} onImageClick={handleMarkdownImageClick} />
                 </div>
                 {hasMore && !isExpanded && (
                     <button
@@ -385,7 +403,10 @@ export default function StatusPage() {
 
             {/* Image Lightbox */}
             <ImageLightbox
-                media={message?.medias || []}
+                media={[
+                    ...(message?.medias || []),
+                    ...markdownImages.map(url => ({ url, type: 'image' }))
+                ]}
                 initialIndex={lightboxIndex}
                 open={lightboxOpen}
                 onClose={() => setLightboxOpen(false)}

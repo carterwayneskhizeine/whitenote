@@ -64,6 +64,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const [currentMedias, setCurrentMedias] = useState<Comment['medias']>([])
+  const [markdownImages, setMarkdownImages] = useState<string[]>([])
 
   // Fetch templates
   useEffect(() => {
@@ -183,7 +184,16 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
   const handleImageClick = (index: number, medias: Comment['medias'], e: React.MouseEvent) => {
     e.stopPropagation()
     if (!medias || medias.length === 0) return
+
+    // Extract markdown images from the comment's content
+    const comment = comments.find(c => c.medias === medias)
+    const mdImages = comment?.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+      const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+      return url || ''
+    }).filter(url => url && !url.startsWith('data:')) || []
+
     setCurrentMedias(medias)
+    setMarkdownImages(mdImages)
     setLightboxIndex(index)
     setLightboxOpen(true)
   }
@@ -442,7 +452,10 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
 
       {/* Image Lightbox */}
       <ImageLightbox
-        media={currentMedias || []}
+        media={[
+          ...(currentMedias || []),
+          ...markdownImages.map(url => ({ url, type: 'image' }))
+        ]}
         initialIndex={lightboxIndex}
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
