@@ -1,12 +1,33 @@
 "use client"
 
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import { LeftSidebar } from "./LeftSidebar"
 import { RightSidebar } from "./RightSidebar"
 import { MobileNav } from "./MobileNav"
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // During SSR or before mount, render a simplified version
+  if (!mounted) {
+    return (
+      <div className="flex min-h-screen justify-center w-full bg-background text-foreground">
+        <div className="flex w-full max-w-[1350px] justify-center relative gap-0 md:pl-10">
+          <main className="flex-1 min-h-screen flex flex-col w-full md:max-w-[600px] shrink-0">
+            <MobileNav />
+            {children}
+          </main>
+        </div>
+      </div>
+    )
+  }
+
   const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register")
   const isSettingsPage = pathname?.startsWith("/settings")
   const isTagsPage = pathname === "/tags"
