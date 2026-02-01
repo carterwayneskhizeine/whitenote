@@ -122,6 +122,7 @@ export async function updateAiConfig(userId: string, data: Partial<{
   mdSyncDir: string | null
   asrApiKey: string
   asrApiUrl: string
+  shareCommentsOrderNewestFirst: boolean
 }>) {
   // 加密敏感字段
   const dataToStore = { ...data }

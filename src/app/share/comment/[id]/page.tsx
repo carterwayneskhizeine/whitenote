@@ -15,6 +15,7 @@ import { ImageLightbox } from "@/components/ImageLightbox"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { Badge } from "@/components/ui/badge"
 import { CommentItem } from "@/components/CommentItem"
+import { getCommentSortOrder } from "@/lib/comment-sort"
 
 interface Comment {
   id: string
@@ -82,7 +83,8 @@ export default function CommentSharePage() {
         const fetchChildComments = async () => {
             setChildrenLoading(true)
             try {
-                const response = await fetch(`/api/public/comments/${id}/children`)
+                const newestFirst = getCommentSortOrder()
+                const response = await fetch(`/api/public/comments/${id}/children?newestFirst=${newestFirst}`)
                 if (response.ok) {
                     const result = await response.json()
                     setChildComments(result.data)
@@ -218,14 +220,14 @@ export default function CommentSharePage() {
         const childComment = childComments.find(c => c.medias === medias)
         // 使用 Set 去重，确保相同的 URL 只出现一次
         const mdImages = Array.from(new Set(
-            childComment?.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+            childComment?.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map((match: string) => {
                 const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
                 return url || ''
-            }).filter(url => url && !url.startsWith('data:')) || []
+            }).filter((url: string) => url && !url.startsWith('data:')) || []
         ))
 
         setCurrentMedias(medias)
-        setMarkdownImages(mdImages)
+        setMarkdownImages(mdImages as string[])
         setLightboxIndex(index)
         setLightboxOpen(true)
     }
@@ -234,17 +236,17 @@ export default function CommentSharePage() {
     const handleMarkdownImageClickForChild = (childComment: any, index: number, url: string) => {
         // 使用 Set 去重，确保相同的 URL 只出现一次
         const mdImages = Array.from(new Set(
-            childComment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+            childComment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map((match: string) => {
                 const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
                 return url || ''
-            }).filter(url => url && !url.startsWith('data:')) || []
+            }).filter((url: string) => url && !url.startsWith('data:')) || []
         ))
 
         // 去重：提取 childComment.medias 中的 URL 集合
-        const mediaUrls = new Set(childComment.medias?.map(m => m.url) || [])
+        const mediaUrls = new Set(childComment.medias?.map((m: any) => m.url) || [])
 
         // 过滤掉 markdownImages 中与 childComment.medias 重复的图片
-        const uniqueMarkdownImages = mdImages.filter(url => !mediaUrls.has(url))
+        const uniqueMarkdownImages = (mdImages as string[]).filter((url: string) => !mediaUrls.has(url))
 
         setCurrentMedias(childComment.medias || [])
         setMarkdownImages(uniqueMarkdownImages)

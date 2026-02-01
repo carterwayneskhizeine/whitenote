@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { CommentItem } from "@/components/CommentItem"
 import { ImageLightbox } from "@/components/ImageLightbox"
+import { getCommentSortOrder } from "@/lib/comment-sort"
 
 interface PublicCommentsListProps {
   messageId: string
@@ -26,7 +27,8 @@ export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const response = await fetch(`/api/public/messages/${messageId}/comments`)
+        const newestFirst = getCommentSortOrder()
+        const response = await fetch(`/api/public/messages/${messageId}/comments?newestFirst=${newestFirst}`)
         if (response.ok) {
           const result = await response.json()
           setComments(result.data)
@@ -68,14 +70,14 @@ export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
     const comment = comments.find(c => c.medias === medias)
     // 使用 Set 去重，确保相同的 URL 只出现一次
     const mdImages = Array.from(new Set(
-      comment?.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+      comment?.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map((match: string) => {
         const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
         return url || ''
-      }).filter(url => url && !url.startsWith('data:')) || []
+      }).filter((url: string) => url && !url.startsWith('data:')) || []
     ))
 
     setCurrentMedias(medias)
-    setMarkdownImages(mdImages)
+    setMarkdownImages(mdImages as string[])
     setLightboxIndex(index)
     setLightboxOpen(true)
   }
@@ -84,17 +86,17 @@ export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
   const handleMarkdownImageClick = (comment: any, index: number, url: string) => {
     // 使用 Set 去重，确保相同的 URL 只出现一次
     const mdImages = Array.from(new Set(
-      comment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+      comment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map((match: string) => {
         const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
         return url || ''
-      }).filter(url => url && !url.startsWith('data:')) || []
+      }).filter((url: string) => url && !url.startsWith('data:')) || []
     ))
 
     // 去重：提取 comment.medias 中的 URL 集合
-    const mediaUrls = new Set(comment.medias?.map(m => m.url) || [])
+    const mediaUrls = new Set(comment.medias?.map((m: any) => m.url) || [])
 
     // 过滤掉 markdownImages 中与 comment.medias 重复的图片
-    const uniqueMarkdownImages = mdImages.filter(url => !mediaUrls.has(url))
+    const uniqueMarkdownImages = (mdImages as string[]).filter((url: string) => !mediaUrls.has(url))
 
     setCurrentMedias(comment.medias || [])
     setMarkdownImages(uniqueMarkdownImages)

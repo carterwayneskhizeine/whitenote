@@ -4,10 +4,13 @@ import { NextRequest } from "next/server"
 /**
  * GET /api/public/comments/[id]/children
  * 获取评论的直接子评论（公开访问，无需认证）
+ * 支持查询参数: newestFirst (true/false) - 控制评论排序
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const newestFirst = searchParams.get('newestFirst') !== 'false' // 默认为 true
 
     // 验证父评论存在
     const parentComment = await prisma.comment.findUnique({
@@ -49,7 +52,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
           select: { replies: true, retweets: true }
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: newestFirst ? "desc" : "asc" },
     })
 
     // 添加转发计数

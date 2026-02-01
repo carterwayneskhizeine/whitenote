@@ -72,6 +72,7 @@ export async function PUT(request: NextRequest) {
       "mdSyncDir",
       "asrApiKey",
       "asrApiUrl",
+      "shareCommentsOrderNewestFirst",
     ]
 
     const updateData: Record<string, unknown> = {}

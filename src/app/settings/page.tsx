@@ -14,6 +14,7 @@ import { PasswordChangeForm } from "@/components/PasswordChangeForm"
 import { TemplateManager } from "@/components/templates/TemplateManager"
 import { AICommandManager } from "@/components/ai-commands/AICommandManager"
 import { WorkspaceManager } from "@/components/WorkspaceManager"
+import { PrivacySettingsForm } from "@/components/PrivacySettingsForm"
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
@@ -101,26 +102,7 @@ export default function SettingsPage() {
         return (
           <div className="space-y-6">
             <PasswordChangeForm />
-            <div className="divide-y divide-border -mx-4 border-t border-border">
-              <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
-                <div className="px-2 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold">私密账户</p>
-                    <p className="text-sm text-muted-foreground">只有您批准的关注者才能看到您的内容</p>
-                  </div>
-                  <Button variant="outline" size="sm" className="rounded-full">更改</Button>
-                </div>
-              </div>
-              <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
-                <div className="px-2 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold">安全登录</p>
-                    <p className="text-sm text-muted-foreground">启用两步验证保护您的账户</p>
-                  </div>
-                  <Button variant="outline" size="sm" className="rounded-full">启用</Button>
-                </div>
-              </div>
-            </div>
+            <PrivacySettingsForm />
           </div>
         )
       case 'notifications':
