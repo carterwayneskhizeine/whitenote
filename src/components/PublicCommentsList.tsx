@@ -79,7 +79,7 @@ export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
   return (
     <div className="flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-border font-bold">
+      <div className="px-4 py-2 border-b border-border font-bold">
         评论 ({comments.length})
       </div>
 

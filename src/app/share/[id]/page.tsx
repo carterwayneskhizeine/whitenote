@@ -272,10 +272,8 @@ export default function SharePage() {
                         </div>
                     )}
 
-                    <Separator className="my-6" />
-
                     {/* Footer Info */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground pb-6">
+                    <div className="flex items-center justify-between text-sm text-muted-foreground">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1.5">
                                 <span className="font-medium text-foreground">{message._count.comments}</span>
