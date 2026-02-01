@@ -10,6 +10,7 @@ import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
+import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -377,6 +378,13 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
         codeBlock: false, // Disable default code block, use CodeBlockLowlight instead
         link: false, // Disable automatic link conversion completely
       }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'rounded-lg max-w-full h-auto',
+        },
+      }),
       Table.configure({
         resizable: true,
       }),
@@ -673,6 +681,15 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
         .ProseMirror p {
           margin-top: 0 !important;
           margin-bottom: 0 !important;
+        }
+
+        /* Images */
+        .ProseMirror img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 0.5rem;
+          display: block;
+          margin: 0.5rem 0;
         }
       `}</style>
     </div>
