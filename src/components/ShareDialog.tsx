@@ -93,20 +93,14 @@ export function ShareDialog({
                         <Button
                             onClick={handleCopy}
                             className={`
-                                gap-2 min-w-[100px] transition-all duration-200
+                                min-w-10.5 px-3 transition-all duration-200
                                 ${copied ? 'bg-green-600 hover:bg-green-700' : ''}
                             `}
                         >
                             {copied ? (
-                                <>
-                                    <Check className={`h-4 w-4 ${isAnimating ? 'animate-in zoom-in duration-200' : ''}`} />
-                                    已复制
-                                </>
+                                <Check className={`h-4 w-4 ${isAnimating ? 'animate-in zoom-in duration-200' : ''}`} />
                             ) : (
-                                <>
-                                    <Link2 className="h-4 w-4" />
-                                    复制
-                                </>
+                                <Link2 className="h-4 w-4" />
                             )}
                         </Button>
                     </div>

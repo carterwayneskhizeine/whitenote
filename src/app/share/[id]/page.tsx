@@ -161,29 +161,22 @@ export default function SharePage() {
                     <div className="flex items-center gap-2">
                         <Button
                             variant={copied ? "default" : "outline"}
-                            size="sm"
+                            size="icon"
+                            className="rounded-full h-9 w-9"
                             onClick={handleCopyLink}
-                            className="gap-2"
                         >
                             <Link2 className="h-4 w-4" />
-                            {copied ? "已复制" : "复制链接"}
                         </Button>
                         <Button
                             variant={contentCopied ? "default" : "outline"}
-                            size="sm"
+                            size="icon"
+                            className="rounded-full h-9 w-9"
                             onClick={handleCopyContent}
-                            className="gap-2"
                         >
                             {contentCopied ? (
-                                <>
-                                    <Check className="h-4 w-4" />
-                                    已复制内容
-                                </>
+                                <Check className="h-4 w-4" />
                             ) : (
-                                <>
-                                    <Copy className="h-4 w-4" />
-                                    复制内容
-                                </>
+                                <Copy className="h-4 w-4" />
                             )}
                         </Button>
                     </div>

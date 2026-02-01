@@ -212,12 +212,11 @@ export default function CommentSharePage() {
                     </div>
                     <Button
                         variant={copied ? "default" : "outline"}
-                        size="sm"
+                        size="icon"
+                        className="rounded-full h-9 w-9"
                         onClick={handleCopyLink}
-                        className="gap-2"
                     >
                         <Link2 className="h-4 w-4" />
-                        {copied ? "已复制" : "复制链接"}
                     </Button>
                 </div>
             </div>
@@ -307,16 +306,6 @@ export default function CommentSharePage() {
                             <QuotedMessageCard message={comment.quotedMessage} />
                         </div>
                     )}
-
-                    <Separator className="my-6" />
-
-                    {/* Context Info */}
-                    <div className="text-sm text-muted-foreground pb-6">
-                        这是一条评论，回复了帖子{" "}
-                        <span className="text-primary">
-                            "{comment.message.content.slice(0, 50)}{comment.message.content.length > 50 ? '...' : ''}"
-                        </span>
-                    </div>
                 </div>
 
                 {/* Child Comments */}
