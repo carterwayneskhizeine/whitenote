@@ -9,6 +9,7 @@ import { Message } from "@/lib/api/messages"
 import { Comment, Template } from "@/types/api"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { MediaGrid } from "@/components/MediaGrid"
+import { ImageLightbox } from "@/components/ImageLightbox"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { SimpleTipTapEditor } from "@/components/SimpleTipTapEditor"
 import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
@@ -39,6 +40,9 @@ function MobileRetweetPageContent() {
   const [viewportHeight, setViewportHeight] = useState(0)
   const mediaUploaderRef = useRef<MediaUploaderRef>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+  const [markdownImages, setMarkdownImages] = useState<string[]>([])
 
   // Handle Visual Viewport API for keyboard
   useEffect(() => {
@@ -94,6 +98,17 @@ function MobileRetweetPageContent() {
     fetchData()
   }, [targetId, targetType])
 
+  // Extract markdown images from content
+  useEffect(() => {
+    if (target?.content) {
+      const images = target.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+        const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+        return url || ''
+      }).filter(url => url && !url.startsWith('data:')) || []
+      setMarkdownImages(images)
+    }
+  }, [target?.content])
+
   // Sanitize markdown to prevent TipTap mark conflicts
   const sanitizeMarkdown = (markdown: string): string => {
     // Remove bold from within code blocks (e.g., **`code`** -> `code`)
@@ -146,6 +161,12 @@ function MobileRetweetPageContent() {
         preserveWhitespace: 'full',
       },
     })
+  }
+
+  const handleMarkdownImageClick = (index: number, url: string) => {
+    const mediaCount = target?.medias?.length || 0
+    setLightboxIndex(mediaCount + index)
+    setLightboxOpen(true)
   }
 
   const handleRetweet = async () => {
@@ -262,7 +283,7 @@ function MobileRetweetPageContent() {
                 </span>
               </div>
               <div className="mt-1 text-sm leading-normal text-muted-foreground line-clamp-3">
-                <TipTapViewer content={target.content} />
+                <TipTapViewer content={target.content} onImageClick={handleMarkdownImageClick} />
               </div>
               {targetMedias && targetMedias.length > 0 && (
                 <MediaGrid medias={targetMedias} className="mt-2" />
@@ -307,6 +328,17 @@ function MobileRetweetPageContent() {
           imageUploading={isUploading}
         />
       </div>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        media={[
+          ...(target?.medias || []),
+          ...markdownImages.map(url => ({ url, type: 'image' }))
+        ]}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </div>
   )
 }

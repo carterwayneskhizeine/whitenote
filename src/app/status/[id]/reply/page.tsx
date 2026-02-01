@@ -9,6 +9,7 @@ import { Message } from "@/lib/api/messages"
 import { Template } from "@/types/api"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { MediaGrid } from "@/components/MediaGrid"
+import { ImageLightbox } from "@/components/ImageLightbox"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { SimpleTipTapEditor } from "@/components/SimpleTipTapEditor"
 import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
@@ -33,6 +34,9 @@ export default function MobileReplyPage() {
   const [viewportHeight, setViewportHeight] = useState(0)
   const mediaUploaderRef = useRef<MediaUploaderRef>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+  const [markdownImages, setMarkdownImages] = useState<string[]>([])
 
   // Handle Visual Viewport API for keyboard
   useEffect(() => {
@@ -81,6 +85,17 @@ export default function MobileReplyPage() {
       fetchData()
     }
   }, [id])
+
+  // Extract markdown images from content
+  useEffect(() => {
+    if (message?.content) {
+      const images = message.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+        const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+        return url || ''
+      }).filter(url => url && !url.startsWith('data:')) || []
+      setMarkdownImages(images)
+    }
+  }, [message?.content])
 
   // Sanitize markdown to prevent TipTap mark conflicts
   const sanitizeMarkdown = (markdown: string): string => {
@@ -134,6 +149,12 @@ export default function MobileReplyPage() {
         preserveWhitespace: 'full',
       },
     })
+  }
+
+  const handleMarkdownImageClick = (index: number, url: string) => {
+    const mediaCount = message?.medias?.length || 0
+    setLightboxIndex(mediaCount + index)
+    setLightboxOpen(true)
   }
 
   const handleReply = async () => {
@@ -250,7 +271,7 @@ export default function MobileReplyPage() {
                 </span>
               </div>
               <div className="mt-1 text-sm leading-normal line-clamp-3">
-                <TipTapViewer content={message.content} />
+                <TipTapViewer content={message.content} onImageClick={handleMarkdownImageClick} />
               </div>
               {message.medias && message.medias.length > 0 && (
                 <MediaGrid medias={message.medias} className="mt-2" />
@@ -295,6 +316,17 @@ export default function MobileReplyPage() {
           imageUploading={isUploading}
         />
       </div>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        media={[
+          ...(message?.medias || []),
+          ...markdownImages.map(url => ({ url, type: 'image' }))
+        ]}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </div>
   )
 }
