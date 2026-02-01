@@ -28,10 +28,13 @@ export function TipTapViewer({ content, className, onImageClick }: TipTapViewerP
   const lowlight = createLowlight(common)
 
   // Extract all image URLs from markdown content
-  const imageUrls = content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
-    const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
-    return url || ''
-  }).filter(url => url && !url.startsWith('data:')) || []
+  // 使用 Set 去重，确保相同的 URL 只出现一次
+  const imageUrls = Array.from(new Set(
+    content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+      const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+      return url || ''
+    }).filter(url => url && !url.startsWith('data:')) || []
+  ))
 
   const editor = useEditor({
     extensions: [

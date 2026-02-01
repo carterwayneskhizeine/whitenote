@@ -187,10 +187,13 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
 
     // Extract markdown images from the comment's content
     const comment = comments.find(c => c.medias === medias)
-    const mdImages = comment?.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
-      const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
-      return url || ''
-    }).filter(url => url && !url.startsWith('data:')) || []
+    // 使用 Set 去重，确保相同的 URL 只出现一次
+    const mdImages = Array.from(new Set(
+      comment?.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+        const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+        return url || ''
+      }).filter(url => url && !url.startsWith('data:')) || []
+    ))
 
     setCurrentMedias(medias)
     setMarkdownImages(mdImages)

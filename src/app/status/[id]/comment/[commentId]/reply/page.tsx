@@ -89,10 +89,13 @@ export default function MobileCommentReplyPage() {
   // Extract markdown images from content
   useEffect(() => {
     if (comment?.content) {
-      const images = comment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
-        const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
-        return url || ''
-      }).filter(url => url && !url.startsWith('data:')) || []
+      // 使用 Set 去重，确保相同的 URL 只出现一次
+      const images = Array.from(new Set(
+        comment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+          const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+          return url || ''
+        }).filter(url => url && !url.startsWith('data:')) || []
+      ))
       setMarkdownImages(images)
     }
   }, [comment?.content])

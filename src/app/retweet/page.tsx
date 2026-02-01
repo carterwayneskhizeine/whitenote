@@ -101,10 +101,13 @@ function MobileRetweetPageContent() {
   // Extract markdown images from content
   useEffect(() => {
     if (target?.content) {
-      const images = target.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
-        const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
-        return url || ''
-      }).filter(url => url && !url.startsWith('data:')) || []
+      // 使用 Set 去重，确保相同的 URL 只出现一次
+      const images = Array.from(new Set(
+        target.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+          const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+          return url || ''
+        }).filter(url => url && !url.startsWith('data:')) || []
+      ))
       setMarkdownImages(images)
     }
   }, [target?.content])
