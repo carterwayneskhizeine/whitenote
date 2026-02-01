@@ -71,13 +71,16 @@ export function ActionRow({
   return (
     <div className={cn("flex items-center justify-between gap-2 text-muted-foreground", className)}>
       {/* Reply Button */}
-      {onReply && (
-        <div className="group flex items-center cursor-pointer" onClick={onReply}>
-          <div className={cn(config.padding, "rounded-full group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors")}>
-            <MessageCircle className={cn(config.icon, "text-muted-foreground group-hover:text-blue-500 transition-colors")} />
+      {(onReply || (showReplyCount && replyCount > 0)) && (
+        <div
+          className={cn("group flex items-center", onReply && "cursor-pointer")}
+          onClick={onReply}
+        >
+          <div className={cn(config.padding, "rounded-full", onReply && "group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors")}>
+            <MessageCircle className={cn(config.icon, "text-muted-foreground", onReply && "group-hover:text-blue-500 transition-colors")} />
           </div>
           {showReplyCount && replyCount > 0 && (
-            <span className={cn("ml-1", config.count, "text-muted-foreground group-hover:text-blue-500 transition-colors")}>
+            <span className={cn("ml-1", config.count, onReply ? "text-muted-foreground group-hover:text-blue-500" : "text-muted-foreground", "transition-colors")}>
               {replyCount}
             </span>
           )}
