@@ -40,6 +40,8 @@ export interface CommentItemProps {
   onShare?: (e: React.MouseEvent) => void
   // 图片点击
   onImageClick?: (index: number, e: React.MouseEvent) => void
+  // markdown 图片点击
+  onMarkdownImageClick?: (index: number, url: string) => void
   // 样式配置
   size?: "sm" | "md" | "lg"
   actionRowSize?: "sm" | "md" | "lg"
@@ -98,6 +100,7 @@ export function CommentItem({
   onToggleStar,
   onShare,
   onImageClick,
+  onMarkdownImageClick,
   size = "md",
   actionRowSize = "sm",
   className,
@@ -211,11 +214,7 @@ export function CommentItem({
                 WebkitBoxOrient: 'vertical',
               } : {}}
             >
-              <TipTapViewer content={comment.content} onImageClick={(index, url) => {
-                // Calculate index: uploaded media + markdown image index
-                const mediaCount = comment.medias?.length || 0
-                onImageClick?.(mediaCount + index, { stopPropagation: () => {} } as any)
-              }} />
+              <TipTapViewer content={comment.content} onImageClick={onMarkdownImageClick} />
             </div>
             {hasMore && !isExpanded && (
               <button

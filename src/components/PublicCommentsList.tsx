@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { CommentItem } from "@/components/CommentItem"
+import { ImageLightbox } from "@/components/ImageLightbox"
 
 interface PublicCommentsListProps {
   messageId: string
@@ -15,6 +16,12 @@ export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(0)
+  const [currentMedias, setCurrentMedias] = useState<any[]>([])
+  const [markdownImages, setMarkdownImages] = useState<string[]>([])
 
   useEffect(() => {
     const fetchComments = async () => {
@@ -50,6 +57,49 @@ export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
   const handleShare = (commentId: string, e: React.MouseEvent) => {
     e.stopPropagation()
     router.push(`/share/comment/${commentId}`)
+  }
+
+  // Handle image click to open lightbox
+  const handleImageClick = (index: number, medias: any, e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!medias || medias.length === 0) return
+
+    // Extract markdown images from the comment's content
+    const comment = comments.find(c => c.medias === medias)
+    // 使用 Set 去重，确保相同的 URL 只出现一次
+    const mdImages = Array.from(new Set(
+      comment?.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+        const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+        return url || ''
+      }).filter(url => url && !url.startsWith('data:')) || []
+    ))
+
+    setCurrentMedias(medias)
+    setMarkdownImages(mdImages)
+    setLightboxIndex(index)
+    setLightboxOpen(true)
+  }
+
+  // Handle markdown image click to open lightbox
+  const handleMarkdownImageClick = (comment: any, index: number, url: string) => {
+    // 使用 Set 去重，确保相同的 URL 只出现一次
+    const mdImages = Array.from(new Set(
+      comment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+        const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+        return url || ''
+      }).filter(url => url && !url.startsWith('data:')) || []
+    ))
+
+    // 去重：提取 comment.medias 中的 URL 集合
+    const mediaUrls = new Set(comment.medias?.map(m => m.url) || [])
+
+    // 过滤掉 markdownImages 中与 comment.medias 重复的图片
+    const uniqueMarkdownImages = mdImages.filter(url => !mediaUrls.has(url))
+
+    setCurrentMedias(comment.medias || [])
+    setMarkdownImages(uniqueMarkdownImages)
+    setLightboxIndex((comment.medias?.length || 0) + index)
+    setLightboxOpen(true)
   }
 
   if (loading) {
@@ -97,6 +147,8 @@ export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
             copied={copiedId === comment.id}
             onCopy={(e) => handleCopy(comment, e)}
             onShare={(e) => handleShare(comment.id, e)}
+            onImageClick={(index, e) => handleImageClick(index, comment.medias, e)}
+            onMarkdownImageClick={(index, url) => handleMarkdownImageClick(comment, index, url)}
             replyCount={comment._count?.replies || 0}
             retweetCount={comment.retweetCount ?? 0}
             size="md"
@@ -104,6 +156,25 @@ export function PublicCommentsList({ messageId }: PublicCommentsListProps) {
           />
         ))}
       </div>
+
+      {/* Image Lightbox */}
+      <ImageLightbox
+        media={(() => {
+          // 去重：提取 currentMedias 中的 URL 集合
+          const mediaUrls = new Set(currentMedias?.map(m => m.url) || [])
+
+          // 过滤掉 markdownImages 中与 currentMedias 重复的图片
+          const uniqueMarkdownImages = markdownImages.filter(url => !mediaUrls.has(url))
+
+          return [
+            ...(currentMedias || []),
+            ...uniqueMarkdownImages.map(url => ({ url, type: 'image' as const }))
+          ]
+        })()}
+        initialIndex={lightboxIndex}
+        open={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </div>
   )
 }

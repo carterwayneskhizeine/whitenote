@@ -201,6 +201,28 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
     setLightboxOpen(true)
   }
 
+  // Handle markdown image click to open lightbox
+  const handleMarkdownImageClick = (comment: Comment, index: number, url: string) => {
+    // 使用 Set 去重，确保相同的 URL 只出现一次
+    const mdImages = Array.from(new Set(
+      comment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+        const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+        return url || ''
+      }).filter(url => url && !url.startsWith('data:')) || []
+    ))
+
+    // 去重：提取 comment.medias 中的 URL 集合
+    const mediaUrls = new Set(comment.medias?.map(m => m.url) || [])
+
+    // 过滤掉 markdownImages 中与 comment.medias 重复的图片
+    const uniqueMarkdownImages = mdImages.filter(url => !mediaUrls.has(url))
+
+    setCurrentMedias(comment.medias || [])
+    setMarkdownImages(uniqueMarkdownImages)
+    setLightboxIndex((comment.medias?.length || 0) + index)
+    setLightboxOpen(true)
+  }
+
   // Post new comment
   const handlePostComment = async () => {
     if ((!newComment.trim() && uploadedMedia.length === 0) || posting) return
@@ -382,6 +404,7 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
               onToggleStar={(e) => handleToggleStar(comment, e)}
               onShare={(e) => handleShareWithEvent(comment.id, e)}
               onImageClick={(index, e) => handleImageClick(index, comment.medias, e)}
+              onMarkdownImageClick={(index, url) => handleMarkdownImageClick(comment, index, url)}
               size="md"
               actionRowSize="sm"
             />
@@ -455,10 +478,18 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
 
       {/* Image Lightbox */}
       <ImageLightbox
-        media={[
-          ...(currentMedias || []),
-          ...markdownImages.map(url => ({ url, type: 'image' }))
-        ]}
+        media={(() => {
+          // 去重：提取 currentMedias 中的 URL 集合
+          const mediaUrls = new Set(currentMedias?.map(m => m.url) || [])
+
+          // 过滤掉 markdownImages 中与 currentMedias 重复的图片
+          const uniqueMarkdownImages = markdownImages.filter(url => !mediaUrls.has(url))
+
+          return [
+            ...(currentMedias || []),
+            ...uniqueMarkdownImages.map(url => ({ url, type: 'image' as const }))
+          ]
+        })()}
         initialIndex={lightboxIndex}
         open={lightboxOpen}
         onClose={() => setLightboxOpen(false)}
