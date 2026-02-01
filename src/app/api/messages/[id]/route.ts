@@ -6,7 +6,7 @@ import { batchUpsertTags, cleanupUnusedTags } from "@/lib/tag-utils"
 import { unlink } from "fs/promises"
 import { join } from "path"
 import { existsSync } from "fs"
-import { exportToLocal, deleteLocalFile } from "@/lib/sync-utils"
+import { exportToLocal, deleteLocalFile, getAllCommentIds } from "@/lib/sync-utils"
 import { addTask } from "@/lib/queue"
 
 // Upload directory outside the codebase
@@ -394,17 +394,24 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     })
 
     if (aiConfig?.enableMdSync && existing.workspaceId) {
-      // Delete the message MD file
-      await deleteLocalFile("message", id, existing.workspaceId)
-
-      // Delete all associated comment MD files
+      // Recursively collect all comment IDs (including nested replies)
+      const allCommentIds: string[] = []
       for (const comment of existing.comments) {
+        const nestedIds = await getAllCommentIds(comment.id)
+        allCommentIds.push(...nestedIds)
+      }
+
+      // Delete all associated comment MD files (including nested replies)
+      for (const commentId of allCommentIds) {
         try {
-          await deleteLocalFile("comment", comment.id, existing.workspaceId)
+          await deleteLocalFile("comment", commentId, existing.workspaceId)
         } catch (error) {
-          console.error(`[DELETE Message] Failed to delete comment MD file ${comment.id}:`, error)
+          console.error(`[DELETE Message] Failed to delete comment MD file ${commentId}:`, error)
         }
       }
+
+      // Delete the message MD file (this also deletes the comment folder)
+      await deleteLocalFile("message", id, existing.workspaceId)
     }
   } catch (error) {
     console.error(`[DELETE Message] Failed to delete local MD files:`, error)

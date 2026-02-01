@@ -1070,6 +1070,27 @@ export async function importAllFromLocal() {
  */
 
 /**
+ * Recursively collect all comment IDs (including nested replies)
+ */
+export async function getAllCommentIds(commentId: string): Promise<string[]> {
+  const comment = await prisma.comment.findUnique({
+    where: { id: commentId },
+    select: { replies: { select: { id: true } } },
+  })
+
+  if (!comment) return [commentId]
+
+  const ids = [commentId]
+
+  for (const reply of comment.replies) {
+    const childIds = await getAllCommentIds(reply.id)
+    ids.push(...childIds)
+  }
+
+  return ids
+}
+
+/**
  * Delete local file and update workspace.json
  */
 export async function deleteLocalFile(type: "message" | "comment", id: string, workspaceId: string) {
