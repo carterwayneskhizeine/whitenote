@@ -35,8 +35,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 
   // 获取子评论，包含每个子评论的子评论数量
+  // 确保不返回自引用的评论（parentId 指向自己的评论）
   const childComments = await prisma.comment.findMany({
-    where: { parentId: id },
+    where: {
+      parentId: id,
+      id: { not: id },  // 排除自引用
+    },
     include: {
       author: { select: { id: true, name: true, avatar: true, email: true } },
       quotedMessage: {

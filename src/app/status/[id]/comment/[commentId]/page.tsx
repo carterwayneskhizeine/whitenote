@@ -113,7 +113,9 @@ export default function CommentDetailPage() {
         }
 
         if (childrenResult.data) {
-          setChildComments(childrenResult.data)
+          // 过滤掉自引用的评论（parentId 指向自己的评论）
+          const filteredChildren = childrenResult.data.filter(c => c.id !== commentId)
+          setChildComments(filteredChildren)
 
           // Initialize starred state for all comments
           const starred = new Set<string>()
