@@ -65,6 +65,7 @@ export default function CommentDetailPage() {
   const [showRetweetDialog, setShowRetweetDialog] = useState(false)
   const [retweetTarget, setRetweetTarget] = useState<Comment | null>(null)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [commentToDelete, setCommentToDelete] = useState<Comment | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -290,16 +291,22 @@ export default function CommentDetailPage() {
   }
 
   const handleDelete = async () => {
-    if (!comment) return
+    const targetComment = commentToDelete || comment
+    if (!targetComment) return
     setIsDeleting(true)
     try {
-      const result = await commentsApi.deleteComment(comment.id)
+      const result = await commentsApi.deleteComment(targetComment.id)
       if (result.success) {
-        // Navigate back to the parent comment or message
-        if (comment.parentId) {
-          router.push(`/status/${id}/comment/${comment.parentId}`)
+        // If deleting the main comment, navigate back
+        if (targetComment.id === comment?.id) {
+          if (comment.parentId) {
+            router.push(`/status/${id}/comment/${comment.parentId}`)
+          } else {
+            router.push(`/status/${id}`)
+          }
         } else {
-          router.push(`/status/${id}`)
+          // If deleting a child comment, refresh the list
+          setRefreshKey(prev => prev + 1)
         }
       }
     } catch (error) {
@@ -307,6 +314,7 @@ export default function CommentDetailPage() {
     } finally {
       setIsDeleting(false)
       setShowDeleteDialog(false)
+      setCommentToDelete(null)
     }
   }
 
@@ -603,6 +611,7 @@ export default function CommentDetailPage() {
               }}
               onDeleteClick={(e) => {
                 e.stopPropagation()
+                setCommentToDelete(childComment)
                 setShowDeleteDialog(true)
               }}
               replyCount={childComment._count?.replies || 0}
@@ -673,12 +682,18 @@ export default function CommentDetailPage() {
       />
 
       {/* Delete Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={(open) => {
+        setShowDeleteDialog(open)
+        if (!open) setCommentToDelete(null)
+      }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>删除评论</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除这条评论吗？此操作无法撤销。
+              {commentToDelete && commentToDelete.id !== comment?.id
+                ? `确定要删除这条回复吗？此操作无法撤销。`
+                : "确定要删除这条评论吗？此操作无法撤销。"
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
