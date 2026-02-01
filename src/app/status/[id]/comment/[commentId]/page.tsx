@@ -376,6 +376,28 @@ export default function CommentDetailPage() {
     setLightboxOpen(true)
   }
 
+  // Handle markdown image click for child comments
+  const handleMarkdownImageClickForChild = (childComment: Comment, index: number, url: string) => {
+    // 使用 Set 去重，确保相同的 URL 只出现一次
+    const mdImages = Array.from(new Set(
+      childComment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+        const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+        return url || ''
+      }).filter(url => url && !url.startsWith('data:')) || []
+    ))
+
+    // 去重：提取 childComment.medias 中的 URL 集合
+    const mediaUrls = new Set(childComment.medias?.map(m => m.url) || [])
+
+    // 过滤掉 markdownImages 中与 childComment.medias 重复的图片
+    const uniqueMarkdownImages = mdImages.filter(url => !mediaUrls.has(url))
+
+    setCurrentMedias(childComment.medias || [])
+    setMarkdownImages(uniqueMarkdownImages)
+    setLightboxIndex((childComment.medias?.length || 0) + index)
+    setLightboxOpen(true)
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -607,6 +629,7 @@ export default function CommentDetailPage() {
                 handleShare(childComment.id)
               }}
               onImageClick={(index, e) => handleImageClick(index, childComment.medias, e)}
+              onMarkdownImageClick={(index, url) => handleMarkdownImageClickForChild(childComment, index, url)}
               size="md"
               actionRowSize="sm"
             />

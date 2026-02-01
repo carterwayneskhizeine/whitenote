@@ -52,6 +52,7 @@ export default function CommentSharePage() {
     const [lightboxOpen, setLightboxOpen] = useState(false)
     const [lightboxIndex, setLightboxIndex] = useState(0)
     const [markdownImages, setMarkdownImages] = useState<string[]>([])
+    const [currentMedias, setCurrentMedias] = useState<any[]>([])
     const [isExpanded, setIsExpanded] = useState(false)
     const [hasMore, setHasMore] = useState(false)
     const contentRef = useRef<HTMLDivElement>(null)
@@ -130,6 +131,13 @@ export default function CommentSharePage() {
         setMarkdownImages(images)
     }, [comment?.content])
 
+    // Initialize currentMedias when comment loads
+    useEffect(() => {
+        if (comment?.medias) {
+            setCurrentMedias(comment.medias)
+        }
+    }, [comment?.medias])
+
     const handleCopyLink = async () => {
         try {
             const shareUrl = window.location.href
@@ -163,12 +171,24 @@ export default function CommentSharePage() {
 
     const handleImageClick = (index: number, e: React.MouseEvent) => {
         e.stopPropagation()
+        setCurrentMedias(comment?.medias || [])
         setLightboxIndex(index)
         setLightboxOpen(true)
     }
 
     const handleMarkdownImageClick = (index: number, url: string) => {
         const mediaCount = comment?.medias?.length || 0
+
+        // 去重：提取 comment.medias 中的 URL 集合
+        const mediaUrls = new Set(comment?.medias?.map(m => m.url) || [])
+
+        // 过滤掉 markdownImages 中与 comment.medias 重复的图片
+        const uniqueMarkdownImages = markdownImages.filter(img => !mediaUrls.has(img))
+
+        setCurrentMedias([
+            ...(comment?.medias || []),
+            ...uniqueMarkdownImages.map(img => ({ url: img, type: 'image' as const, id: img }))
+        ])
         setLightboxIndex(mediaCount + index)
         setLightboxOpen(true)
     }
@@ -187,6 +207,49 @@ export default function CommentSharePage() {
     const handleShareChildComment = (childId: string, e: React.MouseEvent) => {
         e.stopPropagation()
         router.push(`/share/comment/${childId}`)
+    }
+
+    // Handle image click for child comments
+    const handleImageClickForChild = (index: number, medias: any, e: React.MouseEvent) => {
+        e.stopPropagation()
+        if (!medias || medias.length === 0) return
+
+        // Extract markdown images from the child comment's content
+        const childComment = childComments.find(c => c.medias === medias)
+        // 使用 Set 去重，确保相同的 URL 只出现一次
+        const mdImages = Array.from(new Set(
+            childComment?.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+                const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+                return url || ''
+            }).filter(url => url && !url.startsWith('data:')) || []
+        ))
+
+        setCurrentMedias(medias)
+        setMarkdownImages(mdImages)
+        setLightboxIndex(index)
+        setLightboxOpen(true)
+    }
+
+    // Handle markdown image click for child comments
+    const handleMarkdownImageClickForChild = (childComment: any, index: number, url: string) => {
+        // 使用 Set 去重，确保相同的 URL 只出现一次
+        const mdImages = Array.from(new Set(
+            childComment.content.match(/!\[.*?\]\(([^)]+)\)/g)?.map(match => {
+                const url = match.match(/!\[.*?\]\(([^)]+)\)/)?.[1]
+                return url || ''
+            }).filter(url => url && !url.startsWith('data:')) || []
+        ))
+
+        // 去重：提取 childComment.medias 中的 URL 集合
+        const mediaUrls = new Set(childComment.medias?.map(m => m.url) || [])
+
+        // 过滤掉 markdownImages 中与 childComment.medias 重复的图片
+        const uniqueMarkdownImages = mdImages.filter(url => !mediaUrls.has(url))
+
+        setCurrentMedias(childComment.medias || [])
+        setMarkdownImages(uniqueMarkdownImages)
+        setLightboxIndex((childComment.medias?.length || 0) + index)
+        setLightboxOpen(true)
     }
 
     if (isLoading) {
@@ -383,6 +446,8 @@ export default function CommentSharePage() {
                                     copied={copiedChildId === child.id}
                                     onCopy={(e) => handleCopyChildComment(child, e)}
                                     onShare={(e) => handleShareChildComment(child.id, e)}
+                                    onImageClick={(index, e) => handleImageClickForChild(index, child.medias, e)}
+                                    onMarkdownImageClick={(index, url) => handleMarkdownImageClickForChild(child, index, url)}
                                     replyCount={child._count?.replies || 0}
                                     retweetCount={child.retweetCount ?? 0}
                                     size="sm"
@@ -397,14 +462,14 @@ export default function CommentSharePage() {
             {/* Image Lightbox */}
             <ImageLightbox
                 media={(() => {
-                    // 去重：提取 comment.medias 中的 URL 集合
-                    const mediaUrls = new Set(comment?.medias?.map(m => m.url) || [])
+                    // 去重：提取 currentMedias 中的 URL 集合
+                    const mediaUrls = new Set(currentMedias?.map(m => m.url) || [])
 
-                    // 过滤掉 markdownImages 中与 comment.medias 重复的图片
+                    // 过滤掉 markdownImages 中与 currentMedias 重复的图片
                     const uniqueMarkdownImages = markdownImages.filter(url => !mediaUrls.has(url))
 
                     return [
-                        ...(comment?.medias || []),
+                        ...(currentMedias || []),
                         ...uniqueMarkdownImages.map(url => ({ url, type: 'image' as const }))
                     ]
                 })()}

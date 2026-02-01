@@ -6,7 +6,7 @@ interface UseDoubleClickOptions {
   forceMobile?: boolean // 强制使用移动端单击模式
 }
 
-export function useDoubleClick({ onDoubleClick, delay = 1000, forceMobile }: UseDoubleClickOptions) {
+export function useDoubleClick({ onDoubleClick, delay = 500, forceMobile }: UseDoubleClickOptions) {
   const lastClickTime = useRef<number>(0)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
