@@ -217,15 +217,71 @@ export interface SearchParams {
   q: string
   page?: number
   limit?: number
+  type?: 'all' | 'messages' | 'comments'
 }
 
+// 搜索结果中的评论类型
+export interface CommentWithRelations {
+  id: string
+  content: string
+  createdAt: string | Date
+  updatedAt: string | Date
+  isStarred: boolean
+  isAIBot: boolean
+  messageId: string
+  authorId: string | null
+  parentId: string | null
+  quotedMessageId: string | null
+  author: {
+    id: string
+    name: string | null
+    avatar: string | null
+  } | null
+  message: {
+    id: string
+    content: string
+    author: {
+      id: string
+      name: string | null
+      avatar: string | null
+    }
+  }
+  parent: {
+    id: string
+    content: string
+    author: {
+      id: string
+      name: string | null
+      avatar: string | null
+    }
+  } | null
+  tags: Array<{
+    tag: {
+      id: string
+      name: string
+      color: string | null
+    }
+  }>
+  type: 'comment'
+}
+
+// 搜索结果中的消息类型
+export interface MessageSearchResult extends MessageWithRelations {
+  type: 'message'
+}
+
+// 搜索结果联合类型
+export type SearchResultItem = MessageSearchResult | CommentWithRelations
+
 export interface SearchResponse {
-  data: MessageWithRelations[]
+  data: SearchResultItem[]
   meta?: {
     total: number
     page: number
     limit: number
     totalPages: number
+    messageCount: number
+    commentCount: number
   }
   error?: string
 }

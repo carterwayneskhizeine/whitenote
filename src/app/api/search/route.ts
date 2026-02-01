@@ -47,75 +47,152 @@ async function saveSearchHistory(query: string) {
  * - q: 搜索关键词
  * - saveHistory: 是否保存搜索历史 (默认 true)
  * - history: 是否返回搜索历史 (默认 false)
+ * - type: 搜索类型 (all/messages/comments，默认 all)
  */
 export async function GET(request: NextRequest) {
   try {
     const session = await requireAuth()
     const searchParams = request.nextUrl.searchParams
-  const query = searchParams.get("q")
-  const saveHistory = searchParams.get("saveHistory") !== "false"
-  const returnHistory = searchParams.get("history") === "true"
+    const query = searchParams.get("q")
+    const saveHistory = searchParams.get("saveHistory") !== "false"
+    const returnHistory = searchParams.get("history") === "true"
+    const type = searchParams.get("type") || "all"
 
-  // 返回搜索历史
-  if (returnHistory) {
-    const history = await prisma.searchHistory.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      select: {
-        id: true,
-        query: true,
-        createdAt: true,
+    // 返回搜索历史
+    if (returnHistory) {
+      const history = await prisma.searchHistory.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: {
+          id: true,
+          query: true,
+          createdAt: true,
+        },
+      })
+      return Response.json({ data: history })
+    }
+
+    if (!query || query.trim() === "") {
+      return Response.json({ error: "Query is required" }, { status: 400 })
+    }
+
+    const { page, limit, skip } = getPaginationParams(request)
+
+    // 保存搜索历史（仅在明确要求时记录）
+    if (saveHistory) {
+      await saveSearchHistory(query.trim())
+    }
+
+    const searchInMessages = type === "all" || type === "messages"
+    const searchInComments = type === "all" || type === "comments"
+
+    // 并行搜索消息和评论
+    const [messages, comments, messageTotal, commentTotal] = await Promise.all([
+      // 搜索消息
+      searchInMessages
+        ? prisma.message.findMany({
+            where: {
+              authorId: session.user.id,
+              content: {
+                contains: query.trim(),
+                mode: "insensitive",
+              },
+            },
+            include: {
+              author: { select: { id: true, name: true, avatar: true } },
+              tags: {
+                include: {
+                  tag: { select: { id: true, name: true, color: true } },
+                },
+              },
+              _count: { select: { comments: true } },
+            },
+            orderBy: { createdAt: "desc" },
+          })
+        : [],
+      // 搜索评论
+      searchInComments
+        ? prisma.comment.findMany({
+            where: {
+              authorId: session.user.id,
+              content: {
+                contains: query.trim(),
+                mode: "insensitive",
+              },
+            },
+            include: {
+              author: { select: { id: true, name: true, avatar: true } },
+              message: {
+                select: {
+                  id: true,
+                  content: true,
+                  author: {
+                    select: { id: true, name: true, avatar: true },
+                  },
+                },
+              },
+              parent: {
+                select: {
+                  id: true,
+                  content: true,
+                  author: {
+                    select: { id: true, name: true, avatar: true },
+                  },
+                },
+              },
+              tags: {
+                include: {
+                  tag: { select: { id: true, name: true, color: true } },
+                },
+              },
+            },
+            orderBy: { createdAt: "desc" },
+          })
+        : [],
+      // 统计消息总数
+      searchInMessages
+        ? prisma.message.count({
+            where: {
+              authorId: session.user.id,
+              content: { contains: query.trim(), mode: "insensitive" },
+            },
+          })
+        : 0,
+      // 统计评论总数
+      searchInComments
+        ? prisma.comment.count({
+            where: {
+              authorId: session.user.id,
+              content: { contains: query.trim(), mode: "insensitive" },
+            },
+          })
+        : 0,
+    ])
+
+    // 合并并标记类型
+    const messagesWithType = messages.map((m) => ({ ...m, type: "message" }))
+    const commentsWithType = comments.map((c) => ({ ...c, type: "comment" }))
+
+    // 合并结果并按创建时间排序
+    const allResults = [...messagesWithType, ...commentsWithType].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+
+    // 分页
+    const total = messageTotal + commentTotal
+    const paginatedResults = allResults.slice(skip, skip + limit)
+
+    return Response.json({
+      data: paginatedResults,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        messageCount: messageTotal,
+        commentCount: commentTotal,
       },
     })
-    return Response.json({ data: history })
-  }
-
-  if (!query || query.trim() === "") {
-    return Response.json({ error: "Query is required" }, { status: 400 })
-  }
-
-  const { page, limit, skip } = getPaginationParams(request)
-
-  // 保存搜索历史（仅在明确要求时记录）
-  if (saveHistory) {
-    await saveSearchHistory(query.trim())
-  }
-
-  // 搜索消息
-  const [messages, total] = await Promise.all([
-    prisma.message.findMany({
-      where: {
-        authorId: session.user.id,
-        content: {
-          contains: query.trim(),
-          mode: "insensitive",
-        },
-      },
-      include: {
-        author: { select: { id: true, name: true, avatar: true } },
-        tags: {
-          include: {
-            tag: { select: { id: true, name: true, color: true } },
-          },
-        },
-        _count: { select: { comments: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: limit,
-    }),
-    prisma.message.count({
-      where: {
-        authorId: session.user.id,
-        content: { contains: query.trim(), mode: "insensitive" },
-      },
-    }),
-  ])
-
-  return Response.json({
-    data: messages,
-    meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-  })
   } catch (error) {
     if (error instanceof AuthError) {
       return Response.json({ error: error.message }, { status: 401 })

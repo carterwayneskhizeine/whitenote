@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { Search, Clock, ArrowLeft, Loader2 } from "lucide-react"
+import { Search, Clock, ArrowLeft, Loader2, MessageCircle } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { searchApi } from "@/lib/api/search"
-import { MessageWithRelations } from "@/types/api"
+import { SearchResultItem } from "@/types/api"
 import { useRouter } from "next/navigation"
 import { useWorkspaceStore } from "@/store/useWorkspaceStore"
 import Link from "next/link"
@@ -21,7 +21,7 @@ export default function SearchPage() {
   const router = useRouter()
   const { currentWorkspaceId } = useWorkspaceStore()
   const [searchQuery, setSearchQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<MessageWithRelations[]>([])
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([])
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
@@ -110,10 +110,17 @@ export default function SearchPage() {
   }
 
   // 点击搜索结果（记录搜索历史）
-  const handleResultClick = async (messageId: string, query: string) => {
+  const handleResultClick = async (item: SearchResultItem, query: string) => {
     // 记录搜索历史
     await searchApi.search({ q: query, saveHistory: true })
-    router.push(`/status/${messageId}`)
+
+    if (item.type === "comment") {
+      // 评论结果 - 导航到评论详情页
+      router.push(`/status/${item.messageId}/comment/${item.id}`)
+    } else {
+      // 消息结果 - 导航到消息详情页
+      router.push(`/status/${item.id}`)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -135,7 +142,7 @@ export default function SearchPage() {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="搜索消息、标签..."
+              placeholder="搜索消息、评论、标签..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -198,29 +205,59 @@ export default function SearchPage() {
               </div>
             ) : (
               <div className="space-y-2">
-                {searchResults.map((message) => (
+                {searchResults.map((item) => (
                   <button
-                    key={message.id}
-                    onClick={() => handleResultClick(message.id, searchQuery)}
+                    key={item.id}
+                    onClick={() => handleResultClick(item, searchQuery)}
                     className="w-full text-left p-4 hover:bg-muted/50 rounded-2xl transition-colors"
                   >
                     <div className="flex gap-3">
+                      {/* 类型标识 */}
+                      {item.type === "comment" && (
+                        <MessageCircle className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-bold text-sm">
-                            {message.author?.name || "AI 助手"}
+                            {item.author?.name || "AI 助手"}
                           </span>
+                          {item.type === "comment" && (
+                            <span className="text-xs text-muted-foreground">
+                              · 评论
+                            </span>
+                          )}
                           <span className="text-xs text-muted-foreground">
-                            {new Date(message.createdAt).toLocaleDateString()}
+                            {new Date(item.createdAt).toLocaleDateString()}
                           </span>
                         </div>
                         <div
                           className="text-sm line-clamp-3 prose prose-sm dark:prose-invert"
-                          dangerouslySetInnerHTML={{ __html: message.content }}
+                          dangerouslySetInnerHTML={{ __html: item.content }}
                         />
-                        {message.tags.length > 0 && (
+                        {item.type === "comment" ? (
+                          // 评论：显示所属消息信息
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            来自: {item.message.author?.name || "AI 助手"} 的消息
+                          </div>
+                        ) : (
+                          // 消息：显示标签
+                          item.tags.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {item.tags.map(({ tag }) => (
+                                <span
+                                  key={tag.id}
+                                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
+                                >
+                                  #{tag.name}
+                                </span>
+                              ))}
+                            </div>
+                          )
+                        )}
+                        {/* 评论也可以显示标签 */}
+                        {item.type === "comment" && item.tags.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
-                            {message.tags.map(({ tag }) => (
+                            {item.tags.map(({ tag }) => (
                               <span
                                 key={tag.id}
                                 className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
