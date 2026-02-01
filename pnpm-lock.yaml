@@ -53,6 +53,9 @@ importers:
       '@tiptap/extension-code-block-lowlight':
         specifier: ^3.15.2
         version: 3.15.2(@tiptap/core@3.15.2(@tiptap/pm@3.15.2))(@tiptap/extension-code-block@3.15.2(@tiptap/core@3.15.2(@tiptap/pm@3.15.2))(@tiptap/pm@3.15.2))(@tiptap/pm@3.15.2)(highlight.js@11.11.1)(lowlight@3.3.0)
+      '@tiptap/extension-image':
+        specifier: ^3.18.0
+        version: 3.18.0(@tiptap/core@3.15.2(@tiptap/pm@3.15.2))
       '@tiptap/extension-placeholder':
         specifier: ^3.15.2
         version: 3.15.2(@tiptap/extensions@3.15.2(@tiptap/core@3.15.2(@tiptap/pm@3.15.2))(@tiptap/pm@3.15.2))
@@ -1538,6 +1541,11 @@ packages:
     peerDependencies:
       '@tiptap/core': ^3.15.2
       '@tiptap/pm': ^3.15.2
+
+  '@tiptap/extension-image@3.18.0':
+    resolution: {integrity: sha512-Hc8riY43yPlQDKIpJf/aZ3kw1WNYjJrBH7UZKGQ9cfmUfnKQgN6+bfWgyvtQezDfhvVL6RNKSGNfoYHkV+rJaA==}
+    peerDependencies:
+      '@tiptap/core': ^3.18.0
 
   '@tiptap/extension-italic@3.15.2':
     resolution: {integrity: sha512-6rSMDQFLwPuWVsazJe6xyL4lXLdjUcNkXt3lU5Jy0jjh/J9YQDGpThFeFskgnctV+jxIheQ2rYlfnYxBPIquqA==}
@@ -5244,6 +5252,10 @@ snapshots:
     dependencies:
       '@tiptap/core': 3.15.2(@tiptap/pm@3.15.2)
       '@tiptap/pm': 3.15.2
+
+  '@tiptap/extension-image@3.18.0(@tiptap/core@3.15.2(@tiptap/pm@3.15.2))':
+    dependencies:
+      '@tiptap/core': 3.15.2(@tiptap/pm@3.15.2)
 
   '@tiptap/extension-italic@3.15.2(@tiptap/core@3.15.2(@tiptap/pm@3.15.2))':
     dependencies:

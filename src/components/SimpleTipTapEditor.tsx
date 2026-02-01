@@ -6,6 +6,7 @@ import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from '@tiptap/markdown'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
+import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import { SlashCommand } from '@/lib/editor/extensions/slash-command'
 import { Loader2 } from 'lucide-react'
@@ -43,6 +44,13 @@ export function SimpleTipTapEditor({
       StarterKit.configure({
         codeBlock: false,
         link: false,
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'rounded-lg max-w-full h-auto',
+        },
       }),
       CodeBlockLowlight.configure({
         lowlight,
@@ -125,6 +133,15 @@ export function SimpleTipTapEditor({
         .ProseMirror p {
           margin-top: 0 !important;
           margin-bottom: 0 !important;
+        }
+
+        /* Images */
+        .ProseMirror img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 0.5rem;
+          display: block;
+          margin: 0.5rem 0;
         }
       `}</style>
     </div>

@@ -9,6 +9,7 @@ import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
+import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import { cn } from "@/lib/utils"
 
@@ -32,6 +33,13 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
           levels: [1, 2, 3, 4, 5, 6],
         },
         codeBlock: false, // Disable default code block, use CodeBlockLowlight instead
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'rounded-lg max-w-full h-auto cursor-pointer',
+        },
       }),
       Table.configure({
         resizable: true,
@@ -437,6 +445,19 @@ export function TipTapViewer({ content, className }: TipTapViewerProps) {
         /* Strikethrough */
         .tipTap-viewer .ProseMirror s {
           text-decoration: line-through;
+        }
+
+        /* Images */
+        .tipTap-viewer .ProseMirror img {
+          max-width: 100%;
+          height: auto;
+          border-radius: 0.5rem;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .tipTap-viewer .ProseMirror img:hover {
+          opacity: 0.9;
         }
       `}</style>
     </div>
