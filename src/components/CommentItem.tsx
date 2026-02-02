@@ -219,6 +219,7 @@ export function CommentItem({
             {hasMore && !isExpanded && (
               <button
                 onClick={(e) => {
+                  e.preventDefault()
                   e.stopPropagation()
                   setIsExpanded(true)
                 }}

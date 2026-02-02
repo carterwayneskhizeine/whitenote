@@ -291,8 +291,9 @@ export function MessageCard({
               {hasMore && !isExpanded && (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation();
-                    setIsExpanded(true);
+                    e.preventDefault()
+                    e.stopPropagation()
+                    setIsExpanded(true)
                   }}
                   className="text-primary text-sm font-medium mt-1 hover:underline text-left w-fit"
                 >

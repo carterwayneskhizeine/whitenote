@@ -528,7 +528,11 @@ export default function CommentDetailPage() {
         </div>
         {hasMore && !isExpanded && (
           <button
-            onClick={() => setIsExpanded(true)}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setIsExpanded(true)
+            }}
             className="text-primary text-sm font-medium mt-1 hover:underline text-left w-fit"
           >
             显示更多

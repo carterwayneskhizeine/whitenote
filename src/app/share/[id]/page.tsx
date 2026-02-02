@@ -271,7 +271,11 @@ export default function SharePage() {
 
                     {hasMore && !isExpanded && (
                         <button
-                            onClick={() => setIsExpanded(true)}
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                setIsExpanded(true)
+                            }}
                             className="text-primary text-sm font-medium mb-4 hover:underline flex items-center gap-1"
                         >
                             显示更多
