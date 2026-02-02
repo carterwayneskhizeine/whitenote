@@ -46,35 +46,31 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 获取用户的 RAGFlow 配置
+    // 获取用户的 RAGFlow 配置（可选，不再强制要求）
     const config = await getAiConfig(session.user.id)
 
-    if (!config.ragflowBaseUrl || !config.ragflowApiKey) {
-      return Response.json(
-        { error: "请先在 AI 配置中设置 RAGFlow Base URL 和 API Key" },
-        { status: 400 }
-      )
-    }
-
-    // 自动创建 RAGFlow 资源
+    // 自动创建 RAGFlow 资源（如果配置了的话）
     let datasetId: string | null = null
     let chatId: string | null = null
 
-    try {
-      const result = await provisionRAGFlowForWorkspace(
-        config.ragflowBaseUrl,
-        config.ragflowApiKey,
-        name,
-        session.user.id
-      )
-      datasetId = result.datasetId
-      chatId = result.chatId
-    } catch (error) {
-      console.error("[Workspaces API] Error provisioning RAGFlow:", error)
-      return Response.json(
-        { error: `创建 RAGFlow 资源失败: ${error instanceof Error ? error.message : "未知错误"}` },
-        { status: 500 }
-      )
+    if (config.ragflowBaseUrl && config.ragflowApiKey) {
+      try {
+        const result = await provisionRAGFlowForWorkspace(
+          config.ragflowBaseUrl,
+          config.ragflowApiKey,
+          name,
+          session.user.id
+        )
+        datasetId = result.datasetId
+        chatId = result.chatId
+        console.log(`[Workspaces API] Successfully provisioned RAGFlow for workspace: ${name}`)
+      } catch (error) {
+        // RAGFlow 创建失败不再阻止工作区创建，只记录错误
+        console.error("[Workspaces API] Error provisioning RAGFlow:", error)
+        console.warn("[Workspaces API] Workspace will be created without RAGFlow resources")
+      }
+    } else {
+      console.log(`[Workspaces API] RAGFlow not configured, creating workspace without RAGFlow: ${name}`)
     }
 
     // 创建 Workspace 记录
