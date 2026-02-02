@@ -145,26 +145,33 @@ export function TipTapViewer({ content, className, onImageClick }: TipTapViewerP
 
     const addImageClickHandlers = () => {
       const images = editor.view.dom.querySelectorAll('img')
-      let currentIndex = 0
+      let markdownIndex = 0
+
+      console.log('TipTapViewer - adding handlers to', images.length, 'images')
 
       images.forEach((img: Element) => {
         const imageElement = img as HTMLImageElement
         const src = imageElement.src
 
-        // 只处理 markdown 图片（不在 medias 中的图片）
-        // 使用 DOM 顺序作为索引，而不是 indexOf
-        if (!imageElement.dataset.lightboxHandled) {
+        // 只处理 markdown 图片（在 imageUrls 列表中的图片）
+        const isMarkdownImage = imageUrls.some(url => src.includes(url))
+
+        if (isMarkdownImage && !imageElement.dataset.lightboxHandled) {
+          // Capture current index for this handler
+          const currentIndex = markdownIndex
+
           imageElement.dataset.lightboxHandled = 'true'
           imageElement.dataset.lightboxIndex = currentIndex.toString()
 
           const handleClick = (e: MouseEvent) => {
             e.preventDefault()
             e.stopPropagation()
+            console.log('TipTapViewer - markdown image clicked, index:', currentIndex, 'src:', src)
             onImageClick(currentIndex, src)
           }
 
           imageElement.addEventListener('click', handleClick)
-          currentIndex++
+          markdownIndex++
         }
       })
     }

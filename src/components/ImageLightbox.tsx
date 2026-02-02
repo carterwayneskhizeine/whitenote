@@ -20,8 +20,6 @@ interface ImageLightboxProps {
 }
 
 export function ImageLightbox({ media, initialIndex = 0, open, onClose }: ImageLightboxProps) {
-  const [index, setIndex] = useState(initialIndex)
-
   // Filter only images
   const slides = media
     .filter((item) => item.type === "image")
@@ -30,13 +28,24 @@ export function ImageLightbox({ media, initialIndex = 0, open, onClose }: ImageL
       alt: item.description || "",
     }))
 
+  if (slides.length === 0 || !open) {
+    return null
+  }
+
+  return <LightboxContent key={`${open}-${initialIndex}`} slides={slides} initialIndex={initialIndex} open={open} onClose={onClose} />
+}
+
+function LightboxContent({ slides, initialIndex, open, onClose }: {
+  slides: { src: string; alt: string }[]
+  initialIndex: number
+  open: boolean
+  onClose: () => void
+}) {
+  const [index, setIndex] = useState(initialIndex)
+
   const handleIndexChange = useCallback(({ index: newIndex }: { index: number }) => {
     setIndex(newIndex)
   }, [])
-
-  if (slides.length === 0) {
-    return null
-  }
 
   return (
     <Lightbox

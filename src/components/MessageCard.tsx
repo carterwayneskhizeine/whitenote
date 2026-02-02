@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import {
   MoreVertical,
@@ -187,12 +187,17 @@ export function MessageCard({
   }
 
   // Handle markdown image click to open lightbox
-  const handleMarkdownImageClick = (index: number, url: string) => {
+  const handleMarkdownImageClick = useCallback((index: number, url: string) => {
     // Calculate index: uploaded media + markdown image index
     const mediaCount = message.medias?.length || 0
-    setLightboxIndex(mediaCount + index)
+    const targetIndex = mediaCount + index
+
+    console.log('handleMarkdownImageClick - markdown index:', index, 'mediaCount:', mediaCount, 'targetIndex:', targetIndex)
+
+    // Batch both updates together
+    setLightboxIndex(targetIndex)
     setLightboxOpen(true)
-  }
+  }, [message.medias?.length])
 
   // Extract markdown images from content
   useEffect(() => {
@@ -203,8 +208,11 @@ export function MessageCard({
         return url || ''
       }).filter(url => url && !url.startsWith('data:')) || []
     ))
+    console.log('MessageCard - medias:', message.medias?.length || 0)
+    console.log('MessageCard - markdownImages:', images.length)
+    console.log('MessageCard - total:', (message.medias?.length || 0) + images.length)
     setMarkdownImages(images)
-  }, [message.content])
+  }, [message.content, message.medias?.length])
 
   // 移动端单击、桌面端双击（1秒内）
   const handleClick = useDoubleClick({
@@ -401,6 +409,7 @@ export function MessageCard({
 
       {/* Image Lightbox */}
       <ImageLightbox
+        key={`lightbox-${lightboxOpen ? 'open' : 'closed'}-${lightboxIndex}`}
         media={[
           ...(message.medias || []),
           ...markdownImages.map(url => ({ url, type: 'image' }))
