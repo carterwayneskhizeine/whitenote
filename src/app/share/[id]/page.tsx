@@ -31,6 +31,7 @@ export default function SharePage() {
     const [isExpanded, setIsExpanded] = useState(false)
     const [hasMore, setHasMore] = useState(false)
     const contentRef = useRef<HTMLDivElement>(null)
+    const buttonRef = useRef<HTMLButtonElement>(null)
 
     useEffect(() => {
         const fetchMessage = async () => {
@@ -271,10 +272,33 @@ export default function SharePage() {
 
                     {hasMore && !isExpanded && (
                         <button
+                            ref={buttonRef}
                             onClick={(e) => {
                                 e.preventDefault()
                                 e.stopPropagation()
+
+                                // Store viewport position before expansion
+                                const currentScrollY = window.scrollY
+                                const buttonRect = buttonRef.current?.getBoundingClientRect()
+                                if (!buttonRect) {
+                                    setIsExpanded(true)
+                                    return
+                                }
+
+                                // The button's position relative to viewport
+                                const buttonBottom = buttonRect.bottom
+
+                                // Expand the content
                                 setIsExpanded(true)
+
+                                // After expansion, scroll to maintain the button's original position in viewport
+                                requestAnimationFrame(() => {
+                                    const targetScrollY = Math.max(0, currentScrollY + buttonBottom - window.innerHeight * 0.7)
+                                    window.scrollTo({
+                                        top: targetScrollY,
+                                        behavior: 'instant'
+                                    })
+                                })
                             }}
                             className="text-primary text-sm font-medium mb-4 hover:underline flex items-center gap-1"
                         >

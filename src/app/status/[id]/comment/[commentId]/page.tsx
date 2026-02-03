@@ -75,6 +75,7 @@ export default function CommentDetailPage() {
   const [markdownImages, setMarkdownImages] = useState<string[]>([])
   const [currentMedias, setCurrentMedias] = useState<Comment['medias']>([])
   const contentRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const [isExpanded, setIsExpanded] = useState(false)
   const [hasMore, setHasMore] = useState(false)
 
@@ -528,10 +529,33 @@ export default function CommentDetailPage() {
         </div>
         {hasMore && !isExpanded && (
           <button
+            ref={buttonRef}
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
+
+              // Store viewport position before expansion
+              const currentScrollY = window.scrollY
+              const buttonRect = buttonRef.current?.getBoundingClientRect()
+              if (!buttonRect) {
+                setIsExpanded(true)
+                return
+              }
+
+              // The button's position relative to viewport
+              const buttonBottom = buttonRect.bottom
+
+              // Expand the content
               setIsExpanded(true)
+
+              // After expansion, scroll to maintain the button's original position in viewport
+              requestAnimationFrame(() => {
+                const targetScrollY = Math.max(0, currentScrollY + buttonBottom - window.innerHeight * 0.7)
+                window.scrollTo({
+                  top: targetScrollY,
+                  behavior: 'instant'
+                })
+              })
             }}
             className="text-primary text-sm font-medium mt-1 hover:underline text-left w-fit"
           >

@@ -70,6 +70,7 @@ export function MessageCard({
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const [markdownImages, setMarkdownImages] = useState<string[]>([])
   const contentRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     // 检测内容是否需要"显示更多"按钮
@@ -298,10 +299,37 @@ export function MessageCard({
               </div>
               {hasMore && !isExpanded && (
                 <button
+                  ref={buttonRef}
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
+
+                    // Store viewport position before expansion
+                    const currentScrollY = window.scrollY
+                    const buttonRect = buttonRef.current?.getBoundingClientRect()
+                    if (!buttonRect) {
+                      setIsExpanded(true)
+                      return
+                    }
+
+                    // The button's position relative to viewport
+                    const buttonTop = buttonRect.top
+                    const buttonBottom = buttonRect.bottom
+
+                    // Expand the content
                     setIsExpanded(true)
+
+                    // After expansion, scroll to maintain the button's original position in viewport
+                    // This makes the new content appear below where the button was
+                    requestAnimationFrame(() => {
+                      // We want to scroll so the area that was visible before expansion stays visible
+                      // The new content should appear below the button's original position
+                      const targetScrollY = Math.max(0, currentScrollY + buttonBottom - window.innerHeight * 0.7)
+                      window.scrollTo({
+                        top: targetScrollY,
+                        behavior: 'instant'
+                      })
+                    })
                   }}
                   className="text-primary text-sm font-medium mt-1 hover:underline text-left w-fit"
                 >
