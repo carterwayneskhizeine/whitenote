@@ -68,3 +68,71 @@ export async function buildSystemPrompt(userId: string): Promise<string> {
 
   return prompt
 }
+
+/**
+ * 调用 OpenAI 兼容接口 (流式模式)
+ * @returns AsyncGenerator<string> 逐块返回文本内容
+ */
+export async function* callOpenAIStream(options: ChatOptions): AsyncGenerator<string> {
+  const config = await getAiConfig(options.userId)
+
+  if (!config.openaiApiKey) {
+    throw new Error("OpenAI API key not configured")
+  }
+
+  const response = await fetch(`${config.openaiBaseUrl}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${config.openaiApiKey}`,
+    },
+    body: JSON.stringify({
+      model: options.model || config.openaiModel,
+      messages: options.messages,
+      stream: true,
+    }),
+  })
+
+  if (!response.ok) {
+    const error = await response.text()
+    throw new Error(`OpenAI API error: ${error}`)
+  }
+
+  // 创建可读流
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error("Response body is not readable")
+  }
+
+  const decoder = new TextDecoder()
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      const chunk = decoder.decode(value, { stream: true })
+      const lines = chunk.split("\n")
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed === "data: [DONE]") continue
+        if (!trimmed.startsWith("data: ")) continue
+
+        try {
+          const jsonStr = trimmed.slice(6) // Remove "data: " prefix
+          const data = JSON.parse(jsonStr)
+          const content = data.choices?.[0]?.delta?.content
+          if (content) {
+            yield content
+          }
+        } catch (e) {
+          // Skip invalid JSON lines
+          console.warn("Failed to parse SSE line:", trimmed)
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}

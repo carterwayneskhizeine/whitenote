@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { commentsApi, aiApi, templatesApi } from "@/lib/api"
+import { commentsApi, templatesApi } from "@/lib/api"
 import { Comment } from "@/types/api"
 import { Template } from "@/types/api"
 import { MediaItem } from "@/components/MediaUploader"
@@ -46,6 +46,10 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
   const [templates, setTemplates] = useState<Template[]>([])
   const [isProcessingAI, setIsProcessingAI] = useState(false)
   const [replyInputFocused, setReplyInputFocused] = useState(false)
+
+  // 流式 AI 回复状态
+  const [aiStreamingResponse, setAiStreamingResponse] = useState<string>("")
+  const [isAiStreaming, setIsAiStreaming] = useState(false)
 
   const [showReplyDialog, setShowReplyDialog] = useState(false)
   const [replyTarget, setReplyTarget] = useState<Comment | null>(null)
@@ -243,20 +247,62 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
 
         if (aiDetection.hasMention && aiDetection.mode) {
           try {
-            const aiResult = await aiApi.chat({
-              messageId,
-              content: aiDetection.cleanedContent || '请回复这条评论',
-              mode: aiDetection.mode,
+            // 使用流式 API
+            setIsAiStreaming(true)
+            setAiStreamingResponse("")
+
+            const response = await fetch('/api/ai/chat/stream', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messageId,
+                content: aiDetection.cleanedContent || '请回复这条评论',
+                mode: aiDetection.mode,
+              }),
             })
-            if (aiResult.data?.comment) {
-              const aiComment = aiResult.data.comment
-              setComments(prev => [...prev, aiComment])
-              onCommentAdded?.()
+
+            if (!response.ok) {
+              throw new Error('AI stream request failed')
+            }
+
+            const reader = response.body?.getReader()
+            const decoder = new TextDecoder()
+            let buffer = ''
+
+            if (reader) {
+              while (true) {
+                const { done, value } = await reader.read()
+                if (done) break
+
+                buffer += decoder.decode(value, { stream: true })
+                const lines = buffer.split('\n\n')
+                buffer = lines.pop() || ''
+
+                for (const line of lines) {
+                  if (!line.trim()) continue
+
+                  const eventMatch = line.match(/^event:\s*(.+)$/m)
+                  const dataMatch = line.match(/^data:\s*([\s\S]+)$/m)
+
+                  if (eventMatch?.[1] === 'content' && dataMatch?.[1]) {
+                    try {
+                      const data = JSON.parse(dataMatch[1])
+                      if (data.text) {
+                        setAiStreamingResponse(prev => prev + data.text)
+                      }
+                    } catch (e) {
+                      // Ignore parse errors
+                    }
+                  }
+                }
+              }
             }
           } catch (aiError) {
             console.error("Failed to get AI reply:", aiError)
-            // TODO: Show toast notification to user
             alert(`AI 回复失败: ${aiError instanceof Error ? aiError.message : '未知错误'}`)
+          } finally {
+            setIsAiStreaming(false)
+            setTimeout(() => setAiStreamingResponse(""), 1000)
           }
         }
 
@@ -368,6 +414,25 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
         onAICommandSelect={handleAICommandFromButton}
         onSubmit={handlePostComment}
       />
+
+      {/* AI Streaming Response Display */}
+      {isAiStreaming && aiStreamingResponse && (
+        <div className="mx-4 mb-4 relative bg-muted/30 rounded-lg p-3 border border-border">
+          <div className="flex items-start gap-2">
+            <div className="h-5 w-5 rounded-full bg-linear-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-xs text-white font-bold shrink-0">
+              AI
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-foreground whitespace-pre-wrap wrap-break-word">
+                {aiStreamingResponse}
+              </p>
+              {isAiStreaming && (
+                <span className="inline-block w-1.5 h-4 bg-foreground animate-pulse ml-1 align-middle" />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Comments list - Flat (Top-level only) */}
       <div className="flex flex-col">

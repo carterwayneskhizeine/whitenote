@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { commentsApi, aiApi } from "@/lib/api"
+import { commentsApi } from "@/lib/api"
 import { X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -59,6 +59,10 @@ export function ReplyDialog({
     const [isProcessingAI, setIsProcessingAI] = useState(false)
     const mediaUploaderRef = useRef<MediaUploaderRef>(null)
     const wasOpen = useRef(false)
+
+    // 流式 AI 回复状态
+    const [aiStreamingResponse, setAiStreamingResponse] = useState<string>("")
+    const [isAiStreaming, setIsAiStreaming] = useState(false)
 
     // Fetch templates
     useEffect(() => {
@@ -161,15 +165,62 @@ export function ReplyDialog({
 
                 if (aiDetection.hasMention && aiDetection.mode) {
                     try {
-                        await aiApi.chat({
-                            messageId: messageId,
-                            content: aiDetection.cleanedContent || '请回复这条评论',
-                            mode: aiDetection.mode, // Pass mode parameter
+                        // 使用流式 API
+                        setIsAiStreaming(true)
+                        setAiStreamingResponse("")
+
+                        const response = await fetch('/api/ai/chat/stream', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                messageId: messageId,
+                                content: aiDetection.cleanedContent || '请回复这条评论',
+                                mode: aiDetection.mode,
+                            }),
                         })
+
+                        if (!response.ok) {
+                            throw new Error('AI stream request failed')
+                        }
+
+                        const reader = response.body?.getReader()
+                        const decoder = new TextDecoder()
+                        let buffer = ''
+
+                        if (reader) {
+                            while (true) {
+                                const { done, value } = await reader.read()
+                                if (done) break
+
+                                buffer += decoder.decode(value, { stream: true })
+                                const lines = buffer.split('\n\n')
+                                buffer = lines.pop() || ''
+
+                                for (const line of lines) {
+                                    if (!line.trim()) continue
+
+                                    const eventMatch = line.match(/^event:\s*(.+)$/m)
+                                    const dataMatch = line.match(/^data:\s*([\s\S]+)$/m)
+
+                                    if (eventMatch?.[1] === 'content' && dataMatch?.[1]) {
+                                        try {
+                                            const data = JSON.parse(dataMatch[1])
+                                            if (data.text) {
+                                                setAiStreamingResponse(prev => prev + data.text)
+                                            }
+                                        } catch (e) {
+                                            // Ignore parse errors
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     } catch (aiError) {
                         console.error("Failed to get AI reply:", aiError)
-                        // TODO: Show toast notification to user
                         alert(`AI 回复失败: ${aiError instanceof Error ? aiError.message : '未知错误'}`)
+                    } finally {
+                        setIsAiStreaming(false)
+                        setTimeout(() => setAiStreamingResponse(""), 1000)
                     }
                 }
 
@@ -264,6 +315,25 @@ export function ReplyDialog({
                                 disabled={isSubmitting}
                                 onUploadingChange={setIsUploading}
                             />
+
+                            {/* AI Streaming Response Display */}
+                            {isAiStreaming && aiStreamingResponse && (
+                                <div className="relative bg-muted/30 rounded-lg p-3 border border-border">
+                                    <div className="flex items-start gap-2">
+                                        <div className="h-5 w-5 rounded-full bg-linear-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-xs text-white font-bold shrink-0">
+                                            AI
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm text-foreground whitespace-pre-wrap wrap-break-word">
+                                                {aiStreamingResponse}
+                                            </p>
+                                            {isAiStreaming && (
+                                                <span className="inline-block w-1.5 h-4 bg-foreground animate-pulse ml-1 align-middle" />
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

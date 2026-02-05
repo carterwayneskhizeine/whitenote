@@ -143,6 +143,109 @@ export async function callRAGFlowWithChatId(
 }
 
 /**
+ * 调用 RAGFlow OpenAI 兼容接口（流式模式）
+ * @returns AsyncGenerator<{content: string, references?: Array<{content: string; source: string}>}>
+ *          逐块返回文本内容，最后一块包含 references
+ */
+export async function* callRAGFlowWithChatIdStream(
+  ragflowBaseUrl: string,
+  ragflowApiKey: string,
+  chatId: string,
+  messages: RAGFlowMessage[]
+): AsyncGenerator<{ content: string; references?: Array<{ content: string; source: string }> }> {
+  console.log('[RAGFlow Stream] Starting request:', {
+    baseUrl: ragflowBaseUrl,
+    chatId: chatId,
+    messageCount: messages.length,
+    timestamp: new Date().toISOString()
+  })
+
+  const response = await fetch(
+    `${ragflowBaseUrl}/api/v1/chats_openai/${chatId}/chat/completions`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${ragflowApiKey}`,
+      },
+      body: JSON.stringify({
+        model: "model",
+        messages,
+        stream: true,
+        extra_body: {
+          reference: true,
+        },
+      }),
+    }
+  )
+
+  if (!response.ok) {
+    const error = await response.text()
+    console.error('[RAGFlow Stream] Error response:', error)
+    throw new Error(`RAGFlow API error (${response.status}): ${error}`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error("Response body is not readable")
+  }
+
+  const decoder = new TextDecoder()
+  let references: Array<{ content: string; source: string }> | undefined
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      const chunk = decoder.decode(value, { stream: true })
+      const lines = chunk.split("\n")
+
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || trimmed === "data: [DONE]") continue
+        if (!trimmed.startsWith("data: ")) continue
+
+        try {
+          const jsonStr = trimmed.slice(6)
+          const data = JSON.parse(jsonStr)
+
+          // 提取内容
+          const content = data.choices?.[0]?.delta?.content
+          if (content) {
+            yield { content }
+          }
+
+          // 提取引用（在最后一块数据中）
+          if (data.choices?.[0]?.message?.reference) {
+            references = data.choices[0].message.reference.map((ref: any) => ({
+              content: ref.content,
+              source: ref.document_name,
+            }))
+          }
+        } catch (e) {
+          // Skip invalid JSON lines
+          if (!trimmed.includes("keep-alive")) {
+            console.warn("[RAGFlow Stream] Failed to parse SSE line:", trimmed)
+          }
+        }
+      }
+    }
+
+    // 最后返回引用（如果有）
+    if (references && references.length > 0) {
+      yield { content: "", references }
+    }
+  } finally {
+    reader.releaseLock()
+    console.log('[RAGFlow Stream] Completed:', {
+      totalReferences: references?.length || 0,
+      timestamp: new Date().toISOString()
+    })
+  }
+}
+
+/**
  * 上传图片到 RAGFlow 并获取描述
  */
 async function uploadImageToRAGFlow(
