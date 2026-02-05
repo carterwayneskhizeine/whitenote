@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { commentsApi } from "@/lib/api"
+import { commentsApi, aiApi } from "@/lib/api"
 import { X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -106,7 +106,8 @@ export function ReplyDialog({
     const handleAICommandFromButton = async (action: string) => {
         setIsProcessingAI(true)
         try {
-            const response = await fetch('/api/ai/enhance', {
+            // Call streaming AI enhance API
+            const response = await fetch('/api/ai/enhance/stream', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -119,10 +120,41 @@ export function ReplyDialog({
 
             if (!response.ok) throw new Error('AI request failed')
 
-            const data = await response.json()
-            if (data.data?.result) {
-                const result = sanitizeMarkdown(data.data.result.trim())
-                setContent(result)
+            const reader = response.body?.getReader()
+            const decoder = new TextDecoder()
+            let buffer = ''
+            let fullResult = ''
+
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read()
+                    if (done) break
+
+                    buffer += decoder.decode(value, { stream: true })
+                    const lines = buffer.split('\n\n')
+                    buffer = lines.pop() || ''
+
+                    for (const line of lines) {
+                        if (!line.trim()) continue
+
+                        const eventMatch = line.match(/^event:\s*(.+)$/m)
+                        const dataMatch = line.match(/^data:\s*([\s\S]+)$/m)
+
+                        if (eventMatch?.[1] === 'content' && dataMatch?.[1]) {
+                            try {
+                                const data = JSON.parse(dataMatch[1])
+                                if (data.text) {
+                                    fullResult += data.text
+                                    // Update content in real-time
+                                    const sanitized = sanitizeMarkdown(fullResult)
+                                    setContent(sanitized)
+                                }
+                            } catch (e) {
+                                // Ignore parse errors
+                            }
+                        }
+                    }
+                }
             }
         } catch (error) {
             console.error('AI enhance error:', error)
@@ -165,51 +197,62 @@ export function ReplyDialog({
 
                 if (aiDetection.hasMention && aiDetection.mode) {
                     try {
-                        // 使用流式 API
-                        setIsAiStreaming(true)
-                        setAiStreamingResponse("")
-
-                        const response = await fetch('/api/ai/chat/stream', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
+                        // @ragflow: 使用非流式 API，立即发帖
+                        // @goldierill: 使用流式 API
+                        if (aiDetection.mode === 'ragflow') {
+                            // RAGFlow 模式：立即发帖，不等 AI 回复
+                            await aiApi.chat({
                                 messageId: messageId,
                                 content: aiDetection.cleanedContent || '请回复这条评论',
                                 mode: aiDetection.mode,
-                            }),
-                        })
+                            })
+                        } else {
+                            // GoldieRill 模式：使用流式 API
+                            setIsAiStreaming(true)
+                            setAiStreamingResponse("")
 
-                        if (!response.ok) {
-                            throw new Error('AI stream request failed')
-                        }
+                            const response = await fetch('/api/ai/chat/stream', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    messageId: messageId,
+                                    content: aiDetection.cleanedContent || '请回复这条评论',
+                                    mode: aiDetection.mode,
+                                }),
+                            })
 
-                        const reader = response.body?.getReader()
-                        const decoder = new TextDecoder()
-                        let buffer = ''
+                            if (!response.ok) {
+                                throw new Error('AI stream request failed')
+                            }
 
-                        if (reader) {
-                            while (true) {
-                                const { done, value } = await reader.read()
-                                if (done) break
+                            const reader = response.body?.getReader()
+                            const decoder = new TextDecoder()
+                            let buffer = ''
 
-                                buffer += decoder.decode(value, { stream: true })
-                                const lines = buffer.split('\n\n')
-                                buffer = lines.pop() || ''
+                            if (reader) {
+                                while (true) {
+                                    const { done, value } = await reader.read()
+                                    if (done) break
 
-                                for (const line of lines) {
-                                    if (!line.trim()) continue
+                                    buffer += decoder.decode(value, { stream: true })
+                                    const lines = buffer.split('\n\n')
+                                    buffer = lines.pop() || ''
 
-                                    const eventMatch = line.match(/^event:\s*(.+)$/m)
-                                    const dataMatch = line.match(/^data:\s*([\s\S]+)$/m)
+                                    for (const line of lines) {
+                                        if (!line.trim()) continue
 
-                                    if (eventMatch?.[1] === 'content' && dataMatch?.[1]) {
-                                        try {
-                                            const data = JSON.parse(dataMatch[1])
-                                            if (data.text) {
-                                                setAiStreamingResponse(prev => prev + data.text)
+                                        const eventMatch = line.match(/^event:\s*(.+)$/m)
+                                        const dataMatch = line.match(/^data:\s*([\s\S]+)$/m)
+
+                                        if (eventMatch?.[1] === 'content' && dataMatch?.[1]) {
+                                            try {
+                                                const data = JSON.parse(dataMatch[1])
+                                                if (data.text) {
+                                                    setAiStreamingResponse(prev => prev + data.text)
+                                                }
+                                            } catch (e) {
+                                                // Ignore parse errors
                                             }
-                                        } catch (e) {
-                                            // Ignore parse errors
                                         }
                                     }
                                 }
