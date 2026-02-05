@@ -655,16 +655,6 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
           <div className="relative py-2 min-w-0">
             <EditorContent editor={editor} className="w-full max-w-full" />
 
-            {/* AI Processing Overlay */}
-            {isProcessingAI && (
-              <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center rounded-md z-10">
-                <div className="flex flex-col items-center gap-2">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  <span className="text-sm text-muted-foreground">AI 正在处理...</span>
-                </div>
-              </div>
-            )}
-
             {/* Transcribing Overlay */}
             {isTranscribing && (
               <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center rounded-md z-10">

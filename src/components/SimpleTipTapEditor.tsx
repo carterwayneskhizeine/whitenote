@@ -9,7 +9,6 @@ import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import { SlashCommand } from '@/lib/editor/extensions/slash-command'
-import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Template } from '@/types/api'
 
@@ -117,16 +116,6 @@ export function SimpleTipTapEditor({
   return (
     <div className={cn("relative w-full", className)}>
       <EditorContent editor={editor} className="w-full" />
-
-      {/* AI Processing Overlay */}
-      {isProcessingAI && (
-        <div className="absolute inset-0 bg-background/50 backdrop-blur-sm flex items-center justify-center rounded-md z-10">
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-            <span className="text-sm text-muted-foreground">AI 正在处理...</span>
-          </div>
-        </div>
-      )}
 
       <style jsx global>{`
         /* Remove default paragraph margins to prevent extra spacing */
