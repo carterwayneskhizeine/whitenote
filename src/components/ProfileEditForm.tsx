@@ -116,9 +116,8 @@ export function ProfileEditForm() {
       setUploading(false)
     } else if (result.data?.url) {
       setAvatar(result.data.url)
-      setMessage({ type: "success", text: "图片上传成功" })
+      setMessage({ type: "success", text: "图片上传成功，记得点击保存按钮应用更改" })
       setUploading(false)
-      setTimeout(() => setMessage(null), 3000)
     }
 
     if (fileInputRef.current) fileInputRef.current.value = ""
@@ -136,7 +135,10 @@ export function ProfileEditForm() {
     <form onSubmit={handleSubmit} className="divide-y divide-border -mx-4">
       {/* Avatar Section */}
       <div className="px-4 py-6">
-        <h3 className="text-xl font-bold mb-4 px-2">修改个人头像</h3>
+        <div className="flex items-center gap-2 mb-4 px-2">
+          <h3 className="text-xl font-bold">修改个人头像</h3>
+          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">修改后需点击保存</span>
+        </div>
         <div className="flex items-center gap-6 px-2">
           <div className="relative group">
             <Avatar className="h-24 w-24 border-2 border-border ring-offset-2 ring-primary transition-all group-hover:ring-2">
@@ -207,43 +209,50 @@ export function ProfileEditForm() {
         </div>
       </div>
 
-      {/* Avatar URL Section */}
-      <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
-        <div className="px-2 space-y-4">
-          <div className="flex flex-col">
-            <label className="text-sm font-bold mb-1 text-foreground group-focus-within:text-primary transition-colors">
-              头像链接
-            </label>
-            <Input
-              type="url"
-              value={avatar}
-              onChange={(e) => setAvatar(e.target.value)}
-              placeholder="https://example.com/avatar.jpg"
-              className="w-full max-w-2xl border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1 font-mono"
-            />
+      {/* Avatar URL Section - Collapsible */}
+      <div className="px-4 py-4 hover:bg-muted/30 transition-colors group">
+        <details className="group/details">
+          <summary className="flex items-center justify-between cursor-pointer list-none px-2">
+            <span className="text-sm font-medium text-muted-foreground">高级选项：使用自定义头像链接</span>
+            <span className="transition-transform group-open/details:rotate-180">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </span>
+          </summary>
+          <div className="px-2 pt-4 space-y-4">
+            <div className="flex flex-col">
+              <Input
+                type="text"
+                value={avatar}
+                onChange={(e) => setAvatar(e.target.value)}
+                placeholder="https://example.com/avatar.jpg 或 /api/media/xxx.jpg"
+                className="w-full max-w-2xl border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1 font-mono text-sm"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={() => setAvatar("https://api.dicebear.com/7.x/avataaars/svg?seed=" + (name || Date.now().toString()))}
+              >
+                <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                随机生成
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="rounded-full"
+                onClick={() => setAvatar("")}
+              >
+                使用默认
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="rounded-full"
-              onClick={() => setAvatar("https://api.dicebear.com/7.x/avataaars/svg?seed=" + (name || Date.now().toString()))}
-            >
-              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-              随机生成
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="rounded-full"
-              onClick={() => setAvatar("")}
-            >
-              使用默认
-            </Button>
-          </div>
-        </div>
+        </details>
       </div>
 
       {/* Message & Actions */}
