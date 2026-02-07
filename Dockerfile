@@ -1,0 +1,86 @@
+# ========================================
+# Whitenote Docker 构建文件
+# ========================================
+
+# 阶段 1: 依赖安装
+FROM node:20-alpine AS deps
+RUN apk add --no-cache libc6-compat python3 make g++
+WORKDIR /app
+
+# 安装 pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# 复制依赖文件
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY prisma ./prisma/
+
+# 安装依赖
+RUN pnpm install --frozen-lockfile
+
+# 生成 Prisma Client
+RUN npx prisma generate
+
+# 阶段 2: 构建应用
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# 复制依赖
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/node_modules/.pnpm ./node_modules/.pnpm
+COPY --from=deps /app/prisma ./prisma
+
+# 复制源代码
+COPY . .
+
+# 构建 Next.js 应用
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+RUN pnpm build
+
+# 阶段 3: 运行应用
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+RUN apk add --no-cache ffmpeg
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# 创建非 root 用户
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# 创建数据目录并设置权限
+RUN mkdir -p /app/data/uploads /app/data/link_md
+RUN chown -R nextjs:nodejs /app/data
+
+# 从 builder 复制 standalone 输出
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+
+# 复制 Prisma 相关文件
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+
+# 复制启动脚本
+COPY --chown=nextjs:nodejs scripts/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# 切换到非 root 用户
+USER nextjs
+
+# 暴露端口
+EXPOSE 3005
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3005/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
+# 设置入口点
+ENTRYPOINT ["docker-entrypoint.sh"]
+
+# 启动命令
+CMD ["node", "server.js"]

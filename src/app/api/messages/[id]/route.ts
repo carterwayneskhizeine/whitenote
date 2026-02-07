@@ -10,7 +10,17 @@ import { exportToLocal, deleteLocalFile, getAllCommentIds } from "@/lib/sync-uti
 import { addTask } from "@/lib/queue"
 
 // Upload directory outside the codebase
-const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), "..", "whitenote-data", "uploads")
+// 获取上传目录，支持 Docker 和本地开发环境
+function getUploadDir(): string {
+  const envDir = process.env.UPLOAD_DIR
+  if (envDir) {
+    return envDir
+  }
+  // 默认使用相对于项目根目录的路径
+  return join(process.cwd(), "data", "uploads")
+}
+
+const UPLOAD_DIR = getUploadDir()
 
 /**
  * 递归删除评论及其所有子评论的 RAGFlow 文档

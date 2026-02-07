@@ -27,7 +27,17 @@ const ALLOWED_EXTENSIONS = [
 const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100MB
 
 // Upload directory outside the codebase
-const UPLOAD_DIR = process.env.UPLOAD_DIR || join(process.cwd(), "..", "whitenote-data", "uploads")
+// 获取上传目录，支持 Docker 和本地开发环境
+function getUploadDir(): string {
+  const envDir = process.env.UPLOAD_DIR
+  if (envDir) {
+    return envDir
+  }
+  // 默认使用相对于项目根目录的路径
+  return join(process.cwd(), "data", "uploads")
+}
+
+const UPLOAD_DIR = getUploadDir()
 
 /**
  * POST /api/upload

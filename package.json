@@ -11,7 +11,19 @@
     "start": "cross-env NODE_ENV=production tsx server.ts",
     "worker": "tsx scripts/worker.ts",
     "lint": "eslint",
-    "seed:ai-commands": "tsx prisma/seed-ai-commands.ts"
+    "seed:ai-commands": "tsx prisma/seed-ai-commands.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed-ai-commands.ts",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "docker:push": "docker-compose push",
+    "docker:prod": "docker-compose -f docker-compose.yml up -d",
+    "setup": "mkdir -p data/uploads data/link_md && pnpm install && pnpm db:generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

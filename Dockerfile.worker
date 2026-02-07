@@ -1,0 +1,38 @@
+# ========================================
+# Whitenote Worker Docker 构建文件
+# ========================================
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 安装必要依赖
+RUN apk add --no-cache ffmpeg
+
+# 安装 pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# 复制依赖文件
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY prisma ./prisma/
+
+# 安装依赖 (包括开发依赖，因为 tsx 需要)
+RUN pnpm install --frozen-lockfile
+
+# 生成 Prisma Client
+RUN npx prisma generate
+
+# 创建数据目录
+RUN mkdir -p /app/data/uploads /app/data/link_md
+
+# 复制源代码
+COPY scripts/worker.ts ./scripts/
+COPY src ./src
+COPY tsconfig.json ./
+COPY next.config.ts ./
+
+# 暴露端口 (用于健康检查)
+EXPOSE 3006
+
+# 启动 Worker
+CMD ["npx", "tsx", "scripts/worker.ts"]

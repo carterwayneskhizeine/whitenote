@@ -1,7 +1,17 @@
 import * as fs from "fs"
 import * as path from "path"
 
-const SYNC_DIR = process.env.FILE_WATCHER_DIR || "D:\\Code\\whitenote-data\\link_md"
+// 获取同步目录，支持 Docker 和本地开发环境
+function getSyncDir(): string {
+  const envDir = process.env.FILE_WATCHER_DIR
+  if (envDir) {
+    return envDir
+  }
+  // 默认使用相对于项目根目录的路径
+  return path.join(process.cwd(), "data", "link_md")
+}
+
+const SYNC_DIR = getSyncDir()
 
 interface WorkspaceMeta {
   id: string

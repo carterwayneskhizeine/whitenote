@@ -3,7 +3,17 @@ import * as path from "path"
 import { addTask } from "@/lib/queue"
 import redis from "@/lib/redis"
 
-const WATCH_DIR = process.env.FILE_WATCHER_DIR || "D:\\Code\\whitenote-data\\link_md"
+// 获取文件监听目录，支持 Docker 和本地开发环境
+function getWatchDir(): string {
+  const envDir = process.env.FILE_WATCHER_DIR
+  if (envDir) {
+    return envDir
+  }
+  // 默认使用相对于项目根目录的路径
+  return path.join(process.cwd(), "data", "link_md")
+}
+
+const WATCH_DIR = getWatchDir()
 const DEBOUNCE_DELAY = 1000 // 1 second
 
 // Folders to ignore (won't be treated as workspaces)

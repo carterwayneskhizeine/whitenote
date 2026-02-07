@@ -1,39 +1,54 @@
 services:
+  # ========================================
+  # PostgreSQL 数据库
+  # ========================================
   postgres:
     image: postgres:16
     container_name: pg16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: whitenote
+      POSTGRES_USER: ${POSTGRES_USER:-myuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mypassword}
+      POSTGRES_DB: ${POSTGRES_DB:-whitenote}
     ports:
-      - "5925:5432"
+      - "${POSTGRES_PORT:-5925}:5432"
     volumes:
       - pg16_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-myuser} -d ${POSTGRES_DB:-whitenote}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # ========================================
+  # pgAdmin 数据库管理
+  # ========================================
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin4
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@whitenote.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@whitenote.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
       PGADMIN_CONFIG_SERVER_MODE: 'False'
     ports:
-      - "5050:80"
+      - "${PGADMIN_PORT:-5050}:80"
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
+  # ========================================
+  # Redis 缓存和队列
+  # ========================================
   redis:
-    image: redis:latest
+    image: redis:7-alpine
     container_name: redis
     restart: unless-stopped
     command: redis-server --appendonly yes
     ports:
-      - "16379:6379"
+      - "${REDIS_PORT:-16379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -41,6 +56,94 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+
+  # ========================================
+  # Whitenote 主应用
+  # ========================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whitenote-app
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://myuser:mypassword@postgres:5432/whitenote?schema=public}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3005}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      AUTH_URL: ${AUTH_URL:-http://localhost:3005}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-D/deepseek-chat-official}
+      RAGFLOW_BASE_URL: ${RAGFLOW_BASE_URL}
+      RAGFLOW_API_KEY: ${RAGFLOW_API_KEY}
+      RAGFLOW_CHAT_ID: ${RAGFLOW_CHAT_ID}
+      RAGFLOW_DATASET_ID: ${RAGFLOW_DATASET_ID}
+      UPLOAD_DIR: /app/data/uploads
+      FILE_WATCHER_DIR: /app/data/link_md
+      FILE_WATCHER_ENABLED: ${FILE_WATCHER_ENABLED:-true}
+      DEFAULT_USER_EMAIL: ${DEFAULT_USER_EMAIL:-whitenote@gmail.com}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3005}
+    ports:
+      - "${APP_PORT:-3005}:3005"
+    volumes:
+      # 数据持久化
+      - ./data/uploads:/app/data/uploads
+      - ./data/link_md:/app/data/link_md
+      # 可选: 开发时热重载
+      # - ./src:/app/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3005/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ========================================
+  # Whitenote Worker (队列处理)
+  # ========================================
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: whitenote-worker
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://myuser:mypassword@postgres:5432/whitenote?schema=public}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3005}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-D/deepseek-chat-official}
+      RAGFLOW_BASE_URL: ${RAGFLOW_BASE_URL}
+      RAGFLOW_API_KEY: ${RAGFLOW_API_KEY}
+      UPLOAD_DIR: /app/data/uploads
+      FILE_WATCHER_DIR: /app/data/link_md
+      FILE_WATCHER_ENABLED: ${FILE_WATCHER_ENABLED:-true}
+      DEFAULT_USER_EMAIL: ${DEFAULT_USER_EMAIL:-whitenote@gmail.com}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    volumes:
+      - ./data/uploads:/app/data/uploads
+      - ./data/link_md:/app/data/link_md
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
 
 volumes:
   pg16_data:
