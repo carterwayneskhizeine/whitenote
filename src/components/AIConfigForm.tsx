@@ -345,7 +345,7 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
           <Input
             value={config.mdSyncDir ?? ""}
             onChange={(e) => setConfig({ ...config, mdSyncDir: e.target.value })}
-            placeholder="D:\Code\whitenote-data\link_md"
+            placeholder="D:\Code\whitenote\data\link_md"
             className="border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1 font-mono"
           />
         </InputRow>
