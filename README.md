@@ -24,7 +24,7 @@ pnpm docker:build
 pnpm docker:prod
 
 # 或者直接使用 docker-compose 命令
-docker-compose -f docker-compose.yml up -d
+docker compose -f docker-compose.yml up -d
 ```
 
 生产模式包含以下服务：
@@ -45,8 +45,8 @@ pnpm docker:dev:build
 # 2. 启动开发环境
 pnpm docker:dev
 
-# 或者直接使用 docker-compose 命令
-docker-compose -f docker-compose.dev.yml up -d
+# 或者直接使用 docker compose 命令
+docker compose -f docker compose.dev.yml up -d
 ```
 
 开发模式特点：
@@ -59,7 +59,7 @@ docker-compose -f docker-compose.dev.yml up -d
 
 ```bash
 # 查看服务状态
-docker-compose ps
+docker compose ps
 
 # 查看日志
 pnpm docker:dev:logs        # 开发环境
@@ -94,7 +94,7 @@ pnpm docker:dev:build
 pnpm install
 
 # 2. 启动 PostgreSQL 和 Redis（使用 Docker）
-docker-compose up -d postgres redis
+docker compose up -d postgres redis
 
 # 3. 推送数据库 schema
 pnpm prisma db push

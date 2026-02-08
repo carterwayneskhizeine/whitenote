@@ -152,3 +152,6 @@ if ($Mode -eq "dev") {
 }
 Write-Host ""
 Write-Info "如需恢复原配置，备份文件位于: $BackupFile"
+Write-Host ""
+Write-Warning "按任意键退出..."
+$null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
