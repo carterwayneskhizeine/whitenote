@@ -79,8 +79,6 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-D/deepseek-chat-official}
       RAGFLOW_BASE_URL: ${RAGFLOW_BASE_URL}
       RAGFLOW_API_KEY: ${RAGFLOW_API_KEY}
-      RAGFLOW_CHAT_ID: ${RAGFLOW_CHAT_ID}
-      RAGFLOW_DATASET_ID: ${RAGFLOW_DATASET_ID}
       UPLOAD_DIR: /app/data/uploads
       FILE_WATCHER_DIR: /app/data/link_md
       FILE_WATCHER_ENABLED: ${FILE_WATCHER_ENABLED:-true}
