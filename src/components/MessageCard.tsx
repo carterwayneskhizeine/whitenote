@@ -209,9 +209,9 @@ export function MessageCard({
         return url || ''
       }).filter(url => url && !url.startsWith('data:')) || []
     ))
-    console.log('MessageCard - medias:', message.medias?.length || 0)
-    console.log('MessageCard - markdownImages:', images.length)
-    console.log('MessageCard - total:', (message.medias?.length || 0) + images.length)
+    //console.log('MessageCard - medias:', message.medias?.length || 0)
+    //console.log('MessageCard - markdownImages:', images.length)
+    //console.log('MessageCard - total:', (message.medias?.length || 0) + images.length)
     setMarkdownImages(images)
   }, [message.content, message.medias?.length])
 

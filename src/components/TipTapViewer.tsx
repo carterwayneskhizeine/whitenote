@@ -147,7 +147,7 @@ export function TipTapViewer({ content, className, onImageClick }: TipTapViewerP
       const images = editor.view.dom.querySelectorAll('img')
       let markdownIndex = 0
 
-      console.log('TipTapViewer - adding handlers to', images.length, 'images')
+      //console.log('TipTapViewer - adding handlers to', images.length, 'images')
 
       images.forEach((img: Element) => {
         const imageElement = img as HTMLImageElement
