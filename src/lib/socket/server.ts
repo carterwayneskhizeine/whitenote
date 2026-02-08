@@ -5,6 +5,7 @@ import { verifySessionToken } from "./auth"
 import chokidar from "chokidar"
 import { importFromLocal, parseFilePath } from "@/lib/sync-utils"
 import redis from "@/lib/redis"
+import * as path from "path"
 
 interface SocketData {
   userId: string
@@ -135,7 +136,8 @@ export function initSocketServer(httpServer: HTTPServer) {
   }
 
   // Initialize File Watcher for MD Sync
-  const SYNC_DIR = "D:\\Code\\whitenote-data\\link_md"
+  // 获取文件监听目录，支持环境变量配置
+  const SYNC_DIR = process.env.FILE_WATCHER_DIR || path.join(process.cwd(), "data", "link_md")
   let watcher: ReturnType<typeof chokidar.watch> | null = null
 
   // Queue for serializing file imports to prevent database transaction timeout
