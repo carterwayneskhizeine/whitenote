@@ -1,0 +1,36 @@
+# ========================================
+# Whitenote Worker 开发环境 Dockerfile
+# ========================================
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# 安装必要依赖
+RUN apk add --no-cache ffmpeg
+
+# 安装 pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+# 复制依赖文件
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY prisma ./prisma/
+
+# 安装所有依赖（包括开发依赖）
+# 使用 --shamefully-hoist 创建更扁平的结构，解决 Next.js 的符号链接解析问题
+RUN pnpm install --frozen-lockfile --shamefully-hoist
+
+# 生成 Prisma Client
+RUN npx prisma generate
+
+# 安装 tsconfig-paths 用于支持 TypeScript 路径别名
+RUN pnpm add -D tsconfig-paths
+
+# 创建数据目录
+RUN mkdir -p /app/data/uploads /app/data/link_md
+
+# 暴露端口 (用于健康检查)
+EXPOSE 3006
+
+# 启动 Worker（tsx watch 支持热重载）
+CMD ["pnpm", "worker:dev"]

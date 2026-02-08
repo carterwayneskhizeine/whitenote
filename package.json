@@ -6,10 +6,10 @@
     "seed": "tsx prisma/seed-ai-commands.ts"
   },
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "tsx -r tsconfig-paths/register server.ts",
     "build": "next build",
     "start": "cross-env NODE_ENV=production tsx server.ts",
-    "worker": "tsx scripts/worker.ts",
+    "worker": "tsx -r tsconfig-paths/register scripts/worker.ts",
     "lint": "eslint",
     "seed:ai-commands": "tsx prisma/seed-ai-commands.ts",
     "db:generate": "prisma generate",
@@ -23,6 +23,11 @@
     "docker:logs": "docker-compose logs -f",
     "docker:push": "docker-compose push",
     "docker:prod": "docker-compose -f docker-compose.yml up -d",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
+    "docker:dev:build": "docker-compose -f docker-compose.dev.yml build",
+    "docker:dev:down": "docker-compose -f docker-compose.dev.yml down",
+    "docker:dev:logs": "docker-compose -f docker-compose.dev.yml logs -f",
+    "worker:dev": "tsx watch -r tsconfig-paths/register scripts/worker.ts",
     "setup": "mkdir -p data/uploads data/link_md && pnpm install && pnpm db:generate"
   },
   "dependencies": {
