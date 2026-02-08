@@ -66,6 +66,9 @@ services:
       dockerfile: Dockerfile
     container_name: whitenote-app
     restart: unless-stopped
+    # 覆盖 Dockerfile 中的 entrypoint，直接运行命令
+    entrypoint: ["sh", "-c"]
+    command: ["npx prisma migrate deploy && npx prisma generate && node server.js"]
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       DATABASE_URL: ${DATABASE_URL:-postgresql://myuser:mypassword@postgres:5432/whitenote?schema=public}
@@ -92,8 +95,6 @@ services:
       # 数据持久化
       - ./data/uploads:/app/data/uploads
       - ./data/link_md:/app/data/link_md
-      # 可选: 开发时热重载
-      # - ./src:/app/src
     depends_on:
       postgres:
         condition: service_healthy

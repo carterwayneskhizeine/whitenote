@@ -63,7 +63,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # 复制 Prisma 相关文件
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+# Note: .prisma directory might not exist in standalone build, skipping
 
 # 复制启动脚本
 COPY --chown=nextjs:nodejs scripts/docker-entrypoint.sh /usr/local/bin/
