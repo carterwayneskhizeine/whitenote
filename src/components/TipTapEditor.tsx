@@ -11,6 +11,10 @@ import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
+import { TaskList } from '@tiptap/extension-task-list'
+import { TaskItem } from '@tiptap/extension-task-item'
+import { Highlight } from '@tiptap/extension-highlight'
+import { TextStyle } from '@tiptap/extension-text-style'
 import { common, createLowlight } from 'lowlight'
 import { Button } from "@/components/ui/button"
 import {
@@ -24,9 +28,18 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  Heading4,
+  Heading5,
+  Heading6,
   Undo,
   Redo,
-  FileCode
+  FileCode,
+  Table as TableIcon,
+  Minus,
+  CheckSquare,
+  Pilcrow,
+  Highlighter,
+  RemoveFormatting
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -61,10 +74,18 @@ export function TipTapEditor({
     extensions: [
       StarterKit.configure({
         heading: {
-          levels: [1, 2, 3, 4],
+          levels: [1, 2, 3, 4, 5, 6],
         },
         codeBlock: false, // Disable default code block, use CodeBlockLowlight instead
-        link: false, // Disable automatic link conversion - only convert explicit markdown links [text](url)
+        // Remove link: false - in TipTap 3.19, this is handled differently
+      }),
+      TextStyle,
+      Highlight.configure({
+        multicolor: true,
+      }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
       }),
       Image.configure({
         inline: false,
@@ -205,6 +226,34 @@ export function TipTapEditor({
           >
             <Heading3 className="h-4 w-4" />
           </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 4 }).run()}
+            isActive={editor.isActive('heading', { level: 4 })}
+            title="四级标题"
+          >
+            <Heading4 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 5 }).run()}
+            isActive={editor.isActive('heading', { level: 5 })}
+            title="五级标题"
+          >
+            <Heading5 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHeading({ level: 6 }).run()}
+            isActive={editor.isActive('heading', { level: 6 })}
+            title="六级标题"
+          >
+            <Heading6 className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setParagraph().run()}
+            isActive={editor.isActive('paragraph')}
+            title="正文"
+          >
+            <Pilcrow className="h-4 w-4" />
+          </ToolbarButton>
         </div>
 
         <Separator />
@@ -247,6 +296,19 @@ export function TipTapEditor({
             <FileCode className="h-4 w-4" />
           </ToolbarButton>
           <ToolbarButton
+            onClick={() => editor.chain().focus().toggleHighlight().run()}
+            isActive={editor.isActive('highlight')}
+            title="高亮"
+          >
+            <Highlighter className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().unsetAllMarks().run()}
+            title="清除格式"
+          >
+            <RemoveFormatting className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
             isActive={editor.isActive('blockquote')}
             title="引用"
@@ -273,6 +335,33 @@ export function TipTapEditor({
             title="有序列表"
           >
             <ListOrdered className="h-4 w-4" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
+            isActive={editor.isActive('taskList')}
+            title="任务列表"
+          >
+            <CheckSquare className="h-4 w-4" />
+          </ToolbarButton>
+        </div>
+
+        <Separator />
+
+        {/* Insert Group */}
+        <div className="flex items-center gap-0.5">
+          <ToolbarButton
+            onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+            title="插入表格"
+          >
+            <TableIcon className="h-4 w-4" />
+          </ToolbarButton>
+
+          <ToolbarButton
+            onClick={() => editor.chain().focus().setHorizontalRule().run()}
+            title="分割线"
+          >
+            <Minus className="h-4 w-4" />
           </ToolbarButton>
         </div>
       </div>
@@ -341,6 +430,86 @@ export function TipTapEditor({
           border-radius: 0.5rem;
           display: block;
           margin: 0.5rem 0;
+        }
+
+        /* Task List */
+        .ProseMirror ul[data-type="taskList"] {
+          list-style: none;
+          padding: 0;
+        }
+        .ProseMirror ul[data-type="taskList"] li {
+          display: flex;
+          align-items: flex-start;
+          gap: 0.5rem;
+        }
+        .ProseMirror ul[data-type="taskList"] li > label {
+          margin-top: 0.25rem;
+          flex-shrink: 0;
+        }
+        .ProseMirror ul[data-type="taskList"] li > label input[type="checkbox"] {
+          width: 1rem;
+          height: 1rem;
+          cursor: pointer;
+        }
+        .ProseMirror ul[data-type="taskList"] li > div {
+          flex: 1;
+        }
+
+        /* Highlight */
+        .ProseMirror mark {
+          background-color: rgba(255, 255, 0, 0.4);
+          padding: 0.1rem 0.2rem;
+          border-radius: 0.2rem;
+        }
+
+        /* Horizontal Rule */
+        .ProseMirror hr {
+          border: none;
+          border-top: 2px solid var(--border);
+          margin: 1rem 0;
+        }
+
+        /* Table */
+        .ProseMirror table {
+          border-collapse: collapse;
+          table-layout: fixed;
+          width: 100%;
+          margin: 0;
+          overflow: hidden;
+        }
+        .ProseMirror table td,
+        .ProseMirror table th {
+          min-width: 1em;
+          border: 1px solid var(--border);
+          padding: 0.25rem 0.5rem;
+          vertical-align: top;
+          box-sizing: border-box;
+          position: relative;
+        }
+        .ProseMirror table th {
+          font-weight: bold;
+          text-align: left;
+          background-color: var(--muted);
+        }
+        .ProseMirror table .selectedCell:after {
+          z-index: 2;
+          position: absolute;
+          content: "";
+          left: 0;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          background: rgba(200, 200, 255, 0.4);
+          pointer-events: none;
+        }
+        .ProseMirror table .column-resize-handle {
+          position: absolute;
+          right: -2px;
+          top: 0;
+          bottom: -2px;
+          width: 4px;
+          background-color: #adf;
+          pointer-events: none;
         }
       `}</style>
     </div>

@@ -397,7 +397,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     extensions: [
       StarterKit.configure({
         codeBlock: false, // Disable default code block, use CodeBlockLowlight instead
-        link: false, // Disable automatic link conversion completely
+        // Remove link: false - in TipTap 3.19, this is handled differently
       }),
       Image.configure({
         inline: false,

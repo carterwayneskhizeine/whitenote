@@ -46,7 +46,7 @@ export function SimpleTipTapEditor({
     extensions: [
       StarterKit.configure({
         codeBlock: false,
-        link: false,
+        // Remove link: false - in TipTap 3.19, this is handled differently
       }),
       Image.configure({
         inline: false,

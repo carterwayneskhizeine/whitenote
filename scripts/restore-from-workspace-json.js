@@ -94,7 +94,11 @@ async function restoreDatabase() {
           continue;
         }
 
-        const content = fs.readFileSync(msgFilePath, 'utf-8');
+        let content = fs.readFileSync(msgFilePath, 'utf-8');
+
+        // 清理开头的多余空行，保留第一行作为 tags
+        // 移除开头的所有空行，确保第一行是 tags（以 # 开头）
+        content = content.replace(/^\s*\n+/, '');
 
         // Check if message exists
         const existingMsg = await prisma.message.findUnique({
@@ -146,7 +150,10 @@ async function restoreDatabase() {
           continue;
         }
 
-        const content = fs.readFileSync(commentFilePath, 'utf-8');
+        let content = fs.readFileSync(commentFilePath, 'utf-8');
+
+        // 清理开头的多余空行，保留第一行作为 tags
+        content = content.replace(/^\s*\n+/, '');
 
         // Check if comment exists
         const existingComment = await prisma.comment.findUnique({
