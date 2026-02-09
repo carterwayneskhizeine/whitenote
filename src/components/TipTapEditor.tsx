@@ -25,7 +25,8 @@ import {
   Heading2,
   Heading3,
   Undo,
-  Redo
+  Redo,
+  FileCode
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -237,6 +238,13 @@ export function TipTapEditor({
             title="行内代码"
           >
             <Code className="h-4 w-4" />
+          </ToolbarButton>
+          <ToolbarButton
+            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+            isActive={editor.isActive('codeBlock')}
+            title="代码块"
+          >
+            <FileCode className="h-4 w-4" />
           </ToolbarButton>
           <ToolbarButton
             onClick={() => editor.chain().focus().toggleBlockquote().run()}

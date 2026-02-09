@@ -33,13 +33,6 @@ import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUp
 import { useWorkspaceStore } from "@/store/useWorkspaceStore"
 import { getAvatarUrl } from "@/lib/utils"
 
-// Helper function to compact multiple newlines to single
-function cleanMarkdown(markdown: string): string {
-  if (!markdown) return markdown
-  // Replace 2 or more consecutive newlines with single newline
-  return markdown.replace(/\n{2,}/g, '\n')
-}
-
 interface InputMachineProps {
   onSuccess?: () => void
 }
@@ -472,7 +465,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     // ⚡ 立即标记：正在发送消息（在API调用之前）
     markMessageSending()
 
-    let content = cleanMarkdown(editor.getMarkdown()) // Clean and store as Markdown
+    let content = editor.getMarkdown() // Get raw Markdown without any processing
     const textContent = editor.getText() // Get plain text for @goldierill detection
 
     setIsPosting(true)
@@ -786,6 +779,62 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
           border-radius: 0.5rem;
           display: block;
           margin: 0.5rem 0;
+        }
+
+        /* Tables */
+        .ProseMirror table {
+          border-collapse: collapse;
+          table-layout: fixed;
+          width: 100%;
+          margin: 1rem 0;
+          overflow: hidden;
+          border-radius: 0.5rem;
+          border: 1px solid hsl(var(--border));
+        }
+
+        .ProseMirror table td,
+        .ProseMirror table th {
+          min-width: 1em;
+          border: 1px solid hsl(var(--border));
+          padding: 0.5rem 0.75rem;
+          vertical-align: top;
+          box-sizing: border-box;
+          position: relative;
+          background-color: hsl(var(--background));
+        }
+
+        .ProseMirror table th {
+          font-weight: 600;
+          text-align: left;
+          background-color: hsl(var(--muted) / 0.3);
+        }
+
+        .ProseMirror table .selectedCell:after {
+          z-index: 2;
+          position: absolute;
+          content: "";
+          left: 0;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          background: hsl(var(--primary) / 0.1);
+          pointer-events: none;
+        }
+
+        .ProseMirror table .column-resize-handle {
+          position: absolute;
+          right: -2px;
+          top: 0;
+          bottom: -2px;
+          width: 4px;
+          background-color: hsl(var(--primary));
+          pointer-events: none;
+        }
+
+        /* Table wrapper for overflow */
+        .ProseMirror .tableWrapper {
+          overflow-x: auto;
+          margin: 1rem 0;
         }
       `}</style>
     </div>
