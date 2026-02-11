@@ -228,6 +228,29 @@ docker-compose ps postgres
 docker logs pg16
 ```
 
+### 构建错误：Module not found
+
+如果运行 `pnpm build` 时出现 `Module not found` 错误（如 `@auth/prisma-adapter`、`@prisma/client`、`@radix-ui/react-*` 等）：
+
+```bash
+# 1. 删除已损坏的依赖和构建缓存
+rm -rf node_modules .next
+
+# 2. 重新安装依赖
+pnpm install
+
+# 3. 重新生成 Prisma Client
+pnpm prisma generate
+
+# 4. 重新构建
+pnpm build
+```
+
+此问题通常发生在：
+- 首次克隆项目后未生成 Prisma Client
+- `node_modules` 依赖损坏或不完整
+- 升级了 Prisma 或相关依赖后
+
 ## 📚 更多资源
 
 - [Next.js 文档](https://nextjs.org/docs)

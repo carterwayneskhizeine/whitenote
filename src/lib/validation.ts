@@ -7,7 +7,7 @@ export function getPaginationParams(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
 
   const page = Math.max(1, parseInt(searchParams.get("page") || "1"))
-  const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20")))
+  const limit = Math.min(200, Math.max(1, parseInt(searchParams.get("limit") || "20")))
   const skip = (page - 1) * limit
 
   return { page, limit, skip }
