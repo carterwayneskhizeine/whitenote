@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
 import { signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Hash, Bell, Bookmark, Settings, PenLine, LogOut, ChevronDown, Loader2, Search } from "lucide-react"
+import { Hash, MessageSquare, Bookmark, Settings, PenLine, LogOut, ChevronDown, Loader2, Search } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn, getAvatarUrl } from "@/lib/utils"
@@ -353,8 +353,8 @@ export function MobileNav() {
           <XIcon icon={Hash} filled={isActive("/tags")} className={cn("h-7 w-7", isActive("/tags") && "text-foreground")} />
         </Link>
 
-        <Link href="/notifications" className="flex flex-col items-center justify-center w-full h-full">
-          <XIcon icon={Bell} filled={isActive("/notifications")} className={cn("h-7 w-7", isActive("/notifications") && "text-foreground")} />
+        <Link href="/aichat" className="flex flex-col items-center justify-center w-full h-full">
+          <XIcon icon={MessageSquare} filled={isActive("/aichat")} className={cn("h-7 w-7", isActive("/aichat") && "text-foreground")} />
         </Link>
 
         <Link href="/favorites" className="flex flex-col items-center justify-center w-full h-full">

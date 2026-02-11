@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
 import { useState } from "react"
 import {
-  Hash, Bell, Bookmark,
+  Hash, MessageSquare, Bookmark,
   MoreHorizontal, PenLine, LogOut, UserCircle
 } from "lucide-react"
 
@@ -43,7 +43,7 @@ const XExplore = ({ isActive, ...props }: any) => (
   <Hash {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
 )
 const XNotifications = ({ isActive, ...props }: any) => (
-  <Bell {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
+  <MessageSquare {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
 )
 const XBookmarks = ({ isActive, ...props }: any) => (
   <Bookmark {...props} size={28} strokeWidth={isActive ? 3 : 2} fill={isActive ? "currentColor" : "none"} />
@@ -55,7 +55,7 @@ const XMore = ({ isActive, ...props }: any) => (
 const navItems = [
   { icon: XHome, label: "首页", href: "/" },
   { icon: XExplore, label: "Tags", href: "/tags" },
-  { icon: XNotifications, label: "通知", href: "/notifications" },
+  { icon: XNotifications, label: "AI Chat", href: "/aichat" },
   { icon: XBookmarks, label: "收藏", href: "/favorites" },
   { icon: XMore, label: "更多", href: "/settings" },
 ]
@@ -131,7 +131,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
         {/* Navigation */}
         <nav className="flex flex-col gap-1">
           {navItems
-            .filter(item => !isMobile || ["/", "/tags", "/notifications"].includes(item.href))
+            .filter(item => !isMobile || ["/", "/tags", "/aichat"].includes(item.href))
             .map((item) => {
             const isActive = pathname === item.href
             return (

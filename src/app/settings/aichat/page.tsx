@@ -1,5 +1,5 @@
 import SettingsPage from '../page'
 
-export default function NotificationsSettingsPage() {
+export default function AIChatSettingsPage() {
   return <SettingsPage />
 }
