@@ -22,8 +22,19 @@ docker exec pg16 pg_dump -U myuser -d whitenote --no-owner --no-acl \
   > D:\Code\whitenote\backups\whitenote_backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Windows PowerShell 版本
-docker exec pg16 pg_dump -U myuser -d whitenote --no-owner --no-acl `
-  | Out-File -Encoding UTF8 "D:\Code\whitenote\backups\whitenote_backup_$(Get-Date -Format 'yyyyMMdd_HHmmss').sql"
+# 设置输出编码
+$env:PGCLIENTENCODING = "UTF8"
+$timestamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+$backupFile = "D:\Code\whitenote\backups\whitenote_backup_$timestamp.sql"
+
+# 使用 PowerShell 7+ 的方式，或者使用重定向
+docker exec pg16 pg_dump -U myuser -d whitenote --no-owner --no-acl --encoding=UTF8 2>&1 | Out-File -FilePath $backupFile -Encoding utf8NoBOM
+
+```
+
+```bash
+cd D:\Code\whitenote
+bash scripts/backup-db.sh
 ```
 
 ### 压缩备份

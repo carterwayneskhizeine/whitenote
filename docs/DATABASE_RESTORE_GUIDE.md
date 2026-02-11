@@ -55,6 +55,19 @@ cp -r "D:\Code\whitenote-data\link_md"* "D:\Code\whitenote\data\link_md/"
 
 ### 步骤 3：运行恢复脚本
 
+#### 方法 A：本地运行（推荐）
+
+```bash
+# 如果 node 命令不在 PATH 中，使用完整路径
+# 首先找到 node 的位置
+find ~/.nvm -name "node" -type f 2>/dev/null
+
+# 使用完整路径运行（示例）
+~/.nvm/versions/node/v24.13.0/bin/node scripts/restore-from-workspace-json.js
+```
+
+#### 方法 B：通过 Docker 容器运行
+
 ```bash
 # 将脚本复制到 Docker 容器
 docker cp scripts/restore-from-workspace-json.js whitenote-app:/app/scripts/restore-from-workspace-json.js
@@ -105,7 +118,7 @@ docker exec -i pg16 psql -U myuser -d whitenote < backups/whitenote_backup.sql
 # 或者恢复特定的转储文件
 docker exec -i pg16 psql -U myuser -d whitenote < backups/whitenote_backup_20260208_184752.sql
 ```
-
+docker exec -i pg16 psql -U myuser -d whitenote < backups/whitenote_backup_20260210_144353.sql
 ### 步骤 3：重新启动服务
 
 ```bash
@@ -207,11 +220,14 @@ docker-compose up -d
 # 2. 等待数据库就绪
 docker exec pg16 pg_isready -U myuser -d whitenote
 
-# 3. 复制恢复脚本
-docker cp scripts/restore-from-workspace-json.js whitenote-app:/app/scripts/
+# 3. 运行恢复脚本（本地方式）
+~/.nvm/versions/node/v*/bin/node scripts/restore-from-workspace-json.js
 
-# 4. 执行恢复
-docker exec whitenote-app sh -c "cd /app && node scripts/restore-from-workspace-json.js"
+# 或者通过 Docker 容器（需要先启动容器）
+# docker cp scripts/restore-from-workspace-json.js whitenote-app:/app/scripts/
+# docker exec whitenote-app sh -c "cd /app && node scripts/restore-from-workspace-json.js"
+
+# 4. 验证结果
 
 # 5. 验证结果
 docker exec pg16 psql -U myuser -d whitenote -c "
