@@ -3,65 +3,20 @@
 import { InputMachine } from "@/components/InputMachine"
 import { MessagesList } from "@/components/MessagesList"
 import { NewMessageButton } from "@/components/NewMessageButton"
+import { WorkspaceBreadcrumb } from "@/components/WorkspaceBreadcrumb"
 import { useState, useEffect, Suspense, useRef } from "react"
 import { useSocket } from "@/hooks/useSocket"
 import { useAppStore } from "@/store/useAppStore"
 import { useWorkspaceStore } from "@/store/useWorkspaceStore"
 import { useSession } from "next-auth/react"
 import { useSearchParams } from "next/navigation"
-import { workspacesApi } from "@/lib/api/workspaces"
-import type { Workspace } from "@/types/api"
-import { ChevronDown, Loader2 } from "lucide-react"
-
-// Maximum workspaces to show as buttons before showing dropdown
-const MAX_VISIBLE_WORKSPACES = 3
+import { Loader2 } from "lucide-react"
 
 function HomeContent() {
   const [refreshKey, setRefreshKey] = useState(0)
   const { setHasNewMessages } = useAppStore()
-  const { data: session } = useSession()
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([])
-  const [showWorkspaceMenu, setShowWorkspaceMenu] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-  const [lastThirdAreaWorkspaceId, setLastThirdAreaWorkspaceId] = useState<string | null>(null)
-  const { currentWorkspaceId, setCurrentWorkspaceId } = useWorkspaceStore()
   const searchParams = useSearchParams()
   const scrollAttemptedRef = useRef(false)
-
-  // 加载用户的 Workspace 列表
-  useEffect(() => {
-    const fetchWorkspaces = async () => {
-      if (session?.user) {
-        try {
-          const result = await workspacesApi.getWorkspaces()
-          if (result.data) {
-            setWorkspaces(result.data)
-            // 初始化上次第三区域选中的工作区
-            if (result.data.length > 2 && !lastThirdAreaWorkspaceId) {
-              // 如果当前选中的工作区在第3个区域（index >= 2），使用它
-              const currentIndex = result.data.findIndex((w) => w.id === currentWorkspaceId)
-              if (currentIndex >= 2) {
-                setLastThirdAreaWorkspaceId(currentWorkspaceId)
-              } else {
-                // 否则使用第3个工作区
-                setLastThirdAreaWorkspaceId(result.data[2].id)
-              }
-            }
-            // 如果没有选中的 Workspace 且有默认 Workspace，自动选中
-            if (!currentWorkspaceId && result.data.length > 0) {
-              const defaultWorkspace = result.data.find((w) => w.isDefault) || result.data[0]
-              setCurrentWorkspaceId(defaultWorkspace.id)
-            }
-          }
-        } catch (error) {
-          console.error("Failed to fetch workspaces:", error)
-        } finally {
-          setIsLoading(false)
-        }
-      }
-    }
-    fetchWorkspaces()
-  }, [session, currentWorkspaceId, lastThirdAreaWorkspaceId])
 
   const handleMessageCreated = () => {
     // Trigger refresh of messages list
@@ -121,117 +76,13 @@ function HomeContent() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen pt-[106px] desktop:pt-0">
+    <div className="flex flex-col min-h-screen pt-26.5 desktop:pt-0">
+      {/* Desktop Workspace Breadcrumb */}
       <div className="desktop:block hidden sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="flex w-full relative">
-          {isLoading ? (
-            <div className="flex-1 flex justify-center items-center py-4">
-              <Loader2 className="h-4 w-4 animate-spin" />
-            </div>
-          ) : workspaces.length > 0 ? (
-            <>
-              {/* First workspace (fixed) */}
-              {workspaces[0] && (
-                <button
-                  className={`flex-1 py-4 transition-colors relative flex justify-center items-center gap-2 ${
-                    currentWorkspaceId === workspaces[0].id
-                      ? 'bg-secondary/30 hover:bg-secondary/40'
-                      : 'hover:bg-secondary/50'
-                  }`}
-                  onClick={() => {
-                    setCurrentWorkspaceId(workspaces[0].id)
-                    setRefreshKey((prev) => prev + 1)
-                  }}
-                >
-                  <span className="font-bold text-sm">{workspaces[0].name}</span>
-                  {currentWorkspaceId === workspaces[0].id && (
-                    <div className="absolute bottom-0 h-1 w-14 bg-primary rounded-full" />
-                  )}
-                </button>
-              )}
-
-              {/* Second workspace (fixed) */}
-              {workspaces[1] && (
-                <button
-                  className={`flex-1 py-4 transition-colors relative flex justify-center items-center gap-2 ${
-                    currentWorkspaceId === workspaces[1].id
-                      ? 'bg-secondary/30 hover:bg-secondary/40'
-                      : 'hover:bg-secondary/50'
-                  }`}
-                  onClick={() => {
-                    setCurrentWorkspaceId(workspaces[1].id)
-                    setRefreshKey((prev) => prev + 1)
-                  }}
-                >
-                  <span className="font-bold text-sm">{workspaces[1].name}</span>
-                  {currentWorkspaceId === workspaces[1].id && (
-                    <div className="absolute bottom-0 h-1 w-14 bg-primary rounded-full" />
-                  )}
-                </button>
-              )}
-
-              {/* Third workspace slot - shows current workspace with dropdown */}
-              {workspaces.length > 2 && (
-                <div className="relative flex-1 flex">
-                  {/* Main button - clickable workspace name */}
-                  <button
-                    className={`flex-1 py-4 transition-colors relative flex justify-center items-center ${
-                      currentWorkspaceId !== workspaces[0].id && currentWorkspaceId !== workspaces[1].id
-                        ? 'bg-secondary/30 hover:bg-secondary/40'
-                        : 'hover:bg-secondary/50'
-                    }`}
-                    onClick={() => {
-                      const targetWorkspaceId = lastThirdAreaWorkspaceId || workspaces[2].id
-                      setCurrentWorkspaceId(targetWorkspaceId)
-                      setRefreshKey((prev) => prev + 1)
-                    }}
-                  >
-                    <span className="font-bold text-sm">
-                      {workspaces.find((w) => w.id === (lastThirdAreaWorkspaceId || workspaces[2].id))?.name || workspaces[2].name}
-                    </span>
-                    {currentWorkspaceId !== workspaces[0].id && currentWorkspaceId !== workspaces[1].id && (
-                      <div className="absolute bottom-0 h-1 w-14 bg-primary rounded-full" />
-                    )}
-                  </button>
-
-                  {/* Small dropdown arrow button */}
-                  <button
-                    className="px-2 hover:bg-secondary/50 transition-colors relative flex items-center justify-center"
-                    onClick={() => setShowWorkspaceMenu(!showWorkspaceMenu)}
-                  >
-                    <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showWorkspaceMenu ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {/* Dropdown menu for workspaces from index 2 onwards */}
-                  {showWorkspaceMenu && (
-                    <div className="absolute top-full right-0 w-[200px] bg-background border border-b border-x border-border rounded-b-lg shadow-lg z-50">
-                      {workspaces.slice(2).map((ws) => (
-                        <button
-                          key={ws.id}
-                          className={`w-full px-4 py-3 text-center hover:bg-secondary/50 transition-colors ${
-                            currentWorkspaceId === ws.id ? 'bg-secondary/30' : ''
-                          }`}
-                          onClick={() => {
-                            setCurrentWorkspaceId(ws.id)
-                            setLastThirdAreaWorkspaceId(ws.id)
-                            setShowWorkspaceMenu(false)
-                            setRefreshKey((prev) => prev + 1)
-                          }}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <span className="font-medium text-sm">{ws.name}</span>
-                            {ws.isDefault && (
-                              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded">默认</span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
-          ) : null}
+        <div className="px-4 h-12 flex items-center justify-center">
+          <WorkspaceBreadcrumb
+            onWorkspaceChange={() => setRefreshKey((prev) => prev + 1)}
+          />
         </div>
       </div>
 
@@ -247,7 +98,7 @@ function HomeContent() {
 export default function Home() {
   return (
     <Suspense fallback={
-      <div className="flex flex-col min-h-screen pt-[106px] desktop:pt-0 items-center justify-center">
+      <div className="flex flex-col min-h-screen pt-26.5 desktop:pt-0 items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     }>
