@@ -3,8 +3,8 @@
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
-import { 
-  Moon, Sun, Monitor, Sparkles, User, Palette, Shield, Bell, 
+import {
+  Moon, Sun, Monitor, Sparkles, User, Palette, Shield,
   Globe, HelpCircle, Wand2, Layers, ChevronRight, ArrowLeft,
   FileText
 } from "lucide-react"
@@ -37,7 +37,6 @@ export default function SettingsPage() {
     { id: 'templates', label: '模板管理', icon: FileText, description: '管理消息模板' },
     { id: 'appearance', label: '显示与外观', icon: Palette, description: '自定义应用外观' },
     { id: 'privacy', label: '隐私与安全', icon: Shield, description: '管理隐私和安全选项' },
-    { id: 'notifications', label: '通知', icon: Bell, description: '管理通知偏好' },
     { id: 'language', label: '语言', icon: Globe, description: '选择显示语言' },
     { id: 'help', label: '帮助中心', icon: HelpCircle, description: '获取帮助和支持' },
   ]
@@ -103,29 +102,6 @@ export default function SettingsPage() {
           <div className="space-y-6">
             <PasswordChangeForm />
             <PrivacySettingsForm />
-          </div>
-        )
-      case 'notifications':
-        return (
-          <div className="divide-y divide-border -mx-4">
-            <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
-              <div className="px-2 flex items-center justify-between">
-                <div>
-                  <p className="font-bold">推送通知</p>
-                  <p className="text-sm text-muted-foreground">在设备上接收实时通知</p>
-                </div>
-                <Button variant="outline" size="sm" className="rounded-full">管理</Button>
-              </div>
-            </div>
-            <div className="px-4 py-6 hover:bg-muted/30 transition-colors group">
-              <div className="px-2 flex items-center justify-between">
-                <div>
-                  <p className="font-bold">邮件通知</p>
-                  <p className="text-sm text-muted-foreground">通过邮件接收摘要和动态</p>
-                </div>
-                <Button variant="outline" size="sm" className="rounded-full">管理</Button>
-              </div>
-            </div>
           </div>
         )
       case 'language':
