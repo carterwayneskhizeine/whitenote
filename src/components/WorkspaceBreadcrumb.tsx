@@ -89,19 +89,19 @@ export function WorkspaceBreadcrumb({ onWorkspaceChange }: WorkspaceBreadcrumbPr
           className={cn(
             "h-9 px-3 flex items-center text-sm font-medium transition-colors",
             "hover:bg-secondary/50 rounded-md",
-            "focus:outline-none focus:ring-2 focus:ring-primary/20",
+            "focus:outline-none",
             "min-w-0 max-w-50"
           )}
         >
           <span className="truncate">
             {currentWorkspace?.name || "选择工作区"}
           </span>
-          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground ml-2" />
         </button>
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        align="start"
+        align="center"
         className="w-70 p-0"
       >
         <div className="p-2 border-b border-border">
