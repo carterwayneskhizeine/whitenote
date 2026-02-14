@@ -28,10 +28,10 @@ export default function AIChatPage() {
 
   return (
     <div
-      className="flex flex-col"
+      className="flex flex-col pt-[53px] desktop:pt-0"
       style={{ height: viewportHeight ? `${viewportHeight}px` : '100vh', overflow: 'hidden' }}
     >
-      <div className="shrink-0 border-b px-4 py-3 bg-background desktop:bg-transparent z-50 desktop:z-0 fixed desktop:relative top-0 left-0 right-0">
+      <div className="shrink-0 border-b px-4 py-3 bg-background desktop:bg-transparent z-50 desktop:z-0 relative">
         <h1 className="text-xl font-bold">AI Chat</h1>
       </div>
       <ChatWindow />
