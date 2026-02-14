@@ -112,16 +112,16 @@ export function ChatWindow() {
   }
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 h-full min-h-0">
       {error && (
-        <div className="flex items-center gap-2 p-3 mb-2 text-sm text-red-500 bg-red-50 rounded-md">
+        <div className="flex items-center gap-2 p-3 mb-2 text-sm text-red-500 bg-red-50 rounded-md mx-4">
           <AlertCircle className="w-4 h-4" />
           {error}
         </div>
       )}
 
-      <ScrollArea className="flex-1 w-full">
-        <div className="space-y-4 w-full px-4">
+      <ScrollArea className="flex-1 w-full min-h-0">
+        <div className="space-y-4 w-full px-4 min-w-0">
           {isLoadingHistory ? (
             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
               <Loader2 className="w-8 h-8 mb-4 animate-spin" />
@@ -138,19 +138,10 @@ export function ChatWindow() {
            {messages.map(message => (
             <div
               key={message.id}
-              className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'} w-full`}
+              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} w-full min-w-0`}
             >
-              {message.role === 'assistant' && (
-                <Avatar className="w-8 h-8 shrink-0">
-                  <AvatarImage src="/avatars/openclaw.png" />
-                  <AvatarFallback>
-                    <Bot className="w-4 h-4" />
-                  </AvatarFallback>
-                </Avatar>
-              )}
-
               <div
-                className={`rounded-lg px-4 py-2 ${
+                className={`rounded-lg px-4 py-2 max-w-[85%] md:max-w-[90%] min-w-0 break-words ${
                   message.role === 'user'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted'
@@ -168,14 +159,6 @@ export function ChatWindow() {
                   </span>
                 )}
               </div>
-
-              {message.role === 'user' && (
-                <Avatar className="w-8 h-8 shrink-0">
-                  <AvatarFallback>
-                    <User className="w-4 h-4" />
-                  </AvatarFallback>
-                </Avatar>
-              )}
             </div>
           ))}
           <div ref={messagesEndRef} />

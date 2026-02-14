@@ -78,6 +78,13 @@ export function TipTapViewer({ content, className, onImageClick }: TipTapViewerP
     },
   })
 
+  // Update editor content when prop changes
+  useEffect(() => {
+    if (editor && content !== editor.getHTML() && content !== editor.getText()) {
+      editor.commands.setContent(content)
+    }
+  }, [content, editor])
+
   // Add copy buttons to code blocks after editor is ready
   useEffect(() => {
     if (!editor) return
@@ -203,11 +210,14 @@ export function TipTapViewer({ content, className, onImageClick }: TipTapViewerP
   }
 
   return (
-    <div className={cn("tipTap-viewer", className)}>
+    <div className={cn("tipTap-viewer max-w-full overflow-hidden", className)}>
       <EditorContent editor={editor} />
       <style jsx global>{`
         .tipTap-viewer .ProseMirror {
           outline: none;
+          max-width: 100%;
+          overflow-wrap: break-word;
+          word-break: break-word;
         }
 
         /* Headings */
