@@ -112,7 +112,7 @@ export function ChatWindow() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 pt-[52px] pb-safe-or-4 desktop:pt-0 desktop:pb-0">
+    <div className="flex flex-col flex-1 min-h-0 pt-[52px] desktop:pt-0">
       {error && (
         <div className="flex items-center gap-2 p-3 mb-2 text-sm text-red-500 bg-red-50 rounded-md mx-4">
           <AlertCircle className="w-4 h-4" />
@@ -121,7 +121,7 @@ export function ChatWindow() {
       )}
 
       <ScrollArea className="flex-1 w-full min-h-0">
-        <div className="space-y-4 w-full px-4 min-w-0">
+        <div className="space-y-4 w-full px-4 min-w-0 pb-4">
           {isLoadingHistory ? (
             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
               <Loader2 className="w-8 h-8 mb-4 animate-spin" />
@@ -165,7 +165,7 @@ export function ChatWindow() {
         </div>
       </ScrollArea>
 
-      <form onSubmit={handleSubmit} className="p-4 pb-safe-or-4 border-t w-full shrink-0 bg-background">
+      <form onSubmit={handleSubmit} className="p-4 pb-safe-or-4 border-t w-full shrink-0 bg-background fixed bottom-[53px] left-0 right-0 z-40 desktop:relative desktop:bottom-0">
         <div className="flex gap-2">
           <textarea
             ref={inputRef}

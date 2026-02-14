@@ -20,7 +20,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen justify-center w-full bg-background text-foreground">
         <div className="flex w-full max-w-[1350px] justify-center relative gap-0 md:pl-10">
           <main className="flex-1 min-h-screen flex flex-col w-full md:max-w-[600px] shrink-0">
-            <MobileNav />
+            <MobileNav disableAutoHide={pathname === "/aichat"} />
             {children}
           </main>
         </div>
@@ -31,6 +31,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const isAuthPage = pathname?.startsWith("/login") || pathname?.startsWith("/register")
   const isSettingsPage = pathname?.startsWith("/settings")
   const isTagsPage = pathname === "/tags"
+  const isAIChatPage = pathname === "/aichat"
 
   if (isAuthPage) {
     return <>{children}</>
@@ -52,7 +53,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
           isTagsPage ? 'max-w-full' :
             'md:max-w-[600px]'
           } shrink-0`}>
-          <MobileNav />
+          <MobileNav disableAutoHide={isAIChatPage} />
           {children}
         </main>
 

@@ -79,19 +79,19 @@ export default function AIChatPage() {
 
 ```tsx
 return (
-  <div className="flex flex-col flex-1 min-h-0 pt-[52px] pb-safe-or-4 desktop:pt-0 desktop:pb-0">
+  <div className="flex flex-col flex-1 min-h-0 pt-[52px] desktop:pt-0">
     {/* 错误提示 */}
     {error && (...)}
 
     {/* 消息列表 */}
     <ScrollArea className="flex-1 w-full min-h-0">
-      <div className="space-y-4 w-full px-4 min-w-0">
+      <div className="space-y-4 w-full px-4 min-w-0 pb-4">
         {/* 消息渲染... */}
       </div>
     </ScrollArea>
 
-    {/* 输入框 */}
-    <form onSubmit={handleSubmit} className="p-4 pb-safe-or-4 border-t w-full shrink-0 bg-background">
+    {/* 输入框 - 固定在底部 */}
+    <form onSubmit={handleSubmit} className="p-4 pb-safe-or-4 border-t w-full shrink-0 bg-background fixed bottom-[53px] left-0 right-0 z-40 desktop:relative desktop:bottom-0">
       <div className="flex gap-2">
         <textarea ... />
         <Button ... />
@@ -106,8 +106,10 @@ return (
 | 类名 | 作用 |
 |------|------|
 | `pt-[52px]` | 移动端顶部内边距，避开固定标题栏 |
-| `pb-safe-or-4` | 移动端底部安全区域内边距，适配键盘弹出 |
-| `desktop:pt-0 desktop:pb-0` | 桌面端移除额外内边距 |
+| `pb-4` | 消息列表底部内边距，避免最后一条消息被输入框遮挡 |
+| `fixed bottom-[53px]` | 移动端固定在底部导航栏上方 (53px = 导航栏高度) |
+| `z-40` | 与 MobileNav 相同层级 |
+| `desktop:relative desktop:bottom-0` | 桌面端回归正常文档流 |
 
 ## 移动端适配要点
 
@@ -150,9 +152,11 @@ useEffect(() => {
 
 ### 4. 底部输入框
 
-- 使用 `pb-safe-or-4` 适配安全区域
-- 键盘弹出时，输入框随视窗底部移动
-- 桌面端移除底部内边距
+- 使用 `fixed bottom-[53px]` 固定在底部导航栏上方
+- `z-40` 确保与 MobileNav 同层级
+- 键盘弹出时，输入框位于键盘上方、导航栏下方
+- 桌面端使用 `desktop:relative` 回归正常文档流
+- 消息列表添加 `pb-4` 避免最后一条消息被输入框遮挡
 
 ## 布局示意图
 
@@ -165,13 +169,15 @@ useEffect(() => {
 │                 │         │                 │
 │   消息列表      │         │   消息列表      │
 │   pt-[52px]     │         │                 │
-│                 │         │                 │
+│   pb-4         │         │                 │
 │                 │         │                 │
 ├─────────────────┤         ├─────────────────┤
 │ 输入框          │         │ 输入框          │
-│ pb-safe-or-4   │         │                 │
+│ fixed          │         │ (relative)      │
+│ bottom-[53px]  │         │                 │
 └─────────────────┘         └─────────────────┘
   ↑ MobileNav (53px)          (无底部导航)
+  z-40 fixed bottom-0
 ```
 
 ## 与参考页面的对比

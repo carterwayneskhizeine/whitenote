@@ -47,7 +47,7 @@ const MobileXHome = ({ isActive, className }: any) => {
   )
 }
 
-export function MobileNav() {
+export function MobileNav({ disableAutoHide = false }: { disableAutoHide?: boolean }) {
   const pathname = usePathname()
   const { data: session } = useSession()
   const [isVisible, setIsVisible] = useState(true)
@@ -73,6 +73,12 @@ export function MobileNav() {
   }
 
   useEffect(() => {
+    // Skip scroll-based hide if disabled
+    if (disableAutoHide) {
+      setIsVisible(true)
+      return
+    }
+
     const controlNavbar = () => {
       if (typeof window !== 'undefined') {
         const currentScrollY = window.scrollY
@@ -90,7 +96,7 @@ export function MobileNav() {
 
     window.addEventListener('scroll', controlNavbar)
     return () => window.removeEventListener('scroll', controlNavbar)
-  }, [lastScrollY])
+  }, [lastScrollY, disableAutoHide])
 
   const isActive = (path: string) => pathname === path
 
