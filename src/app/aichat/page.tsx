@@ -28,7 +28,7 @@ export default function AIChatPage() {
 
   return (
     <div
-      className="flex flex-col pt-[53px] desktop:pt-0"
+      className="flex flex-col"
       style={{ height: viewportHeight ? `${viewportHeight}px` : '100vh', overflow: 'hidden' }}
     >
       <div className="shrink-0 border-b px-4 py-3 bg-background desktop:bg-transparent z-50 desktop:z-0 relative">

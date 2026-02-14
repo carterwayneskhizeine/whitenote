@@ -108,83 +108,85 @@ export function MobileNav({ disableAutoHide = false }: { disableAutoHide?: boole
   return (
     <>
       {/* Top Navigation Bar */}
-      <div className={cn(
-        "desktop:hidden fixed top-0 left-0 right-0 z-40 bg-background/85 backdrop-blur-md border-b border-border transition-transform duration-300",
-        isVisible ? "translate-y-0" : "-translate-y-full"
-      )}>
-        {/* Main Header Row */}
-        <div className="flex items-center justify-between px-4 h-[53px]">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full p-0 h-8 w-8">
-                <Avatar className="h-8 w-8">
-                  {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
-                  <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
-                </Avatar>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-[280px] p-0 flex flex-col bg-background">
-              <SheetHeader className="sr-only">
-                <SheetTitle>Menu</SheetTitle>
-              </SheetHeader>
+      {pathname !== "/aichat" && (
+        <div className={cn(
+          "desktop:hidden fixed top-0 left-0 right-0 z-40 bg-background/85 backdrop-blur-md border-b border-border transition-transform duration-300",
+          isVisible ? "translate-y-0" : "-translate-y-full"
+        )}>
+          {/* Main Header Row */}
+          <div className="flex items-center justify-between px-4 h-[53px]">
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="rounded-full p-0 h-8 w-8">
+                  <Avatar className="h-8 w-8">
+                    {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
+                    <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
+                  </Avatar>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-[280px] p-0 flex flex-col bg-background">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>Menu</SheetTitle>
+                </SheetHeader>
 
-              {/* Drawer Header */}
-              <div className="p-4 flex flex-col gap-3">
-                <Avatar className="h-10 w-10">
-                  {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
-                  <AvatarFallback>{userInitials}</AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col">
-                  <span className="font-bold text-lg leading-tight">{userName}</span>
-                  <span className="text-muted-foreground text-sm">{userEmail}</span>
+                {/* Drawer Header */}
+                <div className="p-4 flex flex-col gap-3">
+                  <Avatar className="h-10 w-10">
+                    {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
+                    <AvatarFallback>{userInitials}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="font-bold text-lg leading-tight">{userName}</span>
+                    <span className="text-muted-foreground text-sm">{userEmail}</span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="h-px bg-border mx-4" />
+                <div className="h-px bg-border mx-4" />
 
-              <div className="p-4">
-                <Button variant="ghost" asChild className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold">
-                  <Link href="/settings">
-                    <Settings className="h-6 w-6" />
-                    设置与隐私
-                  </Link>
-                </Button>
-              </div>
+                <div className="p-4">
+                  <Button variant="ghost" asChild className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold">
+                    <Link href="/settings">
+                      <Settings className="h-6 w-6" />
+                      设置与隐私
+                    </Link>
+                  </Button>
+                </div>
 
-              <div className="mt-auto p-4">
-                <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold">
-                  <LogOut className="h-6 w-6" />
-                  退出登录
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
+                <div className="mt-auto p-4">
+                  <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold">
+                    <LogOut className="h-6 w-6" />
+                    退出登录
+                  </Button>
+                </div>
+              </SheetContent>
+            </Sheet>
 
-          <Link href="/" className="flex items-center justify-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 512 512"
-              className="h-7 w-7 fill-foreground"
-            >
-              <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93" />
-            </svg>
-          </Link>
+            <Link href="/" className="flex items-center justify-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 512 512"
+                className="h-7 w-7 fill-foreground"
+              >
+                <polygon points="260.68 64.93 240.51 99.87 240.52 99.89 78.34 380.8 118.75 380.8 260.8 134.76 383.54 345.8 215.64 345.8 272.64 246.42 252.4 211.36 155.22 380.8 185.43 380.8 195.57 380.8 403.89 380.8 419.08 380.8 444.38 380.8 260.68 64.93" />
+              </svg>
+            </Link>
 
-          <Link href="/search">
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Search className="h-5 w-5" />
-            </Button>
-          </Link>
-        </div>
-
-        {/* Workspace Breadcrumb (Only on Home) */}
-        {pathname === "/" && (
-          <div className="flex w-full border-t border-border bg-background/85 backdrop-blur-md px-4 py-2 justify-center">
-            <WorkspaceBreadcrumb />
+            <Link href="/search">
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <Search className="h-5 w-5" />
+              </Button>
+            </Link>
           </div>
-        )}
 
-      </div>
+          {/* Workspace Breadcrumb (Only on Home) */}
+          {pathname === "/" && (
+            <div className="flex w-full border-t border-border bg-background/85 backdrop-blur-md px-4 py-2 justify-center">
+              <WorkspaceBreadcrumb />
+            </div>
+          )}
+
+        </div>
+      )}
 
       {/* Floating Action Button (FAB) - Only show on home page */}
       {pathname === "/" && (
