@@ -89,7 +89,8 @@
     "tailwind-merge": "^3.4.0",
     "tippy.js": "^6.3.7",
     "yet-another-react-lightbox": "^3.28.0",
-    "zustand": "^5.0.9"
+    "zustand": "^5.0.9",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -103,6 +104,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/tippy.js": "^6.3.0",
+    "@types/ws": "^8.18.0",
     "cross-env": "^10.1.0",
     "dotenv": "^17.2.3",
     "eslint": "^9",
