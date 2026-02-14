@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
           let currentRunId: string | undefined
 
           gateway!.onEvent = (event: EventFrame) => {
-            console.log('[OpenClaw Gateway] Event:', event.event, event.payload)
+            // console.log('[OpenClaw Gateway] Event:', event.event, event.payload)
             
             // Handle agent stream (assistant content)
             if (event.event === 'agent') {

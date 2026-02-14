@@ -12,6 +12,11 @@ WhiteNote is a collaborative social media platform with AI-enhanced features, co
 
 ```bash
 # Terminal 1 - Build Next.js (required first)
+# If build fails with "Module not found" errors, run these commands first:
+rm -rf node_modules .next
+pnpm install
+pnpm approve-builds   # Select all packages to build
+pnpm prisma generate
 pnpm build
 
 # Terminal 2 - Start development server on http://localhost:3005
@@ -151,6 +156,38 @@ scripts/
 ├── worker.ts             # Background worker process
 HttpAPIRAGFlow/           # RAGFlow API automation scripts and documentation
 ```
+
+## OpenClaw AI Chat 集成
+
+WhiteNote 集成了 OpenClaw Gateway 作为 AI 对话后端，提供类似 ChatGPT 的 Web UI 对话界面。
+
+### 关键文件
+
+| 文件 | 说明 |
+|------|------|
+| `src/lib/openclaw/types.ts` | OpenClaw 协议类型定义 |
+| `src/lib/openclaw/gateway.ts` | WebSocket 客户端实现 |
+| `src/app/api/openclaw/chat/stream/route.ts` | 流式聊天 API |
+| `src/app/api/openclaw/chat/history/route.ts` | 获取聊天历史 API |
+| `src/app/api/openclaw/sessions/route.ts` | 会话管理 API |
+| `src/components/OpenClawChat/types.ts` | 前端类型定义 |
+| `src/components/OpenClawChat/api.ts` | API 客户端 |
+| `src/components/OpenClawChat/ChatWindow.tsx` | 对话主组件 |
+| `src/app/aichat/page.tsx` | AI Chat 页面 |
+
+### 配置
+
+在 `.env.local` 中添加：
+```env
+OPENCLAW_GATEWAY_URL=ws://localhost:18789
+OPENCLAW_TOKEN=your-token-here
+```
+
+### 使用
+
+- 访问 `http://localhost:3005/aichat` 进入 AI 对话页面
+- 使用固定的 `main` 会话，聊天记录会在刷新后自动从 OpenClaw Gateway 恢复
+- 支持流式响应
 
 ## Database Schema Patterns
 

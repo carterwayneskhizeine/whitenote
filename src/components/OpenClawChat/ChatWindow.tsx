@@ -4,16 +4,18 @@ import { useState, useRef, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, Bot, User, AlertCircle } from 'lucide-react'
+import { Send, Bot, User, AlertCircle, Loader2 } from 'lucide-react'
 import { openclawApi, ChatStreamEvent } from './api'
 import type { ChatMessage } from './types'
+
+const DEFAULT_SESSION_KEY = 'main'
 
 export function ChatWindow() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [sessionKey, setSessionKey] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -25,15 +27,25 @@ export function ChatWindow() {
     scrollToBottom()
   }, [messages])
 
-  const createSession = async (): Promise<string> => {
-    try {
-      const session = await openclawApi.createSession('WhiteNote Chat')
-      setSessionKey(session.key)
-      return session.key
-    } catch (err) {
-      throw err
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const history = await openclawApi.getHistory(DEFAULT_SESSION_KEY, 50)
+        const formattedMessages: ChatMessage[] = history.map((msg, idx) => ({
+          id: `history-${idx}-${Date.now()}`,
+          role: msg.role,
+          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
+          timestamp: msg.timestamp || Date.now(),
+        }))
+        setMessages(formattedMessages)
+      } catch (err) {
+        console.error('[OpenClaw Chat] Failed to load history:', err)
+      } finally {
+        setIsLoadingHistory(false)
+      }
     }
-  }
+    loadHistory()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -61,13 +73,8 @@ export function ChatWindow() {
     setMessages(prev => [...prev, assistantMessage])
 
     try {
-      let currentSessionKey = sessionKey
-      if (!currentSessionKey) {
-        currentSessionKey = await createSession()
-      }
-
       const generator = openclawApi.sendMessageStream(
-        currentSessionKey!,
+        DEFAULT_SESSION_KEY,
         userMessage.content
       )
 
@@ -114,7 +121,12 @@ export function ChatWindow() {
 
       <ScrollArea className="flex-1 p-4">
         <div className="space-y-4">
-          {messages.length === 0 && (
+          {isLoadingHistory ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+              <Loader2 className="w-8 h-8 mb-4 animate-spin" />
+              <p className="text-sm">Loading chat history...</p>
+            </div>
+          ) : messages.length === 0 && (
             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
               <Bot className="w-12 h-12 mb-4" />
               <h3 className="text-lg font-semibold">Start a conversation</h3>

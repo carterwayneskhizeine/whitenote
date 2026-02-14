@@ -170,6 +170,14 @@ export class OpenClawGateway {
     return this.request('chat.abort', { sessionKey, runId });
   }
 
+  async chatHistory(sessionKey: string, limit?: number): Promise<{
+    sessionKey: string;
+    sessionId: string;
+    messages: unknown[];
+  }> {
+    return this.request('chat.history', { sessionKey, limit });
+  }
+
   get isConnected(): boolean {
     return this._isConnected;
   }

@@ -14,7 +14,27 @@ export interface ChatStreamEvent {
   message?: string
 }
 
+export interface ChatHistoryMessage {
+  role: 'user' | 'assistant'
+  content: string
+  timestamp?: number
+}
+
 export const openclawApi = {
+  async getHistory(sessionKey: string = 'main', limit?: number): Promise<ChatHistoryMessage[]> {
+    const params = new URLSearchParams({ sessionKey })
+    if (limit) params.append('limit', limit.toString())
+
+    const response = await fetch(`${API_BASE}/chat/history?${params}`)
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to get history')
+    }
+
+    const data = await response.json()
+    return (data.messages || []) as ChatHistoryMessage[]
+  },
+
   async createSession(label?: string): Promise<SessionResponse> {
     const response = await fetch(`${API_BASE}/sessions`, {
       method: 'POST',
