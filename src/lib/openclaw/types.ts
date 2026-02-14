@@ -132,6 +132,17 @@ export interface ChatEvent {
   stopReason?: string;
 }
 
+export interface ChatBroadcastEvent {
+  state: 'delta' | 'final' | 'aborted' | 'error';
+  runId?: string;
+  message?: {
+    content?: Array<{ text?: string; type?: string }>;
+  };
+  errorMessage?: string;
+  usage?: unknown;
+  stopReason?: string;
+}
+
 export interface OpenClawMessage {
   id: string;
   role: 'user' | 'assistant';

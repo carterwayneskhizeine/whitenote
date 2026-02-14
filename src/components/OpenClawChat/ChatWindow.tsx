@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Send, Bot, User, AlertCircle, Loader2 } from 'lucide-react'
 import { openclawApi, ChatStreamEvent } from './api'
+import { TipTapViewer } from '@/components/TipTapViewer'
 import type { ChatMessage } from './types'
 
 const DEFAULT_SESSION_KEY = 'main'
@@ -111,7 +112,7 @@ export function ChatWindow() {
   }
 
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-8rem)]">
+    <div className="flex flex-col h-full min-h-[calc(100vh-4rem)]">
       {error && (
         <div className="flex items-center gap-2 p-3 mb-2 text-sm text-red-500 bg-red-50 rounded-md">
           <AlertCircle className="w-4 h-4" />
@@ -155,16 +156,17 @@ export function ChatWindow() {
                     : 'bg-muted'
                 }`}
               >
-                <div className="whitespace-pre-wrap break-words">
-                  {message.content}
-                  {message.role === 'assistant' && isLoading && message.content === '' && (
-                    <span className="inline-flex gap-1 ml-1">
-                      <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </span>
-                  )}
-                </div>
+                <TipTapViewer 
+                  content={message.content} 
+                  className={message.role === 'user' ? 'text-primary-foreground' : ''}
+                />
+                {message.role === 'assistant' && isLoading && message.content === '' && (
+                  <span className="inline-flex gap-1 ml-1">
+                    <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </span>
+                )}
               </div>
 
               {message.role === 'user' && (
