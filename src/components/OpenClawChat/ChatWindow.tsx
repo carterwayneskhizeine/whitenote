@@ -112,7 +112,7 @@ export function ChatWindow() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-[calc(100vh-4rem)]">
+    <div className="flex flex-col flex-1">
       {error && (
         <div className="flex items-center gap-2 p-3 mb-2 text-sm text-red-500 bg-red-50 rounded-md">
           <AlertCircle className="w-4 h-4" />
@@ -120,8 +120,8 @@ export function ChatWindow() {
         </div>
       )}
 
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
+      <ScrollArea className="flex-1 w-full">
+        <div className="space-y-4 w-full px-4">
           {isLoadingHistory ? (
             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
               <Loader2 className="w-8 h-8 mb-4 animate-spin" />
@@ -135,13 +135,13 @@ export function ChatWindow() {
             </div>
           )}
 
-          {messages.map(message => (
+           {messages.map(message => (
             <div
               key={message.id}
-              className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'} w-full`}
             >
               {message.role === 'assistant' && (
-                <Avatar className="w-8 h-8">
+                <Avatar className="w-8 h-8 shrink-0">
                   <AvatarImage src="/avatars/openclaw.png" />
                   <AvatarFallback>
                     <Bot className="w-4 h-4" />
@@ -150,7 +150,7 @@ export function ChatWindow() {
               )}
 
               <div
-                className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                className={`rounded-lg px-4 py-2 ${
                   message.role === 'user'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted'
@@ -170,7 +170,7 @@ export function ChatWindow() {
               </div>
 
               {message.role === 'user' && (
-                <Avatar className="w-8 h-8">
+                <Avatar className="w-8 h-8 shrink-0">
                   <AvatarFallback>
                     <User className="w-4 h-4" />
                   </AvatarFallback>
@@ -182,7 +182,7 @@ export function ChatWindow() {
         </div>
       </ScrollArea>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t">
+      <form onSubmit={handleSubmit} className="p-4 border-t w-full shrink-0">
         <div className="flex gap-2">
           <textarea
             ref={inputRef}
