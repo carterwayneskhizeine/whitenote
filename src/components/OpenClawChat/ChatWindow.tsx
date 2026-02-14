@@ -112,7 +112,7 @@ export function ChatWindow() {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 pt-[52px] desktop:pt-0 pb-[53px] desktop:pb-0">
+    <div className="flex flex-col flex-1 min-h-0 pt-[52px] pb-[53px] desktop:pt-0 desktop:pb-0">
       {error && (
         <div className="flex items-center gap-2 p-3 mb-2 text-sm text-red-500 bg-red-50 rounded-md mx-4">
           <AlertCircle className="w-4 h-4" />
