@@ -45,9 +45,11 @@ next-env.d.ts
 .claude/
 # example projects
 obsidian-graph-clone/
-
+openclaw/
+AionUi/
 tmpclaude-*-cwd
 
 data
 
 backups
+
