@@ -16,12 +16,29 @@ function getOpenClawToken(): string {
 
 export const runtime = 'nodejs'
 
-function extractTextFromMessage(message: unknown): string | null {
+function extractContentFromMessage(message: unknown): { text?: string; toolCalls?: unknown[] } | null {
   if (!message || typeof message !== 'object') return null
   const msg = message as { content?: unknown }
   if (!Array.isArray(msg.content) || msg.content.length === 0) return null
-  const first = msg.content[0] as { text?: string } | undefined
-  return first?.text ?? null
+  
+  const result: { text?: string; toolCalls?: unknown[] } = {}
+  const toolCalls: unknown[] = []
+  
+  for (const item of msg.content) {
+    if (!item || typeof item !== 'object') continue
+    const obj = item as { type?: string; text?: string }
+    if (obj.type === 'toolCall') {
+      toolCalls.push(item)
+    } else if (obj.text) {
+      result.text = (result.text || '') + obj.text
+    }
+  }
+  
+  if (toolCalls.length > 0) {
+    result.toolCalls = toolCalls
+  }
+  
+  return result.text || result.toolCalls ? result : null
 }
 
 export async function POST(request: NextRequest) {
@@ -107,11 +124,14 @@ export async function POST(request: NextRequest) {
               const chatEvent = event.payload as ChatEvent
 
               if (chatEvent.state === 'delta') {
-                const text = extractTextFromMessage(chatEvent.message)
-                if (text) {
+                const content = extractContentFromMessage(chatEvent.message)
+                if (content) {
                   controller.enqueue(
                     encoder.encode(
-                      encodeSSELine('content', JSON.stringify({ delta: text }))
+                      encodeSSELine('content', JSON.stringify({ 
+                        delta: content.text,
+                        toolCalls: content.toolCalls 
+                      }))
                     )
                   )
                 }
@@ -145,11 +165,14 @@ export async function POST(request: NextRequest) {
               const chatEvent = event.payload as ChatBroadcastEvent
 
               if (chatEvent.state === 'delta') {
-                const text = extractTextFromMessage(chatEvent.message)
-                if (text) {
+                const content = extractContentFromMessage(chatEvent.message)
+                if (content) {
                   controller.enqueue(
                     encoder.encode(
-                      encodeSSELine('content', JSON.stringify({ delta: text }))
+                      encodeSSELine('content', JSON.stringify({ 
+                        delta: content.text,
+                        toolCalls: content.toolCalls 
+                      }))
                     )
                   )
                 }

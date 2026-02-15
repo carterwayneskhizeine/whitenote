@@ -9,6 +9,7 @@ export interface ChatStreamEvent {
   type: 'start' | 'content' | 'finish' | 'error'
   sessionKey?: string
   delta?: string
+  toolCalls?: unknown[]
   usage?: unknown
   stopReason?: string
   message?: string
@@ -59,11 +60,17 @@ function simplifyContent(content: unknown): string {
   for (const item of content) {
     if (!item || typeof item !== 'object') continue
     
-    const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown> }
+    const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown>; id?: string }
     const itemType = obj.type
     
     if (itemType === 'toolCall') {
-      parts.push(formatToolCall(obj))
+      const toolName = obj.name || 'unknown'
+      const toolId = obj.id || ''
+      const args = obj.arguments || {}
+      const argsStr = Object.entries(args)
+        .map(([k, v]) => `${k}:${JSON.stringify(v)}`)
+        .join(', ')
+      parts.push(`🔧 **Tool Call**: ${toolName}${toolId ? ` (${toolId})` : ''}\n\`${argsStr}\``)
     } else if (obj.text) {
       parts.push(obj.text)
     }
