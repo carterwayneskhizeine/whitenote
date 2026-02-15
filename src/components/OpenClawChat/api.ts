@@ -155,6 +155,7 @@ export const openclawApi = {
     const response = await fetch(`${API_BASE}/chat/history?${params}`)
     if (!response.ok) {
       console.error('[OpenClaw] pollMessage failed:', response.status)
+      // Return null on failure instead of throwing - allows chat to continue
       return null
     }
 

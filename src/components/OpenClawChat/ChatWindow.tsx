@@ -12,12 +12,36 @@ import { cn } from '@/lib/utils'
 
 const DEFAULT_SESSION_KEY = 'main'
 
+const STORAGE_KEY = 'openclaw-chat-messages'
+
+function loadFromStorage(): ChatMessage[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+  } catch (e) {
+    console.error('[OpenClaw Chat] Failed to load from storage:', e)
+  }
+  return []
+}
+
+function saveToStorage(messages: ChatMessage[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+  } catch (e) {
+    console.error('[OpenClaw Chat] Failed to save to storage:', e)
+  }
+}
+
 export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [apiUnavailable, setApiUnavailable] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -30,24 +54,16 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   }, [messages])
 
   useEffect(() => {
-    const loadHistory = async () => {
-      try {
-        const history = await openclawApi.getHistory(DEFAULT_SESSION_KEY, 50)
-        const formattedMessages: ChatMessage[] = history.map((msg, idx) => ({
-          id: `history-${idx}-${Date.now()}`,
-          role: msg.role,
-          content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
-          timestamp: msg.timestamp || Date.now(),
-        }))
-        setMessages(formattedMessages)
-      } catch (err) {
-        console.error('[OpenClaw Chat] Failed to load history:', err)
-      } finally {
-        setIsLoadingHistory(false)
-      }
-    }
-    loadHistory()
+    const storedMessages = loadFromStorage()
+    setMessages(storedMessages)
+    setIsLoadingHistory(false)
   }, [])
+
+  useEffect(() => {
+    if (!isLoadingHistory && messages.length > 0) {
+      saveToStorage(messages)
+    }
+  }, [messages, isLoadingHistory])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -88,7 +104,11 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
           userMessage.timestamp
         )
 
-        if (!latestMsg) {
+        if (latestMsg === null) {
+          // API failed - mark as unavailable but continue polling for a reasonable time
+          if (!apiUnavailable) {
+            setApiUnavailable(true)
+          }
           consecutiveEmpty++
         } else {
           const latestContent = typeof latestMsg.content === 'string' 
@@ -138,6 +158,13 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         <div className="flex items-center gap-2 p-3 mb-2 text-sm text-red-500 bg-red-50 rounded-md mx-4">
           <AlertCircle className="w-4 h-4" />
           {error}
+        </div>
+      )}
+
+      {apiUnavailable && (
+        <div className="flex items-center gap-2 p-3 mb-2 text-sm text-amber-600 bg-amber-50 rounded-md mx-4">
+          <AlertCircle className="w-4 h-4" />
+          Chat history unavailable (missing permissions). Messages will be saved locally.
         </div>
       )}
 

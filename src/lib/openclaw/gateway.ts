@@ -13,6 +13,8 @@ import type {
   OpenClawMessage,
 } from './types';
 import { OPENCLAW_PROTOCOL_VERSION } from './types';
+import { loadOrCreateDeviceIdentity, buildDeviceAuthPayload, publicKeyRawBase64UrlFromPem, signDevicePayload, type DeviceIdentity } from './deviceIdentity';
+import { loadDeviceAuthToken, storeDeviceAuthToken, clearDeviceAuthToken } from './deviceAuthStore';
 
 interface PendingRequest {
   resolve: (value: unknown) => void;
@@ -23,6 +25,7 @@ interface PendingRequest {
 export interface OpenClawGatewayOptions {
   url?: string;
   token: string;
+  password?: string;
   clientName?: string;
   clientVersion?: string;
   platform?: string;
@@ -53,7 +56,11 @@ export class OpenClawGateway {
   private _sessionKey: string | null = null;
   private _onEvent: ((event: EventFrame) => void) | null = null;
 
+  private deviceIdentity: DeviceIdentity;
+
   constructor(opts: OpenClawGatewayOptions) {
+    this.deviceIdentity = loadOrCreateDeviceIdentity();
+
     this.opts = {
       url: opts.url ?? 'ws://localhost:18789',
       token: opts.token,
@@ -61,7 +68,7 @@ export class OpenClawGateway {
       clientVersion: opts.clientVersion ?? '1.0.0',
       platform: opts.platform ?? 'web',
       role: opts.role ?? 'operator',
-      scopes: opts.scopes ?? ['operator.admin'],
+      scopes: opts.scopes ?? ['operator.admin', 'operator.read', 'operator.write'],
       onEvent: opts.onEvent,
     };
     this._onEvent = opts.onEvent ?? null;
@@ -200,6 +207,45 @@ export class OpenClawGateway {
 
     const role = this.opts.role ?? 'operator';
     const scopes = this.opts.scopes ?? ['operator.admin'];
+    const signedAtMs = Date.now();
+    const nonce = this.connectNonce ?? undefined;
+
+    const storedToken = loadDeviceAuthToken({ deviceId: this.deviceIdentity.deviceId, role })?.token;
+    const authToken = storedToken ?? this.opts.token ?? undefined;
+    const canFallbackToShared = Boolean(storedToken && this.opts.token);
+    
+    console.log('[OpenClawGateway] Connect params:', {
+      role,
+      scopes,
+      hasStoredToken: !!storedToken,
+      hasSharedToken: !!this.opts.token,
+      authToken: authToken ? `${authToken.substring(0, 8)}...` : undefined,
+      deviceId: this.deviceIdentity.deviceId?.substring(0, 16) + '...',
+    });
+
+    const hasAuth = authToken || this.opts.password;
+    const auth = hasAuth ? { token: authToken, password: this.opts.password } : undefined;
+
+    const device = (() => {
+      const payload = buildDeviceAuthPayload({
+        deviceId: this.deviceIdentity.deviceId,
+        clientId: 'webchat-ui',
+        clientMode: 'webchat',
+        role,
+        scopes,
+        signedAtMs,
+        token: authToken ?? null,
+        nonce,
+      });
+      const signature = signDevicePayload(this.deviceIdentity.privateKeyPem, payload);
+      return {
+        id: this.deviceIdentity.deviceId,
+        publicKey: publicKeyRawBase64UrlFromPem(this.deviceIdentity.publicKeyPem),
+        signature,
+        signedAt: signedAtMs,
+        nonce,
+      };
+    })();
 
     const params: ConnectParams = {
       minProtocol: OPENCLAW_PROTOCOL_VERSION,
@@ -213,14 +259,26 @@ export class OpenClawGateway {
       },
       role,
       scopes,
-      auth: {
-        token: this.opts.token,
-      },
+      auth,
+      device,
     };
 
     this.request<HelloOk>('connect', params)
       .then((helloOk) => {
         console.log('[OpenClawGateway] Connected successfully:', helloOk.server.version);
+        console.log('[OpenClawGateway] Auth info:', helloOk.auth);
+
+        const authInfo = helloOk?.auth;
+        if (authInfo?.deviceToken) {
+          storeDeviceAuthToken({
+            deviceId: this.deviceIdentity.deviceId,
+            role: authInfo.role ?? role,
+            token: authInfo.deviceToken,
+            scopes: authInfo.scopes ?? [],
+          });
+          console.log('[OpenClawGateway] Device token stored for role:', authInfo.role ?? role);
+        }
+
         this._isConnected = true;
         this._helloOk = helloOk;
         this.backoffMs = 1000;
@@ -231,6 +289,15 @@ export class OpenClawGateway {
       })
       .catch((err) => {
         console.error('[OpenClawGateway] Connect failed:', err);
+
+        if (canFallbackToShared) {
+          clearDeviceAuthToken({
+            deviceId: this.deviceIdentity.deviceId,
+            role,
+          });
+          console.log('[OpenClawGateway] Cleared invalid device token');
+        }
+
         this.ws?.close(1008, 'connect failed');
       });
   }
@@ -372,9 +439,9 @@ export function getGlobalGateway(): OpenClawGateway | null {
   return globalGateway;
 }
 
-export function createGlobalGateway(token: string, url?: string): OpenClawGateway {
+export function createGlobalGateway(token: string, url?: string, forceRecreate?: boolean): OpenClawGateway {
   // If we have an existing gateway with the same token, try to reuse it
-  if (globalGateway && globalGatewayToken === token) {
+  if (!forceRecreate && globalGateway && globalGatewayToken === token) {
     // If connected, return it
     if (globalGateway.isConnected) {
       return globalGateway;
@@ -398,6 +465,7 @@ export function createGlobalGateway(token: string, url?: string): OpenClawGatewa
   globalGateway = new OpenClawGateway({
     url: url ?? process.env.OPENCLAW_GATEWAY_URL ?? 'ws://localhost:18789',
     token,
+    scopes: ['operator.admin', 'operator.read', 'operator.write'],
   });
   return globalGateway;
 }
