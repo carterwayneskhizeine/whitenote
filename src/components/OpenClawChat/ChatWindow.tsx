@@ -8,10 +8,11 @@ import { Send, Bot, User, AlertCircle, Loader2 } from 'lucide-react'
 import { openclawApi, ChatStreamEvent } from './api'
 import { TipTapViewer } from '@/components/TipTapViewer'
 import type { ChatMessage } from './types'
+import { cn } from '@/lib/utils'
 
 const DEFAULT_SESSION_KEY = 'main'
 
-export function ChatWindow() {
+export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -165,7 +166,13 @@ export function ChatWindow() {
         </div>
       </ScrollArea>
 
-      <form onSubmit={handleSubmit} className="p-4 pb-safe-or-4 border-t w-full shrink-0 bg-background mb-[53px] desktop:mb-0">
+      <form 
+        onSubmit={handleSubmit} 
+        className={cn(
+          "p-4 pb-safe-or-4 border-t w-full shrink-0 bg-background",
+          !isKeyboardOpen && "mb-[53px] desktop:mb-0"
+        )}
+      >
         <div className="flex gap-2">
           <textarea
             ref={inputRef}
