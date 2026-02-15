@@ -118,11 +118,15 @@ ChatWindow 中使用 `AIMessageViewer` 组件渲染消息内容：
 
 ```tsx
 // src/components/OpenClawChat/ChatWindow.tsx
+// 使用 key 强制内容变化时重新渲染
 <AIMessageViewer 
+  key={`${message.id}-${message.content.slice(0, 20)}`}
   content={message.content} 
   className={message.role === 'user' ? 'text-primary-foreground' : ''}
 />
 ```
+
+> **注意**: 必须使用 `key` 属性，否则轮询更新时 TipTap 编辑器不会重新渲染内容。
 
 `AIMessageViewer` 是专门为 AI Chat 设计的精简版 Markdown 查看器，支持：
 - Markdown 解析渲染

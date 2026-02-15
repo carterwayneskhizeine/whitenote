@@ -79,7 +79,8 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
     const maxEmptyRounds = 15
 
     try {
-      await openclawApi.sendMessage(DEFAULT_SESSION_KEY, userMessage.content)
+      const content = typeof userMessage.content === 'string' ? userMessage.content : JSON.stringify(userMessage.content)
+      await openclawApi.sendMessage(DEFAULT_SESSION_KEY, content)
 
       const pollForResponse = async () => {
         const latestMsg = await openclawApi.pollMessage(
@@ -168,8 +169,8 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
                 }`}
               >
                 <AIMessageViewer 
-                  key={`${message.id}-${message.content.slice(0, 20)}`}
-                  content={message.content} 
+                  key={`${message.id}-${String(message.content).slice(0, 20)}`}
+                  content={typeof message.content === 'string' ? message.content : JSON.stringify(message.content)} 
                   className={message.role === 'user' ? 'text-primary-foreground' : ''}
                 />
                 {message.role === 'assistant' && isLoading && message.content === '' && (

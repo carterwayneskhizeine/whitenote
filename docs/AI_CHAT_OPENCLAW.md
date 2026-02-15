@@ -4,6 +4,33 @@
 
 本文档说明如何在 WhiteNote 中集成 OpenClaw 作为 AI 对话后端，实现类似 ChatGPT 的 Web UI 对话界面。
 
+## 更新日志
+
+### 2026-02-15: 伪流式实现
+
+由于移动端 SSE 流式传输在某些网络环境下不稳定，改为 5 秒轮询的伪流式实现：
+
+**核心改动**:
+
+1. **新增 `/api/openclaw/chat/send` 接口** - 发送消息后立即返回，不等待 AI 响应
+
+2. **前端轮询机制** (`ChatWindow.tsx`):
+   - 发送消息后每 5 秒轮询一次 `/chat/history`
+   - 获取最新助手消息与本地对比
+   - 内容变化时更新 UI
+   - 连续 15 秒（15 次轮询）无新内容时结束
+
+3. **强制渲染更新**:
+   - `AIMessageViewer` 添加 `key` 属性确保内容变化时重新渲染
+   ```tsx
+   key={`${message.id}-${message.content.slice(0, 20)}`}
+   ```
+
+4. **API 适配** (`api.ts`):
+   - `sendMessage()`: 发送消息，返回 messageId
+   - `pollMessage()`: 获取最新助手消息
+   - 客户端过滤：只返回 `role: 'assistant'` 且时间戳大于用户消息的消息
+
 ## 架构
 
 ```
@@ -38,10 +65,9 @@
 
 | 文件 | 说明 |
 |------|------|
-| `src/lib/openclaw/types.ts` | OpenClaw 协议类型定义 |
-| `src/lib/openclaw/gateway.ts` | WebSocket 客户端实现 |
 | `src/app/api/openclaw/sessions/route.ts` | 会话管理 API |
-| `src/app/api/openclaw/chat/stream/route.ts` | 流式聊天 API |
+| `src/app/api/openclaw/chat/stream/route.ts` | 流式聊天 API (SSE) |
+| `src/app/api/openclaw/chat/send/route.ts` | 伪流式发送 API (立即返回) |
 
 ### 前端
 
@@ -88,6 +114,13 @@ OPENCLAW_TOKEN=your-token-here
 - 监听 `agent` 事件获取流式回复
 - 使用 SSE 编码返回给前端
 
+### 3. 发送 API (chat/send/route.ts) - 伪流式
+
+- POST 接口，接收 `sessionKey` 和 `content`
+- 发送消息后**立即返回**，不等待 AI 响应
+- 返回 `{ success: true, timestamp: number }`
+- 适用于轮询场景
+
 SSE 事件格式：
 ```
 event: start
@@ -100,13 +133,33 @@ event: finish
 data: {usage: {...}, stopReason: "..."}
 ```
 
-### 3. 前端 (ChatWindow.tsx)
+### 3. 前端 (ChatWindow.tsx) - 伪流式
 
-- 使用 `openclawApi.sendMessageStream()` 发送消息
-- 使用 AsyncGenerator 迭代 SSE 事件
-- 实时更新消息列表
-- 显示加载动画
-- 使用 `AIMessageViewer` 渲染 Markdown 消息内容
+- 发送消息到 `/chat/send`，立即返回
+- 每 5 秒轮询 `/chat/history` 获取最新消息
+- 使用 `key` 属性强制 TipTap 重新渲染更新内容
+- 连续 3 次轮询无变化时结束
+
+```tsx
+const pollForResponse = async () => {
+  const latestMsg = await openclawApi.pollMessage(sessionKey, userTimestamp)
+  
+  if (latestMsg && latestMsg.content !== lastContent) {
+    lastContent = latestMsg.content
+    setMessages(prev => prev.map(msg => 
+      msg.id === assistantMessageId 
+        ? { ...msg, content: latestMsg.content }
+        : msg
+    ))
+  }
+  
+  if (consecutiveEmpty < maxEmptyRounds) {
+    setTimeout(pollForResponse, 5000)
+  } else {
+    setIsLoading(false)
+  }
+}
+```
 
 ### 4. 消息渲染 (AIMessageViewer.tsx)
 
@@ -123,6 +176,17 @@ interface AIMessageViewerProps {
   content: string      // Markdown 内容
   className?: string   // 额外样式类
 }
+```
+
+### 5. 前端 API (api.ts)
+
+```ts
+// 伪流式 API
+openclawApi.sendMessage(sessionKey, content)  // 发送消息，立即返回
+openclawApi.pollMessage(sessionKey, afterTimestamp)  // 轮询获取最新助手消息
+
+// 流式 API (保留)
+openclawApi.sendMessageStream(sessionKey, content)  // SSE 流式响应
 ```
 
 ## 依赖
