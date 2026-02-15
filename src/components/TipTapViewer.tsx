@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from '@tiptap/markdown'
@@ -17,13 +17,24 @@ interface TipTapViewerProps {
   content: string
   className?: string
   onImageClick?: (index: number, url: string) => void
+  maxLines?: number
+  isExpanded?: boolean
+  onOverflow?: (hasOverflow: boolean) => void
 }
 
 /**
  * Read-only TipTap viewer that supports Markdown content rendering.
  * Use this to display message content with proper Markdown formatting.
  */
-export function TipTapViewer({ content, className, onImageClick }: TipTapViewerProps) {
+export function TipTapViewer({ 
+  content, 
+  className, 
+  onImageClick,
+  maxLines,
+  isExpanded = true,
+  onOverflow
+}: TipTapViewerProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
   // Create lowlight instance for syntax highlighting
   const lowlight = createLowlight(common)
 
@@ -77,6 +88,35 @@ export function TipTapViewer({ content, className, onImageClick }: TipTapViewerP
       },
     },
   })
+
+  // Handle overflow detection
+  useEffect(() => {
+    if (!maxLines || !onOverflow || !containerRef.current || isExpanded) return
+
+    const checkOverflow = () => {
+      const el = containerRef.current
+      if (el) {
+        // We compare scrollHeight with clientHeight. 
+        // If scrollHeight > clientHeight, it means content is being clamped.
+        const hasOverflow = el.scrollHeight > el.clientHeight
+        onOverflow(hasOverflow)
+      }
+    }
+
+    // Check after a short delay to allow TipTap to render
+    const timer = setTimeout(checkOverflow, 100)
+    
+    // Also use ResizeObserver to catch layout changes
+    const resizeObserver = new ResizeObserver(checkOverflow)
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current)
+    }
+
+    return () => {
+      clearTimeout(timer)
+      resizeObserver.disconnect()
+    }
+  }, [maxLines, onOverflow, isExpanded, content, editor])
 
   // Add copy buttons to code blocks after editor is ready
   useEffect(() => {
@@ -203,7 +243,19 @@ export function TipTapViewer({ content, className, onImageClick }: TipTapViewerP
   }
 
   return (
-    <div className={cn("tipTap-viewer max-w-full overflow-hidden", className)}>
+    <div 
+      ref={containerRef}
+      className={cn(
+        "tipTap-viewer max-w-full",
+        !isExpanded && maxLines && "overflow-hidden",
+        className
+      )}
+      style={!isExpanded && maxLines ? {
+        display: '-webkit-box',
+        WebkitLineClamp: maxLines,
+        WebkitBoxOrient: 'vertical',
+      } : {}}
+    >
       <EditorContent editor={editor} />
       <style jsx global>{`
         .tipTap-viewer .ProseMirror {

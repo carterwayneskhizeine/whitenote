@@ -105,8 +105,13 @@ export function QuotedMessageCard({ message, className }: QuotedMessageCardProps
       </div>
 
       {/* Message Content - truncated to 2 lines */}
-      <div className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-        <TipTapViewer content={message.content} onImageClick={handleMarkdownImageClick} />
+      <div className="text-sm text-muted-foreground leading-relaxed">
+        <TipTapViewer 
+          content={message.content} 
+          onImageClick={handleMarkdownImageClick}
+          maxLines={2}
+          isExpanded={false}
+        />
       </div>
 
       {/* Media Display - grid layout */}

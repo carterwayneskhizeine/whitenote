@@ -111,26 +111,6 @@ export function CommentItem({
   const [isExpanded, setIsExpanded] = useState(false)
   const [hasMore, setHasMore] = useState(false)
 
-  // 检测内容是否需要"显示更多"按钮
-  useEffect(() => {
-    const checkOverflow = () => {
-      if (contentRef.current) {
-        const el = contentRef.current
-        // 当应用 line-clamp 后，如果 scrollHeight > clientHeight 说明内容被裁剪了
-        setHasMore(el.scrollHeight > el.clientHeight)
-      }
-    }
-
-    // 多次检测以确保 TipTapViewer 内容完全渲染
-    const timer1 = setTimeout(checkOverflow, 100)
-    const timer2 = setTimeout(checkOverflow, 300)
-
-    return () => {
-      clearTimeout(timer1)
-      clearTimeout(timer2)
-    }
-  }, [comment.content])
-
   // 移动端单击、桌面端双击（1秒内）
   const isMobile = useMobile()
   const handleClick = useDoubleClick({
@@ -205,17 +185,17 @@ export function CommentItem({
           <div
               ref={contentRef}
               className={cn(
-                "mt-1 leading-normal wrap-break-word text-foreground overflow-hidden",
-                config.content,
-                !isExpanded && "line-clamp-9"
+                "mt-1 leading-normal wrap-break-word text-foreground",
+                config.content
               )}
-              style={!isExpanded ? {
-                display: '-webkit-box',
-                WebkitLineClamp: 9,
-                WebkitBoxOrient: 'vertical',
-              } : {}}
             >
-              <TipTapViewer content={comment.content} onImageClick={onMarkdownImageClick} />
+              <TipTapViewer 
+                content={comment.content} 
+                onImageClick={onMarkdownImageClick}
+                maxLines={9}
+                isExpanded={isExpanded}
+                onOverflow={setHasMore}
+              />
             </div>
             {hasMore && !isExpanded && (
               <button

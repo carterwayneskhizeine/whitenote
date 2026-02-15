@@ -72,26 +72,6 @@ export function MessageCard({
   const contentRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
 
-  useEffect(() => {
-    // 检测内容是否需要"显示更多"按钮
-    const checkOverflow = () => {
-      if (contentRef.current) {
-        const el = contentRef.current
-        // 当应用 line-clamp 后，如果 scrollHeight > clientHeight 说明内容被裁剪了
-        setHasMore(el.scrollHeight > el.clientHeight)
-      }
-    }
-
-    // 多次检测以确保 TipTapViewer 内容完全渲染
-    const timer1 = setTimeout(checkOverflow, 100)
-    const timer2 = setTimeout(checkOverflow, 300)
-
-    return () => {
-      clearTimeout(timer1)
-      clearTimeout(timer2)
-    }
-  }, [message.content])
-
   // Format relative time
   const formatTime = (dateString: string) => {
     try {
@@ -285,17 +265,15 @@ export function MessageCard({
             <div className="flex flex-col">
               <div
                 ref={contentRef}
-                className={cn(
-                  "mt-1 text-sm break-words text-foreground leading-normal overflow-hidden",
-                  !isExpanded && "line-clamp-[9]"
-                )}
-                style={!isExpanded ? {
-                  display: '-webkit-box',
-                  WebkitLineClamp: 9,
-                  WebkitBoxOrient: 'vertical',
-                } : {}}
+                className="mt-1 text-sm break-words text-foreground leading-normal"
               >
-                <TipTapViewer content={message.content} onImageClick={handleMarkdownImageClick} />
+                <TipTapViewer 
+                  content={message.content} 
+                  onImageClick={handleMarkdownImageClick}
+                  maxLines={9}
+                  isExpanded={isExpanded}
+                  onOverflow={setHasMore}
+                />
               </div>
               {hasMore && !isExpanded && (
                 <button
