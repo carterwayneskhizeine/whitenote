@@ -83,7 +83,11 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       for await (const event of generator) {
         console.log('[OpenClaw Chat] Received event:', event)
         if (event.type === 'content') {
-          let newContent = event.delta || ''
+          let newContent = ''
+          
+          if (event.delta) {
+            newContent = event.delta
+          }
           
           if (event.toolCalls && event.toolCalls.length > 0) {
             for (const toolCall of event.toolCalls) {
@@ -94,7 +98,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
               const argsStr = Object.entries(args)
                 .map(([k, v]) => `${k}:${JSON.stringify(v)}`)
                 .join(', ')
-              newContent += `\n🔧 **Tool Call**: ${toolName}${toolId ? ` (${toolId})` : ''}\n\`${argsStr}\``
+              newContent += (newContent ? '\n' : '') + `🔧 **Tool Call**: ${toolName}${toolId ? ` (${toolId})` : ''}\n\`${argsStr}\``
             }
           }
           

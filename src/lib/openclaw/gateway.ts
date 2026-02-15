@@ -161,6 +161,7 @@ export class OpenClawGateway {
     const params: ChatSendParams = {
       sessionKey,
       message,
+      deliver: false,
       idempotencyKey: randomUUID(),
     };
     return this.request('chat.send', params, { expectFinal: true });
@@ -365,15 +366,35 @@ export class OpenClawGateway {
 }
 
 let globalGateway: OpenClawGateway | null = null;
+let globalGatewayToken: string | null = null;
 
 export function getGlobalGateway(): OpenClawGateway | null {
   return globalGateway;
 }
 
 export function createGlobalGateway(token: string, url?: string): OpenClawGateway {
-  if (globalGateway) {
-    globalGateway.stop();
+  // If we have an existing gateway with the same token, try to reuse it
+  if (globalGateway && globalGatewayToken === token) {
+    // If connected, return it
+    if (globalGateway.isConnected) {
+      return globalGateway;
+    }
+    // If not connected but not fully closed (maybe reconnecting), just return it
+    // The start() call will handle reconnection
+    return globalGateway;
   }
+  
+  // Stop old gateway if exists and has different token
+  if (globalGateway) {
+    try {
+      globalGateway.stop();
+    } catch {
+      // Ignore errors when stopping
+    }
+  }
+  
+  globalGatewayToken = token;
+  
   globalGateway = new OpenClawGateway({
     url: url ?? process.env.OPENCLAW_GATEWAY_URL ?? 'ws://localhost:18789',
     token,
@@ -385,5 +406,6 @@ export function destroyGlobalGateway(): void {
   if (globalGateway) {
     globalGateway.stop();
     globalGateway = null;
+    globalGatewayToken = null;
   }
 }

@@ -64,25 +64,27 @@ export async function POST(request: NextRequest) {
 
     const token = getOpenClawToken()
     gateway = createGlobalGateway(token)
-    gateway.start()
-
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Connection timeout'))
-      }, 15000)
-
-      const checkConnection = setInterval(() => {
-        if (gateway && gateway.isConnected) {
-          clearInterval(checkConnection)
-          clearTimeout(timeout)
-          resolve()
-        }
-      }, 100)
-
-      setTimeout(() => {
-        clearInterval(checkConnection)
-      }, 500)
-    })
+    
+    // Only start if not already connected
+    if (!gateway.isConnected) {
+      gateway.start()
+      
+      // Wait for connection with proper timeout
+      const maxWaitMs = 15000
+      const startTime = Date.now()
+      
+      await new Promise<void>((resolve, reject) => {
+        const checkConnection = setInterval(() => {
+          if (gateway && gateway.isConnected) {
+            clearInterval(checkConnection)
+            resolve()
+          } else if (Date.now() - startTime > maxWaitMs) {
+            clearInterval(checkConnection)
+            reject(new Error('Connection timeout'))
+          }
+        }, 100)
+      })
+    }
 
     let currentSessionKey = sessionKey || 'main'
 
@@ -91,6 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     const encoder = new TextEncoder()
+    let controllerClosed = false
     const stream = new ReadableStream({
       async start(controller) {
         try {
@@ -104,17 +107,21 @@ export async function POST(request: NextRequest) {
           let currentRunId: string | undefined
 
           gateway!.onEvent = (event: EventFrame) => {
-            // console.log('[OpenClaw Gateway] Event:', event.event, JSON.stringify(event.payload).slice(0, 200))
+            if (controllerClosed) return
             
             // Handle agent stream (assistant content)
             if (event.event === 'agent') {
               const data = event.payload as { stream?: string; data?: { delta?: string; text?: string } }
               if (data.stream === 'assistant' && data.data?.delta) {
-                controller.enqueue(
-                  encoder.encode(
-                    encodeSSELine('content', JSON.stringify({ delta: data.data.delta }))
+                try {
+                  controller.enqueue(
+                    encoder.encode(
+                      encodeSSELine('content', JSON.stringify({ delta: data.data.delta }))
+                    )
                   )
-                )
+                } catch {
+                  controllerClosed = true
+                }
               }
               return
             }
@@ -126,36 +133,58 @@ export async function POST(request: NextRequest) {
               if (chatEvent.state === 'delta') {
                 const content = extractContentFromMessage(chatEvent.message)
                 if (content) {
+                  const sseData: { delta?: string; toolCalls?: unknown[] } = {}
+                  if (content.text) {
+                    sseData.delta = content.text
+                  }
+                  if (content.toolCalls && content.toolCalls.length > 0) {
+                    sseData.toolCalls = content.toolCalls
+                  }
+                  if (Object.keys(sseData).length > 0) {
+                    try {
+                      controller.enqueue(
+                        encoder.encode(
+                          encodeSSELine('content', JSON.stringify(sseData))
+                        )
+                      )
+                    } catch {
+                      controllerClosed = true
+                    }
+                  }
+                }
+              } else if (chatEvent.state === 'final') {
+                try {
                   controller.enqueue(
                     encoder.encode(
-                      encodeSSELine('content', JSON.stringify({ 
-                        delta: content.text,
-                        toolCalls: content.toolCalls 
+                      encodeSSELine('finish', JSON.stringify({
+                        usage: chatEvent.usage,
+                        stopReason: chatEvent.stopReason,
                       }))
                     )
                   )
+                } catch {
+                  controllerClosed = true
                 }
-              } else if (chatEvent.state === 'final') {
-                controller.enqueue(
-                  encoder.encode(
-                    encodeSSELine('finish', JSON.stringify({
-                      usage: chatEvent.usage,
-                      stopReason: chatEvent.stopReason,
-                    }))
-                  )
-                )
               } else if (chatEvent.state === 'aborted') {
-                controller.enqueue(
-                  encoder.encode(
-                    encodeSSELine('error', JSON.stringify({ message: 'Response aborted' }))
+                try {
+                  controller.enqueue(
+                    encoder.encode(
+                      encodeSSELine('error', JSON.stringify({ message: 'Response aborted' }))
+                    )
                   )
-                )
+                } catch {
+                  controllerClosed = true
+                }
               } else if (chatEvent.state === 'error') {
-                controller.enqueue(
-                  encoder.encode(
-                    encodeSSELine('error', JSON.stringify({ message: chatEvent.errorMessage || 'Unknown error' }))
+                try {
+                  controller.enqueue(
+                    encoder.encode(
+                      encodeSSELine('error', JSON.stringify({ message: chatEvent.errorMessage || 'Unknown error' }))
+                    )
                   )
-                )
+                } catch {
+                  controllerClosed = true
+                }
               }
               return
             }
@@ -167,36 +196,58 @@ export async function POST(request: NextRequest) {
               if (chatEvent.state === 'delta') {
                 const content = extractContentFromMessage(chatEvent.message)
                 if (content) {
+                  const sseData: { delta?: string; toolCalls?: unknown[] } = {}
+                  if (content.text) {
+                    sseData.delta = content.text
+                  }
+                  if (content.toolCalls && content.toolCalls.length > 0) {
+                    sseData.toolCalls = content.toolCalls
+                  }
+                  if (Object.keys(sseData).length > 0) {
+                    try {
+                      controller.enqueue(
+                        encoder.encode(
+                          encodeSSELine('content', JSON.stringify(sseData))
+                        )
+                      )
+                    } catch {
+                      controllerClosed = true
+                    }
+                  }
+                }
+              } else if (chatEvent.state === 'final') {
+                try {
                   controller.enqueue(
                     encoder.encode(
-                      encodeSSELine('content', JSON.stringify({ 
-                        delta: content.text,
-                        toolCalls: content.toolCalls 
+                      encodeSSELine('finish', JSON.stringify({
+                        usage: chatEvent.usage,
+                        stopReason: chatEvent.stopReason,
                       }))
                     )
                   )
+                } catch {
+                  controllerClosed = true
                 }
-              } else if (chatEvent.state === 'final') {
-                controller.enqueue(
-                  encoder.encode(
-                    encodeSSELine('finish', JSON.stringify({
-                      usage: chatEvent.usage,
-                      stopReason: chatEvent.stopReason,
-                    }))
-                  )
-                )
               } else if (chatEvent.state === 'aborted') {
-                controller.enqueue(
-                  encoder.encode(
-                    encodeSSELine('error', JSON.stringify({ message: 'Response aborted' }))
+                try {
+                  controller.enqueue(
+                    encoder.encode(
+                      encodeSSELine('error', JSON.stringify({ message: 'Response aborted' }))
+                    )
                   )
-                )
+                } catch {
+                  controllerClosed = true
+                }
               } else if (chatEvent.state === 'error') {
-                controller.enqueue(
-                  encoder.encode(
-                    encodeSSELine('error', JSON.stringify({ message: chatEvent.errorMessage || 'Unknown error' }))
+                try {
+                  controller.enqueue(
+                    encoder.encode(
+                      encodeSSELine('error', JSON.stringify({ message: chatEvent.errorMessage || 'Unknown error' }))
+                    )
                   )
-                )
+                } catch {
+                  controllerClosed = true
+                }
               }
               return
             }

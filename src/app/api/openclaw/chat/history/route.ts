@@ -22,25 +22,27 @@ export async function GET(request: NextRequest) {
 
     const token = getOpenClawToken()
     gateway = createGlobalGateway(token)
-    gateway.start()
-
-    await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Connection timeout'))
-      }, 15000)
-
-      const checkConnection = setInterval(() => {
-        if (gateway && gateway.isConnected) {
-          clearInterval(checkConnection)
-          clearTimeout(timeout)
-          resolve()
-        }
-      }, 100)
-
-      setTimeout(() => {
-        clearInterval(checkConnection)
-      }, 500)
-    })
+    
+    // Only start if not already connected
+    if (!gateway.isConnected) {
+      gateway.start()
+      
+      // Wait for connection with proper timeout
+      const maxWaitMs = 15000
+      const startTime = Date.now()
+      
+      await new Promise<void>((resolve, reject) => {
+        const checkConnection = setInterval(() => {
+          if (gateway && gateway.isConnected) {
+            clearInterval(checkConnection)
+            resolve()
+          } else if (Date.now() - startTime > maxWaitMs) {
+            clearInterval(checkConnection)
+            reject(new Error('Connection timeout'))
+          }
+        }, 100)
+      })
+    }
 
     const result = await gateway.chatHistory(sessionKey, limit)
 
