@@ -10,6 +10,7 @@
 |------|------|
 | `src/app/aichat/page.tsx` | AI Chat 页面主组件（含 Visual Viewport API 处理） |
 | `src/components/OpenClawChat/ChatWindow.tsx` | 聊天窗口组件（含输入框） |
+| `src/components/OpenClawChat/AIMessageViewer.tsx` | AI 消息 Markdown 查看器 |
 
 ## 断点配置
 
@@ -110,6 +111,24 @@ return (
 | `fixed bottom-[53px]` | 移动端固定在底部导航栏上方 (53px = 导航栏高度) |
 | `z-40` | 与 MobileNav 相同层级 |
 | `desktop:relative desktop:bottom-0` | 桌面端回归正常文档流 |
+
+### 消息渲染
+
+ChatWindow 中使用 `AIMessageViewer` 组件渲染消息内容：
+
+```tsx
+// src/components/OpenClawChat/ChatWindow.tsx
+<AIMessageViewer 
+  content={message.content} 
+  className={message.role === 'user' ? 'text-primary-foreground' : ''}
+/>
+```
+
+`AIMessageViewer` 是专门为 AI Chat 设计的精简版 Markdown 查看器，支持：
+- Markdown 解析渲染
+- 代码块语法高亮 + 复制按钮
+- 表格显示
+- 基本样式（标题、列表、链接、引用等）
 
 ## 移动端适配要点
 

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Send, Bot, User, AlertCircle, Loader2 } from 'lucide-react'
 import { openclawApi, ChatStreamEvent } from './api'
-import { TipTapViewer } from '@/components/TipTapViewer'
+import { AIMessageViewer } from './AIMessageViewer'
 import type { ChatMessage } from './types'
 import { cn } from '@/lib/utils'
 
@@ -148,7 +148,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
                     : 'bg-muted'
                 }`}
               >
-                <TipTapViewer 
+                <AIMessageViewer 
                   content={message.content} 
                   className={message.role === 'user' ? 'text-primary-foreground' : ''}
                 />

@@ -50,6 +50,7 @@
 | `src/components/OpenClawChat/types.ts` | 前端类型定义 |
 | `src/components/OpenClawChat/api.ts` | API 客户端 |
 | `src/components/OpenClawChat/ChatWindow.tsx` | 对话主组件 |
+| `src/components/OpenClawChat/AIMessageViewer.tsx` | AI 消息 Markdown 查看器（精简版） |
 | `src/app/aichat/page.tsx` | AI Chat 页面 |
 
 ## 配置
@@ -105,6 +106,24 @@ data: {usage: {...}, stopReason: "..."}
 - 使用 AsyncGenerator 迭代 SSE 事件
 - 实时更新消息列表
 - 显示加载动画
+- 使用 `AIMessageViewer` 渲染 Markdown 消息内容
+
+### 4. 消息渲染 (AIMessageViewer.tsx)
+
+专门为 AI Chat 设计的精简版 Markdown 查看器，特点：
+- 移除图片灯箱点击功能
+- 移除消息折叠/行数限制
+- 保留表格功能
+- 保留代码块语法高亮和复制按钮
+- 保留基本 Markdown 样式（标题、列表、链接、引用等）
+
+接口：
+```tsx
+interface AIMessageViewerProps {
+  content: string      // Markdown 内容
+  className?: string   // 额外样式类
+}
+```
 
 ## 依赖
 
