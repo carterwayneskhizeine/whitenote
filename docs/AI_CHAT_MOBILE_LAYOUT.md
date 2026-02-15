@@ -4,13 +4,74 @@
 
 本文档记录 AI Chat 页面在移动端和桌面端的布局实现，包括顶部标题栏固定、底部输入框适配，以及键盘弹出处理。
 
+## 更新日志
+
+### 2026-02-15: 历史记录加载
+
+在页面加载时从 OpenClaw Gateway API 获取聊天历史记录：
+
+```tsx
+// src/components/OpenClawChat/ChatWindow.tsx
+useEffect(() => {
+  const loadHistory = async () => {
+    try {
+      const history = await openclawApi.getHistory(DEFAULT_SESSION_KEY)
+      if (history.length > 0) {
+        const messagesWithIds: ChatMessage[] = history.map((msg, idx) => ({
+          ...msg,
+          id: msg.timestamp ? `${msg.timestamp}-${idx}` : `msg-${idx}`,
+          content: msg.content,
+          timestamp: msg.timestamp ?? Date.now(),
+        }))
+        setMessages(messagesWithIds)
+      }
+    } catch (err) {
+      console.error('[OpenClawChat] Failed to load history:', err)
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }
+  loadHistory()
+}, [])
+```
+
+当 API 不可用时，会显示警告并回退到本地存储：
+```
+Chat history unavailable (missing permissions). Messages will be saved locally.
+```
+
 ## 关键文件
 
 | 文件 | 说明 |
 |------|------|
 | `src/app/aichat/page.tsx` | AI Chat 页面主组件（含 Visual Viewport API 处理） |
-| `src/components/OpenClawChat/ChatWindow.tsx` | 聊天窗口组件（含输入框） |
+| `src/components/OpenClawChat/ChatWindow.tsx` | 聊天窗口组件（含输入框、历史记录加载） |
 | `src/components/OpenClawChat/AIMessageViewer.tsx` | AI 消息 Markdown 查看器 |
+
+## 本地存储回退
+
+当 OpenClaw API 不可用时，聊天消息会保存到 localStorage：
+
+```tsx
+// ChatWindow.tsx 中的 localStorage 逻辑
+function loadFromStorage(): ChatMessage[] {
+  const stored = localStorage.getItem(STORAGE_KEY)
+  return stored ? JSON.parse(stored) : []
+}
+
+function saveToStorage(messages: ChatMessage[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+}
+
+// 消息变化时自动保存
+useEffect(() => {
+  if (!isLoadingHistory && messages.length > 0) {
+    saveToStorage(messages)
+  }
+}, [messages, isLoadingHistory])
+```
+
+**注意**: 优先使用 API 获取历史记录，本地存储作为离线回退。
 
 ## 断点配置
 

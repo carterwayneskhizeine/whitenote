@@ -6,6 +6,35 @@
 
 ## 更新日志
 
+### 2026-02-15: 设备身份认证 + 历史记录
+
+成功实现 OpenClaw 设备身份认证，解决历史记录权限问题：
+
+**问题**: 早期实现使用共享 token 认证，无法获取聊天历史记录，报错 "missing scope: operator.read"
+
+**解决方案**: 实现完整的设备身份认证系统（Ed25519 密钥对 + 签名）
+
+**核心改动**:
+
+1. **新增设备身份模块**:
+   - `src/lib/openclaw/deviceIdentity.ts` - Ed25519 密钥对生成、签名
+   - `src/lib/openclaw/deviceAuthStore.ts` - 设备 token 存储
+
+2. **WebSocket 客户端升级** (`gateway.ts`):
+   - 加载或创建设备身份 (`~/.openclaw/identity/device.json`)
+   - 构建设备认证 payload 并签名
+   - 发送设备信息（id, publicKey, signature, signedAt, nonce）
+   - 存储网关返回的设备 token 用于后续连接
+
+3. **请求权限 scopes**:
+   - `operator.admin` - 管理员权限
+   - `operator.read` - 读取聊天历史
+   - `operator.write` - 发送消息
+
+4. **前端历史记录加载** (`ChatWindow.tsx`):
+   - 页面加载时调用 `/api/openclaw/chat/history` API
+   - 将历史消息转换为本地格式并显示
+
 ### 2026-02-15: 伪流式实现
 
 由于移动端 SSE 流式传输在某些网络环境下不稳定，改为 5 秒轮询的伪流式实现：
@@ -61,7 +90,20 @@
 
 ## 关键文件
 
-### 后端
+### 后端 - OpenClaw 集成
+
+| 文件 | 说明 |
+|------|------|
+| `src/lib/openclaw/types.ts` | OpenClaw 协议类型定义 |
+| `src/lib/openclaw/gateway.ts` | WebSocket 客户端 (设备身份认证) |
+| `src/lib/openclaw/deviceIdentity.ts` | Ed25519 设备身份模块 |
+| `src/lib/openclaw/deviceAuthStore.ts` | 设备 token 存储模块 |
+| `src/app/api/openclaw/sessions/route.ts` | 会话管理 API |
+| `src/app/api/openclaw/chat/stream/route.ts` | 流式聊天 API (SSE) |
+| `src/app/api/openclaw/chat/send/route.ts` | 伪流式发送 API (立即返回) |
+| `src/app/api/openclaw/chat/history/route.ts` | 聊天历史 API |
+
+### 后端 - 核心文件
 
 | 文件 | 说明 |
 |------|------|
@@ -97,15 +139,52 @@ OPENCLAW_TOKEN=your-token-here
 - 连接到 OpenClaw Gateway (默认 ws://localhost:18789)
 - 使用 `webchat-ui` 作为 client ID，`webchat` 作为 mode
 - 通过 Origin header 通过 Origin 检查
-- 支持 token 认证
+- 支持**设备身份认证** (Ed25519 密钥对 + 签名)
 - 处理连接、认证、重连、心跳
 
 关键方法：
 - `start()` - 启动连接
 - `stop()` - 停止连接
 - `sendMessage(sessionKey, content)` - 发送消息
+- `chatHistory(sessionKey, limit)` - 获取聊天历史
 - `sessionsResolve(params)` - 解析会话
 - `onEvent` - 事件回调
+
+### 设备身份认证流程
+
+```
+1. 客户端启动连接
+   ↓
+2. 网关发送 connect.challenge (包含 nonce)
+   ↓
+3. 客户端发送 connect 请求:
+   - role: "operator"
+   - scopes: ["operator.admin", "operator.read", "operator.write"]
+   - auth: { token: 设备token }
+   - device: {
+       id: 设备ID (公钥指纹),
+       publicKey: Base64URL 编码的公钥,
+       signature: 签名的 payload,
+       signedAt: 时间戳,
+       nonce: 网关提供的 nonce
+     }
+   ↓
+4. 网关验证:
+   - 验证设备签名
+   - 验证设备 token
+   - 检查 scopes 权限
+   - 返回 hello-ok (包含新的 deviceToken)
+   ↓
+5. 客户端存储 deviceToken 用于下次连接
+```
+
+### 设备身份文件位置
+
+| 文件 | 说明 |
+|------|------|
+| `~/.openclaw/identity/device.json` | 设备 Ed25519 密钥对 |
+| `~/.openclaw/identity/device-auth.json` | 设备 token (自动存储) |
+| `~/.openclaw/devices/paired.json` | 已配对设备信息 |
 
 ### 2. 聊天 API (chat/stream/route.ts)
 
@@ -218,6 +297,45 @@ openclawApi.sendMessageStream(sessionKey, content)  // SSE 流式响应
 3. **Mode**: 必须使用 `webchat` mode 才能通过 Origin 检查
 4. **会话**: 使用默认的 `main` 会话，无需提前创建
 5. **SSE 解析**: 前端需要正确解析 SSE 的 `event:` 和 `data:` 行
+
+## 设备认证故障排除
+
+### 问题: "missing scope: operator.read"
+
+**原因**: 使用共享 token 认证时，网关会清除 scopes 权限
+
+**解决**: 实现设备身份认证（Ed25519 密钥对 + 签名）
+
+### 问题: "device token mismatch"
+
+**原因**: 设备 token 无效或过期
+
+**解决**: 删除本地 token 文件，让系统重新配对：
+```bash
+rm ~/.openclaw/identity/device-auth.json
+rm ~/.openclaw/devices/paired.json
+```
+重启 WhiteNote 和 OpenClaw Gateway，系统会自动重新配对。
+
+### 查看设备配对状态
+
+```bash
+# 查看已配对设备
+cat ~/.openclaw/devices/paired.json
+
+# 查看设备 token
+cat ~/.openclaw/identity/device-auth.json
+
+# 查看设备密钥
+cat ~/.openclaw/identity/device.json
+```
+
+### 日志调试
+
+在 `gateway.ts` 中添加了详细的调试日志：
+- `[OpenClawGateway] Connect params:` - 连接参数
+- `[OpenClawGateway] Auth info:` - 网关返回的认证信息
+- `[OpenClaw Chat History]` - 历史记录 API 调用日志
 
 ## 扩展
 

@@ -54,9 +54,25 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   }, [messages])
 
   useEffect(() => {
-    const storedMessages = loadFromStorage()
-    setMessages(storedMessages)
-    setIsLoadingHistory(false)
+    const loadHistory = async () => {
+      try {
+        const history = await openclawApi.getHistory(DEFAULT_SESSION_KEY)
+        if (history.length > 0) {
+          const messagesWithIds: ChatMessage[] = history.map((msg, idx) => ({
+            ...msg,
+            id: msg.timestamp ? `${msg.timestamp}-${idx}` : `msg-${idx}`,
+            content: msg.content,
+            timestamp: msg.timestamp ?? Date.now(),
+          }))
+          setMessages(messagesWithIds)
+        }
+      } catch (err) {
+        console.error('[OpenClawChat] Failed to load history:', err)
+      } finally {
+        setIsLoadingHistory(false)
+      }
+    }
+    loadHistory()
   }, [])
 
   useEffect(() => {

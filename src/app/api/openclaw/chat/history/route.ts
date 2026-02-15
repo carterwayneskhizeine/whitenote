@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
     const limit = limitParam ? parseInt(limitParam, 10) : undefined
 
     const token = getOpenClawToken()
+    //console.log('[OpenClaw Chat History] Token:', token?.substring(0, 8) + '...')
     gateway = createGlobalGateway(token)
+    //console.log('[OpenClaw Chat History] Gateway connected:', gateway.isConnected)
     
     // Only start if not already connected
     if (!gateway.isConnected) {
@@ -44,7 +46,9 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    //console.log('[OpenClaw Chat History] Calling chatHistory:', sessionKey, limit)
     const result = await gateway.chatHistory(sessionKey, limit)
+    //console.log('[OpenClaw Chat History] Result:', result)
 
     return NextResponse.json({
       sessionKey: result.sessionKey,
