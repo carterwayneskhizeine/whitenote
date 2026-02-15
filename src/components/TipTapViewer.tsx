@@ -78,13 +78,6 @@ export function TipTapViewer({ content, className, onImageClick }: TipTapViewerP
     },
   })
 
-  // Update editor content when prop changes
-  useEffect(() => {
-    if (editor && content !== editor.getHTML() && content !== editor.getText()) {
-      editor.commands.setContent(content)
-    }
-  }, [content, editor])
-
   // Add copy buttons to code blocks after editor is ready
   useEffect(() => {
     if (!editor) return

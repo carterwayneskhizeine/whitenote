@@ -15,7 +15,6 @@ WhiteNote is a collaborative social media platform with AI-enhanced features, co
 # If build fails with "Module not found" errors, run these commands first:
 rm -rf node_modules .next
 pnpm install
-pnpm approve-builds   # Select all packages to build
 pnpm prisma generate
 pnpm build
 
