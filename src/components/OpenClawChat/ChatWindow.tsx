@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Send, Bot, User, AlertCircle, Loader2 } from 'lucide-react'
-import { openclawApi, ChatStreamEvent } from './api'
+import { openclawApi } from './api'
 import { AIMessageViewer } from './AIMessageViewer'
 import type { ChatMessage } from './types'
 import { cn } from '@/lib/utils'
@@ -74,54 +74,52 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
     }
     setMessages(prev => [...prev, assistantMessage])
 
-    try {
-      const generator = openclawApi.sendMessageStream(
-        DEFAULT_SESSION_KEY,
-        userMessage.content
-      )
+    let lastContent = ''
+    let consecutiveEmpty = 0
+    const maxEmptyRounds = 15
 
-      for await (const event of generator) {
-        console.log('[OpenClaw Chat] Received event:', event)
-        if (event.type === 'content') {
-          let newContent = ''
-          
-          if (event.delta) {
-            newContent = event.delta
-          }
-          
-          if (event.toolCalls && event.toolCalls.length > 0) {
-            for (const toolCall of event.toolCalls) {
-              const tc = toolCall as { name?: string; id?: string; arguments?: Record<string, unknown> }
-              const toolName = tc.name || 'unknown'
-              const toolId = tc.id || ''
-              const args = tc.arguments || {}
-              const argsStr = Object.entries(args)
-                .map(([k, v]) => `${k}:${JSON.stringify(v)}`)
-                .join(', ')
-              newContent += (newContent ? '\n' : '') + `🔧 **Tool Call**: ${toolName}${toolId ? ` (${toolId})` : ''}\n\`${argsStr}\``
-            }
-          }
-          
-          if (newContent) {
+    try {
+      await openclawApi.sendMessage(DEFAULT_SESSION_KEY, userMessage.content)
+
+      const pollForResponse = async () => {
+        const latestMsg = await openclawApi.pollMessage(
+          DEFAULT_SESSION_KEY,
+          userMessage.timestamp
+        )
+
+        if (!latestMsg) {
+          consecutiveEmpty++
+        } else {
+          const latestContent = typeof latestMsg.content === 'string' 
+            ? latestMsg.content 
+            : JSON.stringify(latestMsg.content)
+
+          if (latestContent !== lastContent) {
+            lastContent = latestContent
+            consecutiveEmpty = 0
             setMessages(prev =>
               prev.map(msg =>
                 msg.id === assistantMessageId
-                  ? { ...msg, content: msg.content + newContent }
+                  ? { ...msg, content: lastContent!, timestamp: latestMsg.timestamp || Date.now() }
                   : msg
               )
             )
+          } else {
+            consecutiveEmpty++
           }
-        } else if (event.type === 'finish') {
-          console.log('[OpenClaw Chat] Finished:', event)
-        } else if (event.type === 'error') {
-          console.log('[OpenClaw Chat] Error:', event)
-          setError(event.message || 'An error occurred')
+        }
+
+        if (consecutiveEmpty < maxEmptyRounds) {
+          setTimeout(pollForResponse, 5000)
+        } else {
+          setIsLoading(false)
         }
       }
+
+      setTimeout(pollForResponse, 5000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
       setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId))
-    } finally {
       setIsLoading(false)
     }
   }
@@ -170,6 +168,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
                 }`}
               >
                 <AIMessageViewer 
+                  key={`${message.id}-${message.content.slice(0, 20)}`}
                   content={message.content} 
                   className={message.role === 'user' ? 'text-primary-foreground' : ''}
                 />

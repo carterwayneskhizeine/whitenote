@@ -21,13 +21,14 @@ export interface ChatHistoryMessage {
   timestamp?: number
 }
 
+export interface SendMessageResponse {
+  messageId: string
+  sessionKey: string
+}
+
 function isSystemMessage(content: unknown): boolean {
   if (typeof content !== 'string') return false
-  return content.includes('System:') || 
-         content.includes('Conversation info') ||
-         content.includes('Called the Read tool') ||
-         content.includes('Called the') ||
-         content.startsWith('[Sat') ||
+  return content.startsWith('[Sat') ||
          content.startsWith('[Sun') ||
          content.startsWith('[Mon') ||
          content.startsWith('[Tue') ||
@@ -90,7 +91,7 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
   if (isSystemMessage(rawContent)) return null
   
   const content = simplifyContent(rawContent)
-  if (!content.trim()) return null
+  if (!content || !content.trim()) return null
   
   return {
     role: m.role,
@@ -187,5 +188,59 @@ export const openclawApi = {
         }
       }
     }
+  },
+
+  async sendMessage(sessionKey: string, content: string, label?: string): Promise<SendMessageResponse> {
+    const response = await fetch(`${API_BASE}/chat/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionKey, content, label }),
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to send message')
+    }
+
+    const data = await response.json()
+    return {
+      messageId: data.timestamp?.toString() || Date.now().toString(),
+      sessionKey: data.sessionKey || sessionKey,
+    }
+  },
+
+  async pollMessage(sessionKey: string, afterTimestamp?: number): Promise<ChatHistoryMessage | null> {
+    const params = new URLSearchParams({ 
+      sessionKey,
+    })
+
+    const response = await fetch(`${API_BASE}/chat/history?${params}`)
+    if (!response.ok) {
+      console.error('[OpenClaw] pollMessage failed:', response.status)
+      return null
+    }
+
+    const data = await response.json()
+    let messages = (data.messages || []) as unknown[]
+    
+    // Filter: only assistant messages after user's timestamp
+    if (afterTimestamp && messages.length) {
+      messages = messages.filter((m: unknown) => {
+        const msg = m as { role?: string; timestamp?: number }
+        return msg.role === 'assistant' && msg.timestamp ? msg.timestamp > afterTimestamp : false
+      })
+    } else if (messages.length) {
+      // No timestamp provided, just get latest assistant message
+      messages = messages.filter((m: unknown) => {
+        const msg = m as { role?: string }
+        return msg.role === 'assistant'
+      })
+    }
+    
+    const latestMsg = messages[messages.length - 1]
+    if (latestMsg) {
+      return convertMessage(latestMsg)
+    }
+    return null
   },
 }

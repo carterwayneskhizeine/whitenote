@@ -176,7 +176,7 @@ export class OpenClawGateway {
     sessionId: string;
     messages: unknown[];
   }> {
-    return this.request('chat.history', { sessionKey, limit });
+    return this.request('chat.history', { sessionKey, limit })
   }
 
   get isConnected(): boolean {
