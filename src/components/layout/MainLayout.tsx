@@ -5,9 +5,12 @@ import { useEffect, useState } from "react"
 import { LeftSidebar } from "./LeftSidebar"
 import { RightSidebar } from "./RightSidebar"
 import { MobileNav } from "./MobileNav"
+import { WorkspaceBreadcrumb } from "@/components/WorkspaceBreadcrumb"
+import { useRouter } from "next/navigation"
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const router = useRouter()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
@@ -32,6 +35,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const isSettingsPage = pathname?.startsWith("/settings")
   const isTagsPage = pathname === "/tags"
   const isAIChatPage = pathname === "/aichat"
+  const isHomePage = pathname === "/"
 
   if (isAuthPage) {
     return <>{children}</>
@@ -49,11 +53,21 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         {/* MainLayout - 移动端全宽,桌面端 max-w-[600px] */}
-        <main className={`flex-1 min-h-screen flex flex-col w-full min-w-0 overflow-x-hidden md:border-x md:border-border ${isSettingsPage ? 'md:max-w-[600px] xl:max-w-[1000px]' :
+        <main className={`flex-1 min-h-screen flex flex-col w-full min-w-0 overflow-visible md:border-x md:border-border ${isSettingsPage ? 'md:max-w-[600px] xl:max-w-[1000px]' :
           isTagsPage ? 'max-w-full' :
             'md:max-w-[600px]'
           } shrink-0`}>
           <MobileNav disableAutoHide={isAIChatPage} />
+          {/* Desktop Workspace Breadcrumb - Only show on home page, sticky at top */}
+          {isHomePage && (
+            <div className="hidden md:block sticky top-0 z-10 bg-background border-b border-border">
+              <div className="px-4 h-12 flex items-center justify-center">
+                <WorkspaceBreadcrumb
+                  onWorkspaceChange={() => router.refresh()}
+                />
+              </div>
+            </div>
+          )}
           {children}
         </main>
 

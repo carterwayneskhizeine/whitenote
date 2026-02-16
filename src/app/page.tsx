@@ -77,17 +77,7 @@ function HomeContent() {
 
   return (
     <div className="flex flex-col min-h-screen pt-26.5 desktop:pt-0">
-      {/* Desktop Workspace Breadcrumb */}
-      <div className="desktop:block hidden sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="px-4 h-12 flex items-center justify-center">
-          <WorkspaceBreadcrumb
-            onWorkspaceChange={() => setRefreshKey((prev) => prev + 1)}
-          />
-        </div>
-      </div>
-
       <InputMachine onSuccess={handleMessageCreated} />
-
       <MessagesList key={refreshKey} onMessagesLoaded={handleMessagesLoaded} />
 
       <NewMessageButton onRefresh={handleRefreshFromNotification} />
