@@ -35,11 +35,6 @@ useEffect(() => {
 }, [])
 ```
 
-当 API 不可用时，会显示警告并回退到本地存储：
-```
-Chat history unavailable (missing permissions). Messages will be saved locally.
-```
-
 ## 关键文件
 
 | 文件 | 说明 |
@@ -47,31 +42,6 @@ Chat history unavailable (missing permissions). Messages will be saved locally.
 | `src/app/aichat/page.tsx` | AI Chat 页面主组件（含 Visual Viewport API 处理） |
 | `src/components/OpenClawChat/ChatWindow.tsx` | 聊天窗口组件（含输入框、历史记录加载） |
 | `src/components/OpenClawChat/AIMessageViewer.tsx` | AI 消息 Markdown 查看器 |
-
-## 本地存储回退
-
-当 OpenClaw API 不可用时，聊天消息会保存到 localStorage：
-
-```tsx
-// ChatWindow.tsx 中的 localStorage 逻辑
-function loadFromStorage(): ChatMessage[] {
-  const stored = localStorage.getItem(STORAGE_KEY)
-  return stored ? JSON.parse(stored) : []
-}
-
-function saveToStorage(messages: ChatMessage[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
-}
-
-// 消息变化时自动保存
-useEffect(() => {
-  if (!isLoadingHistory && messages.length > 0) {
-    saveToStorage(messages)
-  }
-}, [messages, isLoadingHistory])
-```
-
-**注意**: 优先使用 API 获取历史记录，本地存储作为离线回退。
 
 ## 断点配置
 

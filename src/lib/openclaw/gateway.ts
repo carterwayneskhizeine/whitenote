@@ -1,3 +1,15 @@
+// ========== DEBUG FLAGS - 取消注释以下行来启用调试日志 ==========
+const DEBUG_WS = true;  // 启用 WebSocket 调试日志
+// ========== END DEBUG FLAGS ==========
+
+// 调试日志辅助函数
+function debugLog(flag: string, ...args: unknown[]) {
+  // @ts-ignore - DEBUG_WS 在调试时会被定义
+  if (typeof DEBUG_WS !== 'undefined' && DEBUG_WS) {
+    console.log(`[OpenClawGateway ${flag}]`, ...args);
+  }
+}
+
 import WebSocket from 'ws';
 import { randomUUID } from 'crypto';
 import type {
@@ -88,6 +100,7 @@ export class OpenClawGateway {
     }
 
     const url = this.opts.url!;
+    debugLog('CONNECT', 'Connecting to', url);
     this.ws = new WebSocket(url, {
       maxPayload: 25 * 1024 * 1024,
       headers: {
@@ -100,7 +113,11 @@ export class OpenClawGateway {
       this.queueConnect();
     });
 
-    this.ws.on('message', (data) => this.handleMessage(this.rawDataToString(data)));
+    this.ws.on('message', (data) => {
+      // DEBUG: 原始接收数据
+      debugLog('RAW', data.toString());
+      this.handleMessage(this.rawDataToString(data));
+    });
 
     this.ws.on('close', (code, reason) => {
       const reasonText = this.rawDataToString(reason);
@@ -154,7 +171,9 @@ export class OpenClawGateway {
       });
     });
 
-    this.ws.send(JSON.stringify(frame));
+    const frameStr = JSON.stringify(frame);
+    debugLog('SEND', frameStr);
+    this.ws.send(frameStr);
     return promise;
   }
 
@@ -305,7 +324,8 @@ export class OpenClawGateway {
   private handleMessage(raw: string): void {
     try {
       const parsed = JSON.parse(raw);
-
+      debugLog('RECV', JSON.stringify(parsed));
+      
       if (parsed.type === 'event') {
         const evt = parsed as EventFrame;
 

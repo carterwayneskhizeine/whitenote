@@ -41,7 +41,6 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [apiUnavailable, setApiUnavailable] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -121,10 +120,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         )
 
         if (latestMsg === null) {
-          // API failed - mark as unavailable but continue polling for a reasonable time
-          if (!apiUnavailable) {
-            setApiUnavailable(true)
-          }
+          // API failed - continue polling for a reasonable time
           consecutiveEmpty++
         } else {
           const latestContent = typeof latestMsg.content === 'string' 
@@ -174,13 +170,6 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         <div className="flex items-center gap-2 p-3 mb-2 text-sm text-red-500 bg-red-50 rounded-md mx-4">
           <AlertCircle className="w-4 h-4" />
           {error}
-        </div>
-      )}
-
-      {apiUnavailable && (
-        <div className="flex items-center gap-2 p-3 mb-2 text-sm text-amber-600 bg-amber-50 rounded-md mx-4">
-          <AlertCircle className="w-4 h-4" />
-          Chat history unavailable (missing permissions). Messages will be saved locally.
         </div>
       )}
 
