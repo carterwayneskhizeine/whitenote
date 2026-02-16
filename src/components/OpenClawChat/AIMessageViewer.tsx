@@ -51,6 +51,7 @@ interface AIMessageViewerProps {
   message: ChatMessage
   className?: string
   thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[]
+  contentBlocks?: { type: 'thinking' | 'toolCall' | 'text'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[]
 }
 
 // Helper to render tool call
@@ -161,7 +162,8 @@ function ThinkingBlock({ content }: { content: OpenClawContentBlock }) {
 export function AIMessageViewer({
   message,
   className,
-  thinkingBlocks
+  thinkingBlocks,
+  contentBlocks: propContentBlocks
 }: AIMessageViewerProps) {
   const lowlight = createLowlight(common)
 
@@ -169,6 +171,17 @@ export function AIMessageViewer({
   const getThinkingBlocks = () => {
     if (thinkingBlocks && thinkingBlocks.length > 0) {
       return thinkingBlocks
+    }
+    
+    // Try from propContentBlocks first
+    if (propContentBlocks && propContentBlocks.length > 0) {
+      return propContentBlocks
+        .filter((block): block is OpenClawThinkingContent => block.type === 'thinking')
+        .map(block => ({
+          type: 'thinking' as const,
+          thinking: block.thinking || '',
+          thinkingSignature: block.thinkingSignature,
+        }))
     }
     
     if (Array.isArray(message.content)) {
@@ -310,8 +323,10 @@ export function AIMessageViewer({
     )
   }
 
-  // Render content blocks (thinking, toolCall, text)
-  const contentBlocks = Array.isArray(message.content) ? message.content : []
+  // Render content blocks (thinking, toolCall, text) - prefer propContentBlocks
+  const contentBlocks: OpenClawContentBlock[] = (propContentBlocks && propContentBlocks.length > 0)
+    ? propContentBlocks as OpenClawContentBlock[]
+    : (Array.isArray(message.content) ? message.content : [])
 
   return (
     <div className={cn("ai-message-viewer max-w-full", className)}>

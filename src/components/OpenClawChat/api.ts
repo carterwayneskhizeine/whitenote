@@ -10,6 +10,7 @@ export interface ChatHistoryMessage {
   content: string
   timestamp?: number
   thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[]
+  contentBlocks?: { type: 'thinking' | 'toolCall' | 'text'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[]
 }
 
 export interface SendMessageResponse {
@@ -92,8 +93,9 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
   const rawContent = m.content
   if (isSystemMessage(rawContent)) return null
   
-  // Extract thinking blocks
+  // Extract thinking blocks and preserve content blocks
   const thinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
+  const contentBlocks: { type: 'thinking' | 'toolCall' | 'text'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
   
   let content: string
   if (Array.isArray(rawContent)) {
@@ -101,7 +103,15 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
     for (const item of rawContent) {
       if (!item || typeof item !== 'object') continue
       const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown>; id?: string; thinking?: string; thinkingSignature?: string }
+      
+      // Preserve the block for later rendering
       if (obj.type === 'toolCall') {
+        contentBlocks.push({
+          type: 'toolCall',
+          id: obj.id,
+          name: obj.name,
+          arguments: obj.arguments,
+        })
         const toolName = obj.name || 'unknown'
         const args = obj.arguments || {}
         const argsStr = Object.entries(args)
@@ -109,6 +119,11 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
           .join(', ')
         parts.push(`🔧 **Tool Call**: ${toolName}\n\`${argsStr}\``)
       } else if (obj.type === 'thinking') {
+        contentBlocks.push({
+          type: 'thinking',
+          thinking: obj.thinking,
+          thinkingSignature: obj.thinkingSignature,
+        })
         if (obj.thinking) {
           thinkingBlocks.push({
             type: 'thinking',
@@ -117,6 +132,10 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
           })
         }
       } else if (obj.text) {
+        contentBlocks.push({
+          type: 'text',
+          text: obj.text,
+        })
         parts.push(obj.text)
       }
     }
@@ -139,6 +158,7 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
     content,
     timestamp: m.timestamp,
     thinkingBlocks: thinkingBlocks.length > 0 ? thinkingBlocks : undefined,
+    contentBlocks: contentBlocks.length > 0 ? contentBlocks : undefined,
   }
 }
 

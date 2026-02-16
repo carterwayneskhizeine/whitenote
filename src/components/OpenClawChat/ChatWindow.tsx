@@ -63,6 +63,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
             content: msg.content,
             timestamp: msg.timestamp ?? Date.now(),
             thinkingBlocks: msg.thinkingBlocks,
+            contentBlocks: msg.contentBlocks,
           }))
           setMessages(messagesWithIds)
         }
@@ -139,6 +140,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
                       content: latestMsg.content as any, 
                       timestamp: latestMsg.timestamp || Date.now(),
                       thinkingBlocks: latestMsg.thinkingBlocks,
+                      contentBlocks: latestMsg.contentBlocks,
                     }
                   : msg
               )
@@ -212,6 +214,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
                   key={`${message.id}-${JSON.stringify(message.content).slice(0, 20)}`}
                   message={message}
                   thinkingBlocks={(message as any).thinkingBlocks}
+                  contentBlocks={(message as any).contentBlocks}
                   className={message.role === 'user' ? 'text-primary-foreground' : ''}
                 />
                 {message.role === 'assistant' && isLoading &&
