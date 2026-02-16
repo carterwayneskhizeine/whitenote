@@ -129,10 +129,10 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
             ? latestMsg.content 
             : JSON.stringify(latestMsg.content)
 
-          if (latestContent !== lastContent) {
-            lastContent = latestContent
-            consecutiveEmpty = 0
-            setMessages(prev =>
+        if (latestContent !== lastContent) {
+          lastContent = latestContent
+          consecutiveEmpty = 0
+          setMessages(prev =>
               prev.map(msg =>
                 msg.id === assistantMessageId
                   ? { 

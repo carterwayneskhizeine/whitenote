@@ -195,6 +195,17 @@ export function AIMessageViewer({
   
   const contentThinkingBlocks = getThinkingBlocks()
   const getTextContent = () => {
+    // First, try to get text from propContentBlocks
+    if (propContentBlocks && propContentBlocks.length > 0) {
+      const textBlocks = propContentBlocks
+        .filter((block): block is { type: 'text'; text: string } => block.type === 'text' && !!block.text)
+        .map(block => block.text)
+      if (textBlocks.length > 0) {
+        return textBlocks.join('\n\n')
+      }
+    }
+    
+    // Fallback to message.content
     if (typeof message.content === 'string') {
       return message.content
     }

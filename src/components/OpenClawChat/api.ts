@@ -227,31 +227,112 @@ export const openclawApi = {
     const response = await fetch(`${API_BASE}/chat/history?${params}`)
     if (!response.ok) {
       console.error('[OpenClaw] pollMessage failed:', response.status)
-      // Return null on failure instead of throwing - allows chat to continue
       return null
     }
 
     const data = await response.json()
-    let messages = (data.messages || []) as unknown[]
+    let allMessages = (data.messages || []) as unknown[]
     
-    // Filter: only assistant messages after user's timestamp
-    if (afterTimestamp && messages.length) {
-      messages = messages.filter((m: unknown) => {
-        const msg = m as { role?: string; timestamp?: number }
-        return msg.role === 'assistant' && msg.timestamp ? msg.timestamp > afterTimestamp : false
-      })
-    } else if (messages.length) {
-      // No timestamp provided, just get latest assistant message
-      messages = messages.filter((m: unknown) => {
-        const msg = m as { role?: string }
-        return msg.role === 'assistant'
-      })
+    // Find the user message timestamp to filter
+    let userTimestamp = afterTimestamp
+    if (!userTimestamp && allMessages.length > 0) {
+      // Find the last user message and use its timestamp
+      for (let i = allMessages.length - 1; i >= 0; i--) {
+        const msg = allMessages[i] as { role?: string; timestamp?: number }
+        if (msg.role === 'user' && msg.timestamp) {
+          userTimestamp = msg.timestamp
+          break
+        }
+      }
     }
     
-    const latestMsg = messages[messages.length - 1]
-    if (latestMsg) {
-      return convertMessage(latestMsg)
+    // Filter messages: user message, all assistant messages, and tool results after (or equal to) user timestamp
+    const relevantMessages = allMessages.filter((m: unknown) => {
+      const msg = m as { role?: string; timestamp?: number }
+      if (msg.role === 'user' && msg.timestamp && userTimestamp && msg.timestamp >= userTimestamp) {
+        return true
+      }
+      if (msg.role === 'assistant' && msg.timestamp && userTimestamp && msg.timestamp >= userTimestamp) {
+        return true
+      }
+      if (msg.role === 'toolResult' && msg.timestamp && userTimestamp && msg.timestamp >= userTimestamp) {
+        return true
+      }
+      return false
+    }) as unknown[]
+    
+    if (relevantMessages.length === 0) {
+      return null
     }
-    return null
+    
+    // Merge all assistant messages and tool results into one
+    const mergedContentBlocks: { type: 'thinking' | 'toolCall' | 'text'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
+    const mergedTextParts: string[] = []
+    const mergedThinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
+    
+    for (const msg of relevantMessages) {
+      const m = msg as { role?: string; content?: unknown; timestamp?: number }
+      
+      // Skip user messages in the merge
+      if (m.role === 'user') continue
+      
+      const rawContent = m.content
+      
+      if (Array.isArray(rawContent)) {
+        for (const item of rawContent) {
+          if (!item || typeof item !== 'object') continue
+          const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown>; id?: string; thinking?: string; thinkingSignature?: string }
+          
+          if (obj.type === 'toolCall') {
+            mergedContentBlocks.push({
+              type: 'toolCall',
+              id: obj.id,
+              name: obj.name,
+              arguments: obj.arguments,
+            })
+            // Also add to text for backward compatibility
+            const toolName = obj.name || 'unknown'
+            const args = obj.arguments || {}
+            const argsStr = Object.entries(args)
+              .map(([k, v]) => `${k}:${JSON.stringify(v)}`)
+              .join(', ')
+            mergedTextParts.push(`🔧 **Tool Call**: ${toolName}\n\`${argsStr}\``)
+          } else if (obj.type === 'thinking') {
+            mergedContentBlocks.push({
+              type: 'thinking',
+              thinking: obj.thinking,
+              thinkingSignature: obj.thinkingSignature,
+            })
+            mergedThinkingBlocks.push({
+              type: 'thinking',
+              thinking: obj.thinking || '',
+              thinkingSignature: obj.thinkingSignature,
+            })
+          } else if (obj.text) {
+            mergedContentBlocks.push({
+              type: 'text',
+              text: obj.text,
+            })
+            mergedTextParts.push(obj.text)
+          }
+        }
+      } else if (typeof rawContent === 'string' && rawContent.trim()) {
+        mergedTextParts.push(rawContent)
+      }
+    }
+    
+    const mergedContent = mergedTextParts.join('\n\n')
+    const lastTimestamp = relevantMessages.reduce((max: number, m: unknown) => {
+      const msg = m as { timestamp?: number }
+      return msg.timestamp && msg.timestamp > max ? msg.timestamp : max
+    }, 0)
+    
+    return {
+      role: 'assistant',
+      content: mergedContent,
+      timestamp: lastTimestamp || Date.now(),
+      thinkingBlocks: mergedThinkingBlocks.length > 0 ? mergedThinkingBlocks : undefined,
+      contentBlocks: mergedContentBlocks.length > 0 ? mergedContentBlocks : undefined,
+    }
   },
 }
