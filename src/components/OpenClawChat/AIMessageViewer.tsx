@@ -58,38 +58,32 @@ function ToolCallBlock({ content }: { content: OpenClawContentBlock }) {
 
   const args = content.arguments as { command?: string; path?: string; limit?: number }
 
+  const cleanName = content.name?.replace(/\s*\(call_[a-f0-9]+\)/g, '').trim() || ''
+  const cleanCommand = args.command?.replace(/\(call_[a-f0-9]+\)/g, '').trim() || ''
+
   return (
     <div className="my-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-800">
         <Terminal className="w-4 h-4 text-blue-600 dark:text-blue-400" />
         <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
-          Tool Call: {content.name}
+          🔧 Tool Call: {cleanName}
         </span>
+        {args.path && (
+          <span className="text-xs ml-auto bg-blue-200 dark:bg-blue-800 px-2 py-0.5 rounded text-blue-800 dark:text-blue-200">
+            path: "{args.path}"
+          </span>
+        )}
       </div>
-      <div className="p-3 text-sm font-mono">
-        {args.command && (
+      {cleanCommand && (
+        <div className="p-3 text-sm font-mono">
           <div className="mb-1">
             <span className="text-blue-600 dark:text-blue-400">Command:</span>
             <pre className="mt-1 text-xs overflow-x-auto whitespace-pre-wrap break-all">
-              {args.command}
+              {cleanCommand}
             </pre>
           </div>
-        )}
-        {args.path && (
-          <div className="mb-1">
-            <span className="text-blue-600 dark:text-blue-400">Path:</span>{' '}
-            <code className="text-xs bg-blue-100 dark:bg-blue-900/50 px-1.5 py-0.5 rounded">
-              {args.path}
-            </code>
-          </div>
-        )}
-        {args.limit !== undefined && (
-          <div>
-            <span className="text-blue-600 dark:text-blue-400">Limit:</span>{' '}
-            <code>{args.limit}</code>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

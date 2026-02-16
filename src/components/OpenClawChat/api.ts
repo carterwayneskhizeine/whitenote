@@ -28,6 +28,18 @@ function isSystemMessage(content: unknown): boolean {
          content.includes('Reasoning STREAM')
 }
 
+function cleanUserMessage(text: string): string {
+  let cleaned = text
+  
+  // Remove "Conversation info (untrusted metadata):" block with JSON
+  cleaned = cleaned.replace(/Conversation info \(untrusted metadata\):\s*```json\n[\s\S]*?```\n*/g, '')
+  
+  // Remove timestamp prefix like "[Mon 2026-02-16 12:14 GMT+8]"
+  cleaned = cleaned.replace(/\[[A-Z][a-z]{2}\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+GMT[+-]\d+\]\s*/g, '')
+  
+  return cleaned.trim()
+}
+
 function formatToolCall(item: { type?: string; name?: string; arguments?: Record<string, unknown> }): string {
   const name = item.name || 'unknown'
   const args = item.arguments || {}
@@ -56,12 +68,11 @@ function simplifyContent(content: unknown): string {
     
     if (itemType === 'toolCall') {
       const toolName = obj.name || 'unknown'
-      const toolId = obj.id || ''
       const args = obj.arguments || {}
       const argsStr = Object.entries(args)
         .map(([k, v]) => `${k}:${JSON.stringify(v)}`)
         .join(', ')
-      parts.push(`🔧 **Tool Call**: ${toolName}${toolId ? ` (${toolId})` : ''}\n\`${argsStr}\``)
+      parts.push(`🔧 **Tool Call**: ${toolName}\n\`${argsStr}\``)
     } else if (obj.text) {
       parts.push(obj.text)
     }
@@ -80,7 +91,37 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
   const rawContent = m.content
   if (isSystemMessage(rawContent)) return null
   
-  const content = simplifyContent(rawContent)
+  let content: string
+  if (Array.isArray(rawContent)) {
+    const parts: string[] = []
+    for (const item of rawContent) {
+      if (!item || typeof item !== 'object') continue
+      const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown>; id?: string }
+      if (obj.type === 'toolCall') {
+        const toolName = obj.name || 'unknown'
+        const args = obj.arguments || {}
+        const argsStr = Object.entries(args)
+          .map(([k, v]) => `${k}:${JSON.stringify(v)}`)
+          .join(', ')
+        parts.push(`🔧 **Tool Call**: ${toolName}\n\`${argsStr}\``)
+      } else if (obj.type === 'thinking') {
+        // Skip thinking in simplified view
+      } else if (obj.text) {
+        parts.push(obj.text)
+      }
+    }
+    content = parts.join('\n')
+  } else {
+    content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent)
+  }
+  
+  if (!content || !content.trim()) return null
+  
+  // Clean user messages to remove metadata and timestamp
+  if (m.role === 'user') {
+    content = cleanUserMessage(content)
+  }
+  
   if (!content || !content.trim()) return null
   
   return {
