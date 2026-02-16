@@ -371,7 +371,6 @@ export const openclawApi = {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6))
-              console.log('[OpenClaw] Stream event:', data)
 
               if (data.type === 'start') {
                 // Stream started
@@ -383,7 +382,6 @@ export const openclawApi = {
                 onChunk(delta, accumulatedContent)
               } else if (data.type === 'finish') {
                 // Stream finished
-                console.log('[OpenClaw] Stream finished:', data)
                 onFinish()
                 return
               } else if (data.type === 'error') {

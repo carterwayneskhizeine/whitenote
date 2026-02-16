@@ -69,8 +69,6 @@ export async function POST(request: NextRequest) {
 
         // Set up event listener for this request
         const eventHandler = (eventFrame: { event: string; payload?: unknown }) => {
-          console.log('[OpenClaw Stream] Received event:', eventFrame.event, 'payload:', JSON.stringify(eventFrame.payload)?.substring(0, 500))
-
           // Listen for 'chat' events (OpenClaw sends chat events, not chat.broadcast)
           if (eventFrame.event === 'chat') {
             const payload = eventFrame.payload as ChatEvent
@@ -83,11 +81,8 @@ export async function POST(request: NextRequest) {
                            eventSessionKey?.endsWith(`:${sessionKey}`)
 
             if (!isMatch) {
-              console.log('[OpenClaw Stream] Skipping event for different session:', eventSessionKey, 'ours:', sessionKey)
               return
             }
-
-            console.log('[OpenClaw Stream] Chat event:', payload.state, 'runId:', payload.runId)
 
             if (payload.state === 'delta' && payload.message) {
               // Streaming content update
@@ -148,29 +143,22 @@ export async function POST(request: NextRequest) {
 
         try {
           // Send the message
-          console.log('[OpenClaw Stream] Sending message to OpenClaw Gateway...')
           await gateway.sendMessage(sessionKey, content)
-          console.log('[OpenClaw Stream] Message sent, waiting for response events...')
 
           // Wait for completion or timeout
-          const timeoutMs = 120000 // 2 minutes
+          const timeoutMs = 600000 // 10 minutes for long-running tasks
           const startTime = Date.now()
-          let loopCount = 0
 
           while (!hasFinished && !hasError) {
-            loopCount++
-            if (loopCount % 50 === 0) {
-              console.log('[OpenClaw Stream] Still waiting... loop:', loopCount, 'elapsed:', Date.now() - startTime, 'ms')
-            }
-
             if (Date.now() - startTime > timeoutMs) {
+              console.error('[OpenClaw Stream] Timeout after', timeoutMs / 1000, 'seconds')
               sendEvent({
                 type: 'error',
                 error: 'Stream timeout',
               })
               break
             }
-            await new Promise(resolve => setTimeout(resolve, 100))
+            await new Promise(resolve => setTimeout(resolve, 50))
           }
         } catch (error) {
           console.error('[OpenClaw Stream] Error:', error)

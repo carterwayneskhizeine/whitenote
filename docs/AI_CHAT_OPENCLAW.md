@@ -60,6 +60,33 @@
    - `pollMessage()`: 获取最新助手消息
    - 客户端过滤：只返回 `role: 'assistant'` 且时间戳大于用户消息的消息
 
+### 2026-02-17: SSE 流式传输实现
+
+改用 SSE (Server-Sent Events) 流式传输，利用 OpenClaw Gateway 的 WebSocket 事件推送，实现真正的实时流式响应：
+
+**核心改动**:
+
+1. **新增 `/api/openclaw/chat/stream` 接口** - SSE 流式响应
+   - 监听 OpenClaw Gateway 的 `chat` 事件
+   - 将 WebSocket 事件实时转换为 SSE 格式推送给前端
+   - 支持 `delta`（增量内容）、`final`（完成）、`error`（错误）事件
+   - 超时时间设置为 10 分钟，支持长时间任务
+
+2. **前端 SSE 客户端** (`api.ts`):
+   - 使用 Fetch API + ReadableStream 读取 SSE 流
+   - 实时更新 UI，每 50ms 检查一次
+   - 流式完成后自动重新加载历史记录获取完整数据
+
+3. **ChatWindow 组件更新** (`ChatWindow.tsx`):
+   - 使用 `sendMessageStream()` 替代轮询
+   - AI 回答完成后立即允许发送新消息
+   - 流式完成后重新加载历史记录以获取完整数据（包括 thinking blocks）
+
+4. **关键实现细节**:
+   - 事件名是 `chat` 而不是 `chat.broadcast`
+   - sessionKey 可能是 `agent:main:main` 格式，需要灵活匹配
+   - 不需要调用 `chat.subscribe`（该方法不存在）
+
 ## 架构
 
 ```
@@ -79,14 +106,25 @@
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 消息流程
+## 消息流程 (SSE 流式)
 
 1. 用户在前端输入消息，发送到 `/api/openclaw/chat/stream`
 2. 后端通过 WebSocket 连接到 OpenClaw Gateway
 3. 发送消息到 `main` 会话
-4. OpenClaw Gateway 通过 WebSocket 事件流返回回复
-5. 后端将事件转换为 SSE 格式返回给前端
-6. 前端实时更新 UI
+4. 后端监听 Gateway 的 `chat` 事件
+5. 收到 `delta` 事件时，将增量内容通过 SSE 推送给前端
+6. 收到 `final` 事件时，发送完成信号并关闭 SSE 连接
+7. 前端实时更新 UI，完成后重新加载历史记录获取完整数据
+
+### SSE 事件格式
+
+```
+data: {"type":"start","sessionKey":"main"}
+
+data: {"type":"content","runId":"...","delta":"部分内容","content":"部分内容"}
+
+data: {"type":"finish","runId":"...","usage":{...},"stopReason":"..."}
+```
 
 ## 关键文件
 
@@ -186,59 +224,56 @@ OPENCLAW_TOKEN=your-token-here
 | `~/.openclaw/identity/device-auth.json` | 设备 token (自动存储) |
 | `~/.openclaw/devices/paired.json` | 已配对设备信息 |
 
-### 2. 聊天 API (chat/stream/route.ts)
+### 2. 流式聊天 API (chat/stream/route.ts)
 
 - POST 接口，接收 `sessionKey` 和 `content`
 - 创建全局 Gateway 实例并连接
-- 监听 `agent` 事件获取流式回复
-- 使用 SSE 编码返回给前端
+- 监听 `chat` 事件获取流式回复
+- 将事件转换为 SSE 格式返回给前端
+- 支持 10 分钟超时，适合长时间任务
 
-### 3. 发送 API (chat/send/route.ts) - 伪流式
+### 3. 前端 (ChatWindow.tsx) - SSE 流式
+
+- 使用 `sendMessageStream()` 方法
+- 通过 `onChunk` 回调实时更新 UI
+- 通过 `onFinish` 回调重新加载历史记录
+- AI 回答完成后立即允许发送新消息
+
+```tsx
+await openclawApi.sendMessageStream(
+  sessionKey,
+  content,
+  // onChunk: 每次收到增量内容时调用
+  (delta, fullContent) => {
+    setMessages(prev =>
+      prev.map(msg =>
+        msg.id === assistantMessageId
+          ? { ...msg, content: fullContent }
+          : msg
+      )
+    )
+  },
+  // onFinish: 流式传输完成时调用
+  () => {
+    setIsLoading(false)
+    // 重新加载历史记录获取完整数据
+    openclawApi.getHistory(sessionKey).then(history => {
+      // 更新完整消息（包括 thinking blocks）
+    })
+  },
+  // onError: 发生错误时调用
+  (error) => {
+    setError(error)
+  }
+)
+```
+
+### 4. 发送 API (chat/send/route.ts) - 保留用于轮询场景
 
 - POST 接口，接收 `sessionKey` 和 `content`
 - 发送消息后**立即返回**，不等待 AI 响应
 - 返回 `{ success: true, timestamp: number }`
-- 适用于轮询场景
-
-SSE 事件格式：
-```
-event: start
-data: {sessionKey: "main"}
-
-event: content
-data: {delta: "回复内容"}
-
-event: finish
-data: {usage: {...}, stopReason: "..."}
-```
-
-### 3. 前端 (ChatWindow.tsx) - 伪流式
-
-- 发送消息到 `/chat/send`，立即返回
-- 每 5 秒轮询 `/chat/history` 获取最新消息
-- 使用 `key` 属性强制 TipTap 重新渲染更新内容
-- 连续 3 次轮询无变化时结束
-
-```tsx
-const pollForResponse = async () => {
-  const latestMsg = await openclawApi.pollMessage(sessionKey, userTimestamp)
-  
-  if (latestMsg && latestMsg.content !== lastContent) {
-    lastContent = latestMsg.content
-    setMessages(prev => prev.map(msg => 
-      msg.id === assistantMessageId 
-        ? { ...msg, content: latestMsg.content }
-        : msg
-    ))
-  }
-  
-  if (consecutiveEmpty < maxEmptyRounds) {
-    setTimeout(pollForResponse, 5000)
-  } else {
-    setIsLoading(false)
-  }
-}
-```
+- 适用于某些特殊场景
 
 ### 4. 消息渲染 (AIMessageViewer.tsx)
 
@@ -260,12 +295,22 @@ interface AIMessageViewerProps {
 ### 5. 前端 API (api.ts)
 
 ```ts
-// 伪流式 API
+// SSE 流式 API (主要使用)
+openclawApi.sendMessageStream(
+  sessionKey,
+  content,
+  onChunk,      // (delta: string, fullContent: string) => void
+  onFinish,     // () => void
+  onError       // (error: string) => void
+)
+
+// 伪流式 API (保留用于特殊场景)
 openclawApi.sendMessage(sessionKey, content)  // 发送消息，立即返回
 openclawApi.pollMessage(sessionKey, afterTimestamp)  // 轮询获取最新助手消息
 
-// 流式 API (保留)
-openclawApi.sendMessageStream(sessionKey, content)  // SSE 流式响应
+// 其他 API
+openclawApi.getHistory(sessionKey, limit)  // 获取聊天历史
+openclawApi.createSession(label)  // 创建会话
 ```
 
 ## 依赖
@@ -296,7 +341,10 @@ openclawApi.sendMessageStream(sessionKey, content)  // SSE 流式响应
 2. **Client ID**: 必须使用 Gateway 允许的 client ID (如 `webchat-ui`)
 3. **Mode**: 必须使用 `webchat` mode 才能通过 Origin 检查
 4. **会话**: 使用默认的 `main` 会话，无需提前创建
-5. **SSE 解析**: 前端需要正确解析 SSE 的 `event:` 和 `data:` 行
+5. **事件名**: OpenClaw 使用 `chat` 事件而不是 `chat.broadcast`
+6. **sessionKey 匹配**: 事件中的 sessionKey 可能是 `agent:main:main` 格式，需要灵活匹配
+7. **超时时间**: SSE 流式传输默认超时 10 分钟，适合长时间任务
+8. **调试**: 服务器日志会显示超时和完成状态，前端控制台会显示错误
 
 ## 设备认证故障排除
 
