@@ -135,15 +135,52 @@ export const openclawApi = {
     const data = await response.json()
     const messages = (data.messages || []) as unknown[]
     const converted: ChatHistoryMessage[] = []
-    
+
     for (const msg of messages) {
       const convertedMsg = convertMessage(msg)
       if (convertedMsg) {
         converted.push(convertedMsg)
       }
     }
-    
+
     return converted
+  },
+
+  async getLastCompleteResponse(sessionKey: string = 'main'): Promise<ChatHistoryMessage | null> {
+    const response = await fetch(`${API_BASE}/chat/history?sessionKey=${sessionKey}`)
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to get history')
+    }
+
+    const data = await response.json()
+    const allMessages = (data.messages || []) as unknown[]
+
+    if (allMessages.length === 0) {
+      return null
+    }
+
+    // Find the last user message timestamp
+    let userTimestamp: number | undefined
+    for (let i = allMessages.length - 1; i >= 0; i--) {
+      const msg = allMessages[i] as { role?: string; timestamp?: number }
+      if (msg.role === 'user' && msg.timestamp) {
+        userTimestamp = msg.timestamp
+        break
+      }
+    }
+
+    if (!userTimestamp) {
+      // No user message found, return the last message if it's an assistant message
+      const lastMsg = allMessages[allMessages.length - 1] as { role?: string }
+      if (lastMsg.role === 'assistant') {
+        return this.pollMessage(sessionKey, undefined)
+      }
+      return null
+    }
+
+    // Use pollMessage to get the merged response
+    return this.pollMessage(sessionKey, userTimestamp)
   },
 
   async createSession(label?: string): Promise<SessionResponse> {
@@ -355,6 +392,7 @@ export const openclawApi = {
     const decoder = new TextDecoder()
     let buffer = ''
     let accumulatedContent = ''
+    let accumulatedContentBlocks: unknown[] = []
 
     try {
       while (true) {
@@ -375,10 +413,16 @@ export const openclawApi = {
               if (data.type === 'start') {
                 // Stream started
                 accumulatedContent = ''
+                accumulatedContentBlocks = []
+                console.log('[OpenClaw] Stream started')
               } else if (data.type === 'content') {
                 // Content chunk - may have contentBlocks or delta/content
                 if (data.contentBlocks) {
                   // New format: full content blocks including thinking and tool calls
+                  // Accumulate all content blocks instead of replacing
+                  console.log('[OpenClaw] Received', data.contentBlocks.length, 'content blocks:', data.contentBlocks.map((b: any) => ({ type: b.type, hasText: !!b.text, hasThinking: !!b.thinking, name: b.name })))
+                  accumulatedContentBlocks.push(...data.contentBlocks)
+
                   const textParts = data.contentBlocks
                     .filter((block: unknown) => {
                       const b = block as { type?: string; text?: string }
@@ -391,7 +435,8 @@ export const openclawApi = {
                     .join('')
 
                   accumulatedContent = textParts
-                  onChunk('', accumulatedContent, data.contentBlocks)
+                  console.log('[OpenClaw] Total accumulated blocks:', accumulatedContentBlocks.length, 'text length:', accumulatedContent.length)
+                  onChunk('', accumulatedContent, accumulatedContentBlocks)
                 } else {
                   // Legacy format: delta/content
                   const delta = data.delta || data.content || ''

@@ -69,7 +69,57 @@ export async function POST(request: NextRequest) {
 
         // Set up event listener for this request
         const eventHandler = (eventFrame: { event: string; payload?: unknown }) => {
-          // Listen for 'chat' events (OpenClaw sends chat events, not chat.broadcast)
+          // Log ALL events to understand the event structure
+          console.log('[OpenClaw Stream] Event received:', eventFrame.event,
+            'payload:', JSON.stringify(eventFrame.payload)?.substring(0, 800))
+
+          // Handle 'agent' events - these contain streaming data including thinking, tool calls, etc.
+          if (eventFrame.event === 'agent') {
+            const agentPayload = eventFrame.payload as {
+              runId?: string
+              sessionKey?: string
+              stream?: string
+              data?: unknown
+            }
+
+            const eventSessionKey = agentPayload.sessionKey
+            const isMatch = eventSessionKey === sessionKey ||
+                           eventSessionKey === `agent:${sessionKey}:${sessionKey}` ||
+                           eventSessionKey?.endsWith(`:${sessionKey}`)
+
+            if (!isMatch) {
+              return
+            }
+
+            // Log different stream types
+            if (agentPayload.stream === 'assistant') {
+              console.log('[OpenClaw Stream] Agent assistant stream:', JSON.stringify(agentPayload.data)?.substring(0, 200))
+            } else if (agentPayload.stream === 'thinking') {
+              console.log('[OpenClaw Stream] Agent THINKING stream:', JSON.stringify(agentPayload.data)?.substring(0, 500))
+              // Send thinking blocks to frontend
+              const data = agentPayload.data as { text?: string } | undefined
+              if (data?.text) {
+                sendEvent({
+                  type: 'content',
+                  runId: agentPayload.runId,
+                  contentBlocks: [{ type: 'thinking', thinking: data.text }],
+                })
+              }
+            } else if (agentPayload.stream === 'toolCall') {
+              console.log('[OpenClaw Stream] Agent TOOL CALL stream:', JSON.stringify(agentPayload.data)?.substring(0, 500))
+              // Send tool calls to frontend
+              const data = agentPayload.data as { name?: string; arguments?: Record<string, unknown>; id?: string } | undefined
+              if (data?.name) {
+                sendEvent({
+                  type: 'content',
+                  runId: agentPayload.runId,
+                  contentBlocks: [{ type: 'toolCall', name: data.name, arguments: data.arguments, id: data.id }],
+                })
+              }
+            }
+          }
+
+          // Handle 'chat' events - these contain the final aggregated message
           if (eventFrame.event === 'chat') {
             const payload = eventFrame.payload as ChatEvent
 

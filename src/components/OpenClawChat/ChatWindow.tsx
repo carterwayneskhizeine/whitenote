@@ -165,29 +165,29 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
           )
         },
         // onFinish: Loading complete
-        () => {
+        async () => {
           setIsLoading(false)
-          // Reload full history to get complete message data including thinking blocks
-          openclawApi.getHistory(DEFAULT_SESSION_KEY).then(history => {
-            if (history.length > 0) {
-              const lastMsg = history[history.length - 1]
+          // Reload to get complete message data including thinking blocks and tool calls
+          try {
+            const completeMsg = await openclawApi.getLastCompleteResponse(DEFAULT_SESSION_KEY)
+            if (completeMsg && completeMsg.role === 'assistant') {
               setMessages(prev =>
                 prev.map(msg => {
                   if (msg.id === assistantMessageId && msg.role === 'assistant') {
                     return {
                       ...msg,
-                      content: lastMsg.content,
-                      thinkingBlocks: lastMsg.thinkingBlocks,
-                      contentBlocks: lastMsg.contentBlocks,
+                      content: completeMsg.content,
+                      thinkingBlocks: completeMsg.thinkingBlocks,
+                      contentBlocks: completeMsg.contentBlocks,
                     } as ChatMessage
                   }
                   return msg
                 })
               )
             }
-          }).catch(err => {
-            console.error('[OpenClawChat] Failed to reload history:', err)
-          })
+          } catch (err) {
+            console.error('[OpenClawChat] Failed to reload complete message:', err)
+          }
         },
         // onError: Handle errors
         (error) => {

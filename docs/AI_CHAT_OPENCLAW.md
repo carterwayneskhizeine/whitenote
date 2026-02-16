@@ -67,7 +67,7 @@
 **核心改动**:
 
 1. **新增 `/api/openclaw/chat/stream` 接口** - SSE 流式响应
-   - 监听 OpenClaw Gateway 的 `chat` 事件
+   - 监听 OpenClaw Gateway 的 `chat` 事件和 `agent` 事件
    - 将 WebSocket 事件实时转换为 SSE 格式推送给前端
    - 支持 `delta`（增量内容）、`final`（完成）、`error`（错误）事件
    - 超时时间设置为 10 分钟，支持长时间任务
@@ -75,17 +75,49 @@
 2. **前端 SSE 客户端** (`api.ts`):
    - 使用 Fetch API + ReadableStream 读取 SSE 流
    - 实时更新 UI，每 50ms 检查一次
-   - 流式完成后自动重新加载历史记录获取完整数据
+   - 流式完成后自动调用 `getLastCompleteResponse()` 获取完整数据
 
 3. **ChatWindow 组件更新** (`ChatWindow.tsx`):
    - 使用 `sendMessageStream()` 替代轮询
    - AI 回答完成后立即允许发送新消息
-   - 流式完成后重新加载历史记录以获取完整数据（包括 thinking blocks）
+   - 流式完成后自动获取完整消息（包括 thinking blocks 和 tool calls）
 
 4. **关键实现细节**:
    - 事件名是 `chat` 而不是 `chat.broadcast`
    - sessionKey 可能是 `agent:main:main` 格式，需要灵活匹配
    - 不需要调用 `chat.subscribe`（该方法不存在）
+
+### 2026-02-17: 流式完成后自动加载完整内容
+
+**问题**: 流式响应完成后，前端只显示最终文本，thinking blocks 和 tool calls 不会显示，需要手动刷新页面才能看到完整内容。
+
+**原因分析**: 通过日志分析发现，OpenClaw Gateway 的设计是：
+- WebSocket 流式事件 (`chat`, `agent:assistant`) 只包含文本增量更新
+- **Thinking blocks 和 tool calls 不会在流中发送**，只存储在历史记录中
+- 历史记录包含完整的 assistant 消息：thinking + toolCall → toolResult → thinking + text
+
+**解决方案**:
+
+1. **新增 `getLastCompleteResponse()` 方法** (`api.ts`):
+   - 复用现有的 `pollMessage()` 逻辑
+   - 自动合并所有 assistant 消息和 tool results
+   - 返回完整的 content blocks（包括 thinking、toolCall、toolResult、text）
+
+2. **更新 ChatWindow `onFinish` 回调** (`ChatWindow.tsx`):
+   - 流式完成后自动调用 `getLastCompleteResponse()`
+   - 用完整数据更新消息，无需手动刷新
+   - 用户可以看到完整的思考过程和工具调用
+
+3. **消息合并逻辑** (`pollMessage` 方法):
+   - 查找最后一条用户消息的时间戳
+   - 获取该时间戳之后的所有 assistant 消息和 tool results
+   - 合并为单条消息，包含：
+     - 所有 thinking blocks（从多个 assistant 消息）
+     - 所有 toolCall blocks（工具调用）
+     - 所有 toolResult blocks（工具返回结果）
+     - 最终文本（从最后的 assistant 消息）
+
+**效果**: 用户在 AI 回答完成后，立即看到完整的思考过程、工具调用和结果，无需手动刷新页面。
 
 ## 架构
 
