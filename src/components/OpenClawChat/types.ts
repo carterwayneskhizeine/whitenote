@@ -31,6 +31,7 @@ export type OpenClawContentBlock =
 
 // Tool result message
 export interface OpenClawToolResultMessage {
+  id: string;
   role: 'toolResult';
   toolCallId: string;
   toolName: string;

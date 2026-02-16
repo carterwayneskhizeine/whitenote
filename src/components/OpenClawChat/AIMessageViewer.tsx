@@ -12,8 +12,40 @@ import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import { cn } from "@/lib/utils"
-import type { ChatMessage, OpenClawContentBlock } from './types'
-import { Terminal, FileText, Brain, ChevronRight } from 'lucide-react'
+import type { ChatMessage, OpenClawContentBlock, OpenClawTextContent } from './types'
+import { Terminal, FileText, Brain, ChevronRight, Clock } from 'lucide-react'
+
+// Format timestamp to human-readable string
+function formatTimestamp(timestamp: number): string {
+  const date = new Date(timestamp)
+  const now = new Date()
+
+  // Reset time to midnight for comparison
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
+  // Calculate difference in days
+  const diffTime = today.getTime() - messageDate.getTime()
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+  // Format time as HH:MM
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  const timeStr = `${hours}:${minutes}`
+
+  if (diffDays === 0) {
+    // Today - just show time
+    return timeStr
+  } else if (diffDays === 1) {
+    // Yesterday
+    return `昨天 ${timeStr}`
+  } else {
+    // Older - show month/day and time
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    return `${month}月${day}日 ${timeStr}`
+  }
+}
 
 interface AIMessageViewerProps {
   message: ChatMessage
@@ -87,11 +119,19 @@ function ToolResultBlock({ message }: { message: ChatMessage }) {
         <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all bg-white dark:bg-black/30 p-3 rounded border border-green-200 dark:border-green-800">
           {text}
         </pre>
-        {toolMsg.details?.durationMs && (
-          <div className="mt-2 text-xs text-green-600 dark:text-green-400">
-            Duration: {toolMsg.details.durationMs}ms
-          </div>
-        )}
+        <div className="mt-2 flex items-center justify-between">
+          {toolMsg.details?.durationMs && (
+            <div className="text-xs text-green-600 dark:text-green-400">
+              Duration: {toolMsg.details.durationMs}ms
+            </div>
+          )}
+          {message.timestamp && (
+            <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
+              <Clock className="w-3 h-3" />
+              <span>{formatTimestamp(message.timestamp)}</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -129,10 +169,10 @@ export function AIMessageViewer({
     }
 
     if (Array.isArray(message.content)) {
-      const textBlocks = message.content.filter(
-        (block): block is { type: 'text'; text: string } => block.type === 'text'
-      )
-      return textBlocks.map(block => block.text).join('\n\n')
+      const textBlocks = message.content.filter((block): block is OpenClawTextContent => {
+        return block.type === 'text'
+      })
+      return textBlocks.map((block) => (block as OpenClawTextContent).text).join('\n\n')
     }
 
     return ''
@@ -270,6 +310,14 @@ export function AIMessageViewer({
 
       {/* Render text content with TipTap */}
       {textContent && <EditorContent editor={editor} />}
+
+      {/* Timestamp */}
+      {message.timestamp && (
+        <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
+          <Clock className="w-3 h-3" />
+          <span>{formatTimestamp(message.timestamp)}</span>
+        </div>
+      )}
 
       <style jsx global>{`
         .ai-message-viewer .ProseMirror {
