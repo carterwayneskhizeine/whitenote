@@ -133,7 +133,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
             setMessages(prev =>
               prev.map(msg =>
                 msg.id === assistantMessageId
-                  ? { ...msg, content: lastContent!, timestamp: latestMsg.timestamp || Date.now() }
+                  ? { ...msg, content: latestMsg.content as any, timestamp: latestMsg.timestamp || Date.now() }
                   : msg
               )
             )
@@ -197,15 +197,19 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
                 className={`rounded-lg px-4 py-2 max-w-[85%] md:max-w-[90%] min-w-0 break-words ${
                   message.role === 'user'
                     ? 'bg-primary text-primary-foreground'
+                    : message.role === 'toolResult'
+                    ? 'bg-transparent'
                     : 'bg-muted'
                 }`}
               >
-                <AIMessageViewer 
-                  key={`${message.id}-${String(message.content).slice(0, 20)}`}
-                  content={typeof message.content === 'string' ? message.content : JSON.stringify(message.content)} 
+                <AIMessageViewer
+                  key={`${message.id}-${JSON.stringify(message.content).slice(0, 20)}`}
+                  message={message}
                   className={message.role === 'user' ? 'text-primary-foreground' : ''}
                 />
-                {message.role === 'assistant' && isLoading && message.content === '' && (
+                {message.role === 'assistant' && isLoading &&
+                  ((typeof message.content === 'string' && message.content === '') ||
+                   (Array.isArray(message.content) && message.content.length === 0)) && (
                   <span className="inline-flex gap-1 ml-1">
                     <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-1 h-1 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />

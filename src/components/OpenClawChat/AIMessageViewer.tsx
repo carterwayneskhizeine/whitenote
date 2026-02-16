@@ -12,17 +12,133 @@ import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import { cn } from "@/lib/utils"
+import type { ChatMessage, OpenClawContentBlock } from './types'
+import { Terminal, FileText, Brain, ChevronRight } from 'lucide-react'
 
 interface AIMessageViewerProps {
-  content: string
+  message: ChatMessage
   className?: string
 }
 
-export function AIMessageViewer({ 
-  content, 
+// Helper to render tool call
+function ToolCallBlock({ content }: { content: OpenClawContentBlock }) {
+  if (content.type !== 'toolCall') return null
+
+  const args = content.arguments as { command?: string; path?: string; limit?: number }
+
+  return (
+    <div className="my-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-blue-100 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-800">
+        <Terminal className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+          Tool Call: {content.name}
+        </span>
+      </div>
+      <div className="p-3 text-sm font-mono">
+        {args.command && (
+          <div className="mb-1">
+            <span className="text-blue-600 dark:text-blue-400">Command:</span>
+            <pre className="mt-1 text-xs overflow-x-auto whitespace-pre-wrap break-all">
+              {args.command}
+            </pre>
+          </div>
+        )}
+        {args.path && (
+          <div className="mb-1">
+            <span className="text-blue-600 dark:text-blue-400">Path:</span>{' '}
+            <code className="text-xs bg-blue-100 dark:bg-blue-900/50 px-1.5 py-0.5 rounded">
+              {args.path}
+            </code>
+          </div>
+        )}
+        {args.limit !== undefined && (
+          <div>
+            <span className="text-blue-600 dark:text-blue-400">Limit:</span>{' '}
+            <code>{args.limit}</code>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Helper to render tool result
+function ToolResultBlock({ message }: { message: ChatMessage }) {
+  if (message.role !== 'toolResult') return null
+
+  const toolMsg = message as any
+  const content = toolMsg.content?.[0] as { text?: string }
+  const text = content?.text || ''
+
+  return (
+    <div className="my-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-green-100 dark:bg-green-900/30 border-b border-green-200 dark:border-green-800">
+        <ChevronRight className="w-4 h-4 text-green-600 dark:text-green-400" />
+        <span className="text-sm font-medium text-green-700 dark:text-green-300">
+          Tool Result: {toolMsg.toolName}
+        </span>
+        {toolMsg.details?.exitCode !== undefined && (
+          <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200">
+            Exit: {toolMsg.details.exitCode}
+          </span>
+        )}
+      </div>
+      <div className="p-3">
+        <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all bg-white dark:bg-black/30 p-3 rounded border border-green-200 dark:border-green-800">
+          {text}
+        </pre>
+        {toolMsg.details?.durationMs && (
+          <div className="mt-2 text-xs text-green-600 dark:text-green-400">
+            Duration: {toolMsg.details.durationMs}ms
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// Helper to render thinking
+function ThinkingBlock({ content }: { content: OpenClawContentBlock }) {
+  if (content.type !== 'thinking') return null
+
+  return (
+    <div className="my-3 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/30 overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 bg-purple-100 dark:bg-purple-900/30 border-b border-purple-200 dark:border-purple-800">
+        <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+        <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+          Thinking
+        </span>
+      </div>
+      <div className="p-3 text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap">
+        {content.thinking}
+      </div>
+    </div>
+  )
+}
+
+export function AIMessageViewer({
+  message,
   className
 }: AIMessageViewerProps) {
   const lowlight = createLowlight(common)
+
+  // Extract text content for TipTap
+  const getTextContent = () => {
+    if (typeof message.content === 'string') {
+      return message.content
+    }
+
+    if (Array.isArray(message.content)) {
+      const textBlocks = message.content.filter(
+        (block): block is { type: 'text'; text: string } => block.type === 'text'
+      )
+      return textBlocks.map(block => block.text).join('\n\n')
+    }
+
+    return ''
+  }
+
+  const textContent = getTextContent()
 
   const editor = useEditor({
     extensions: [
@@ -55,7 +171,7 @@ export function AIMessageViewer({
         },
       }),
     ],
-    content,
+    content: textContent,
     contentType: 'markdown',
     immediatelyRender: false,
     editable: false,
@@ -127,9 +243,34 @@ export function AIMessageViewer({
     return null
   }
 
+  // Render tool result messages
+  if (message.role === 'toolResult') {
+    return (
+      <div className={cn("ai-message-viewer max-w-full", className)}>
+        <ToolResultBlock message={message} />
+      </div>
+    )
+  }
+
+  // Render content blocks (thinking, toolCall, text)
+  const contentBlocks = Array.isArray(message.content) ? message.content : []
+
   return (
     <div className={cn("ai-message-viewer max-w-full", className)}>
-      <EditorContent editor={editor} />
+      {/* Render non-text blocks first */}
+      {contentBlocks.map((block, idx) => {
+        if (block.type === 'thinking') {
+          return <ThinkingBlock key={`thinking-${idx}`} content={block} />
+        }
+        if (block.type === 'toolCall') {
+          return <ToolCallBlock key={`toolcall-${idx}`} content={block} />
+        }
+        return null
+      })}
+
+      {/* Render text content with TipTap */}
+      {textContent && <EditorContent editor={editor} />}
+
       <style jsx global>{`
         .ai-message-viewer .ProseMirror {
           outline: none;

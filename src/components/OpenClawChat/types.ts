@@ -1,9 +1,65 @@
-export interface ChatMessage {
+// OpenClaw content types
+export interface OpenClawTextContent {
+  type: 'text';
+  text: string;
+}
+
+export interface OpenClawThinkingContent {
+  type: 'thinking';
+  thinking: string;
+  thinkingSignature?: string;
+}
+
+export interface OpenClawToolCallContent {
+  type: 'toolCall';
   id: string;
-  role: 'user' | 'assistant';
-  content: string | unknown[];
+  name: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface OpenClawToolCallArguments {
+  command?: string;
+  path?: string;
+  limit?: number;
+  [key: string]: unknown;
+}
+
+export type OpenClawContentBlock =
+  | OpenClawTextContent
+  | OpenClawThinkingContent
+  | OpenClawToolCallContent;
+
+// Tool result message
+export interface OpenClawToolResultMessage {
+  role: 'toolResult';
+  toolCallId: string;
+  toolName: string;
+  content: OpenClawTextContent[];
+  details: {
+    status: string;
+    exitCode?: number;
+    durationMs?: number;
+    aggregated?: string;
+    cwd?: string;
+    isError?: boolean;
+  };
   timestamp: number;
 }
+
+// Regular message
+export interface OpenClawMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: OpenClawContentBlock[] | string;  // Support both formats for backward compatibility
+  timestamp: number;
+  api?: string;
+  provider?: string;
+  model?: string;
+  usage?: unknown;
+  stopReason?: string;
+}
+
+export type ChatMessage = OpenClawMessage | OpenClawToolResultMessage;
 
 export interface ChatState {
   messages: ChatMessage[];
