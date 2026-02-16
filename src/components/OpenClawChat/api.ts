@@ -332,7 +332,7 @@ export const openclawApi = {
   async sendMessageStream(
     sessionKey: string,
     content: string,
-    onChunk: (delta: string, fullContent: string) => void,
+    onChunk: (delta: string, fullContent: string, contentBlocks?: unknown[]) => void,
     onFinish: () => void,
     onError: (error: string) => void
   ): Promise<void> {
@@ -376,10 +376,28 @@ export const openclawApi = {
                 // Stream started
                 accumulatedContent = ''
               } else if (data.type === 'content') {
-                // Content chunk
-                const delta = data.delta || data.content || ''
-                accumulatedContent += delta
-                onChunk(delta, accumulatedContent)
+                // Content chunk - may have contentBlocks or delta/content
+                if (data.contentBlocks) {
+                  // New format: full content blocks including thinking and tool calls
+                  const textParts = data.contentBlocks
+                    .filter((block: unknown) => {
+                      const b = block as { type?: string; text?: string }
+                      return b.type === 'text' && typeof b.text === 'string'
+                    })
+                    .map((block: unknown) => {
+                      const b = block as { text?: string }
+                      return b.text || ''
+                    })
+                    .join('')
+
+                  accumulatedContent = textParts
+                  onChunk('', accumulatedContent, data.contentBlocks)
+                } else {
+                  // Legacy format: delta/content
+                  const delta = data.delta || data.content || ''
+                  accumulatedContent += delta
+                  onChunk(delta, accumulatedContent)
+                }
               } else if (data.type === 'finish') {
                 // Stream finished
                 onFinish()

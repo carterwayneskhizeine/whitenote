@@ -113,14 +113,51 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       await openclawApi.sendMessageStream(
         DEFAULT_SESSION_KEY,
         content,
-        // onChunk: Update message with new content
-        (_delta, fullContent) => {
+        // onChunk: Update message with new content and content blocks
+        (_delta, fullContent, contentBlocks) => {
+          // Convert contentBlocks to thinkingBlocks and display format
+          const thinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
+          const displayContentBlocks: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
+
+          if (contentBlocks && Array.isArray(contentBlocks)) {
+            for (const block of contentBlocks) {
+              const b = block as { type?: string; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }
+
+              if (b.type === 'thinking' && b.thinking) {
+                thinkingBlocks.push({
+                  type: 'thinking',
+                  thinking: b.thinking,
+                  thinkingSignature: b.thinkingSignature,
+                })
+                displayContentBlocks.push({
+                  type: 'thinking',
+                  thinking: b.thinking,
+                  thinkingSignature: b.thinkingSignature,
+                })
+              } else if (b.type === 'toolCall') {
+                displayContentBlocks.push({
+                  type: 'toolCall',
+                  id: b.id,
+                  name: b.name,
+                  arguments: b.arguments,
+                })
+              } else if (b.type === 'text' && b.text) {
+                displayContentBlocks.push({
+                  type: 'text',
+                  text: b.text,
+                })
+              }
+            }
+          }
+
           setMessages(prev =>
             prev.map(msg => {
               if (msg.id === assistantMessageId && msg.role === 'assistant') {
                 return {
                   ...msg,
                   content: fullContent,
+                  thinkingBlocks: thinkingBlocks.length > 0 ? thinkingBlocks : undefined,
+                  contentBlocks: displayContentBlocks.length > 0 ? displayContentBlocks : undefined,
                 } as ChatMessage
               }
               return msg

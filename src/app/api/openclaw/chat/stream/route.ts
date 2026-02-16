@@ -80,28 +80,38 @@ export async function POST(request: NextRequest) {
                            eventSessionKey === `agent:${sessionKey}:${sessionKey}` ||
                            eventSessionKey?.endsWith(`:${sessionKey}`)
 
+            console.log('[OpenClaw Stream] Chat event - state:', payload.state, 'sessionKey:', eventSessionKey, 'match:', isMatch, 'runId:', payload.runId)
+
             if (!isMatch) {
               return
             }
 
             if (payload.state === 'delta' && payload.message) {
-              // Streaming content update
-              const content = payload.message as { content?: Array<{ text?: string }> }
-              if (content.content) {
-                const textParts = content.content
-                  .filter((part): part is { text: string } => typeof part.text === 'string')
-                  .map(part => part.text)
-                  .join('')
+              // Streaming content update - send complete content blocks including thinking and tool calls
+              const message = payload.message as {
+                content?: Array<{
+                  type?: string
+                  text?: string
+                  thinking?: string
+                  thinkingSignature?: string
+                  name?: string
+                  arguments?: Record<string, unknown>
+                  id?: string
+                }>
+              }
 
+              if (message.content) {
+                console.log('[OpenClaw Stream] Sending', message.content.length, 'content blocks')
+                // Send all content blocks (thinking, toolCall, text)
                 sendEvent({
                   type: 'content',
                   runId: payload.runId,
-                  delta: textParts,
-                  content: textParts,
+                  contentBlocks: message.content,
                 })
               }
             } else if (payload.state === 'final') {
               // Stream finished
+              console.log('[OpenClaw Stream] Final event received, runId:', payload.runId)
               hasFinished = true
               sendEvent({
                 type: 'finish',

@@ -163,6 +163,15 @@ export interface ChatStreamResponse {
   sessionKey?: string;
   delta?: string;
   content?: string;
+  contentBlocks?: Array<{
+    type?: string
+    text?: string
+    thinking?: string
+    thinkingSignature?: string
+    name?: string
+    arguments?: Record<string, unknown>
+    id?: string
+  }>;
   usage?: unknown;
   stopReason?: string;
   error?: string;
