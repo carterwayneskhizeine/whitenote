@@ -6,7 +6,7 @@
     "seed": "tsx prisma/seed-ai-commands.ts"
   },
   "scripts": {
-    "dev": "tsx -r tsconfig-paths/register server.ts",
+    "dev": "next dev --webpack -p 3005",
     "build": "next build",
     "start": "cross-env NODE_ENV=production tsx server.ts",
     "worker": "tsx -r tsconfig-paths/register scripts/worker.ts",
@@ -65,7 +65,8 @@
     "@tiptap/suggestion": "^3.19.0",
     "@types/d3": "^7.4.3",
     "bcryptjs": "^3.0.3",
-    "bullmq": "^5.66.4",
+    "bufferutil": "^4.1.0",
+    "bullmq": "^5.69.2",
     "chokidar": "^5.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -73,7 +74,7 @@
     "d3": "^7.9.0",
     "date-fns": "^4.1.0",
     "fluent-ffmpeg": "^2.1.3",
-    "ioredis": "^5.8.2",
+    "ioredis": "5.9.2",
     "jose": "^6.1.3",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.562.0",
@@ -88,9 +89,10 @@
     "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.4.0",
     "tippy.js": "^6.3.7",
+    "utf-8-validate": "^6.0.6",
+    "ws": "8.18.0",
     "yet-another-react-lightbox": "^3.28.0",
-    "zustand": "^5.0.9",
-    "ws": "^8.18.0"
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

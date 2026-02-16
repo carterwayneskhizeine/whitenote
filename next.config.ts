@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // 配置 Turbopack
+  turbopack: {
+    // 不需要特殊配置
+  },
 } as NextConfig;
 
 export default nextConfig;

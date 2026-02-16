@@ -183,10 +183,73 @@ export function AIMessageViewer({
           padding: 0.875rem 1rem;
           margin-top: 0.75rem;
           margin-bottom: 0.75rem;
-          overflow-x: auto;
+          overflow-x: visible;
+          overflow-y: hidden;
           border: 1px solid #333333;
           position: relative;
           pointer-events: auto;
+          white-space: pre;
+        }
+
+        .ai-message-viewer .ProseMirror pre code {
+          display: block;
+          overflow-x: auto;
+          white-space: pre;
+        }
+
+        .ai-message-viewer .ProseMirror pre code::-webkit-scrollbar {
+          height: 8px;
+        }
+
+        .ai-message-viewer .ProseMirror pre code::-webkit-scrollbar-track {
+          background: #2d2d2d;
+          border-radius: 4px;
+        }
+
+        .ai-message-viewer .ProseMirror pre code::-webkit-scrollbar-thumb {
+          background: #555555;
+          border-radius: 4px;
+        }
+
+        .ai-message-viewer .ProseMirror pre code::-webkit-scrollbar-thumb:hover {
+          background: #666666;
+        }
+
+        .ai-message-viewer .ProseMirror pre .code-copy-btn {
+          position: sticky;
+          float: right;
+          top: 0;
+          margin-left: 0.5rem;
+          background-color: rgba(30, 30, 30, 0.9);
+          border: none;
+          border-radius: 0.375rem;
+          padding: 0.375rem;
+          cursor: pointer;
+          opacity: 0;
+          transition: opacity 0.2s, color 0.2s;
+          pointer-events: auto;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 10;
+        }
+
+        .ai-message-viewer .ProseMirror pre::-webkit-scrollbar {
+          height: 8px;
+        }
+
+        .ai-message-viewer .ProseMirror pre::-webkit-scrollbar-track {
+          background: #2d2d2d;
+          border-radius: 4px;
+        }
+
+        .ai-message-viewer .ProseMirror pre::-webkit-scrollbar-thumb {
+          background: #555555;
+          border-radius: 4px;
+        }
+
+        .ai-message-viewer .ProseMirror pre::-webkit-scrollbar-thumb:hover {
+          background: #666666;
         }
 
         .ai-message-viewer .ProseMirror pre code {
@@ -195,6 +258,7 @@ export function AIMessageViewer({
           font-size: 1.0em;
           color: inherit;
           font-family: 'JetBrainsMono', 'Fira Code', Consolas, Monaco, monospace;
+          white-space: pre;
         }
 
         .ai-message-viewer .ProseMirror code {
