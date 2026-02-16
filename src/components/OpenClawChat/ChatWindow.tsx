@@ -134,7 +134,12 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
             setMessages(prev =>
               prev.map(msg =>
                 msg.id === assistantMessageId
-                  ? { ...msg, content: latestMsg.content as any, timestamp: latestMsg.timestamp || Date.now() }
+                  ? { 
+                      ...msg, 
+                      content: latestMsg.content as any, 
+                      timestamp: latestMsg.timestamp || Date.now(),
+                      thinkingBlocks: latestMsg.thinkingBlocks,
+                    }
                   : msg
               )
             )
