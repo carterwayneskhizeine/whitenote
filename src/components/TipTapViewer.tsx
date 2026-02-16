@@ -313,18 +313,59 @@ export function TipTapViewer({
           padding: 0.875rem 1rem;
           margin-top: 0.75rem;
           margin-bottom: 0.75rem;
-          overflow-x: auto;
+          overflow-x: visible;
+          overflow-y: hidden;
           border: 1px solid #333333;
           position: relative;
           pointer-events: auto;
+          white-space: pre;
         }
 
         .tipTap-viewer .ProseMirror pre code {
+          display: block;
+          overflow-x: auto;
+          white-space: pre;
           background-color: transparent;
           padding: 0;
           font-size: 1.0em;
           color: inherit;
           font-family: 'JetBrainsMono', 'Fira Code', Consolas, Monaco, monospace;
+        }
+
+        .tipTap-viewer .ProseMirror pre code::-webkit-scrollbar {
+          height: 8px;
+        }
+
+        .tipTap-viewer .ProseMirror pre code::-webkit-scrollbar-track {
+          background: #2d2d2d;
+          border-radius: 4px;
+        }
+
+        .tipTap-viewer .ProseMirror pre code::-webkit-scrollbar-thumb {
+          background: #555555;
+          border-radius: 4px;
+        }
+
+        .tipTap-viewer .ProseMirror pre code::-webkit-scrollbar-thumb:hover {
+          background: #666666;
+        }
+
+        .tipTap-viewer .ProseMirror pre::-webkit-scrollbar {
+          height: 8px;
+        }
+
+        .tipTap-viewer .ProseMirror pre::-webkit-scrollbar-track {
+          background: #2d2d2d;
+          border-radius: 4px;
+        }
+
+        .tipTap-viewer .ProseMirror pre::-webkit-scrollbar-thumb {
+          background: #555555;
+          border-radius: 4px;
+        }
+
+        .tipTap-viewer .ProseMirror pre::-webkit-scrollbar-thumb:hover {
+          background: #666666;
         }
 
         .tipTap-viewer .ProseMirror code {
