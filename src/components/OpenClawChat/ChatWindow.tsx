@@ -107,60 +107,58 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
     }
     setMessages(prev => [...prev, assistantMessage])
 
-    let lastContent = ''
-    let consecutiveEmpty = 0
-    const maxEmptyRounds = 20
-
     try {
       const content = typeof userMessage.content === 'string' ? userMessage.content : JSON.stringify(userMessage.content)
-      await openclawApi.sendMessage(DEFAULT_SESSION_KEY, content)
 
-      const pollForResponse = async () => {
-        const latestMsg = await openclawApi.pollMessage(
-          DEFAULT_SESSION_KEY,
-          userMessage.timestamp
-        )
-
-        if (latestMsg === null) {
-          // API failed - continue polling for a reasonable time
-          consecutiveEmpty++
-        } else {
-          const latestContent = typeof latestMsg.content === 'string' 
-            ? latestMsg.content 
-            : JSON.stringify(latestMsg.content)
-
-          // Check if there's a toolResult in the contentBlocks
-          const hasToolResult = latestMsg.contentBlocks?.some(block => block.type === 'toolResult')
-          
-          if (latestContent !== lastContent || hasToolResult) {
-            lastContent = latestContent
-            consecutiveEmpty = 0
-            setMessages(prev =>
-              prev.map(msg =>
-                msg.id === assistantMessageId
-                  ? { 
-                      ...msg, 
-                      content: latestMsg.content as any, 
-                      timestamp: latestMsg.timestamp || Date.now(),
-                      thinkingBlocks: latestMsg.thinkingBlocks,
-                      contentBlocks: latestMsg.contentBlocks,
-                    }
-                  : msg
+      await openclawApi.sendMessageStream(
+        DEFAULT_SESSION_KEY,
+        content,
+        // onChunk: Update message with new content
+        (_delta, fullContent) => {
+          setMessages(prev =>
+            prev.map(msg => {
+              if (msg.id === assistantMessageId && msg.role === 'assistant') {
+                return {
+                  ...msg,
+                  content: fullContent,
+                } as ChatMessage
+              }
+              return msg
+            })
+          )
+        },
+        // onFinish: Loading complete
+        () => {
+          setIsLoading(false)
+          // Reload full history to get complete message data including thinking blocks
+          openclawApi.getHistory(DEFAULT_SESSION_KEY).then(history => {
+            if (history.length > 0) {
+              const lastMsg = history[history.length - 1]
+              setMessages(prev =>
+                prev.map(msg => {
+                  if (msg.id === assistantMessageId && msg.role === 'assistant') {
+                    return {
+                      ...msg,
+                      content: lastMsg.content,
+                      thinkingBlocks: lastMsg.thinkingBlocks,
+                      contentBlocks: lastMsg.contentBlocks,
+                    } as ChatMessage
+                  }
+                  return msg
+                })
               )
-            )
-          } else {
-            consecutiveEmpty++
-          }
-        }
-
-        if (consecutiveEmpty < maxEmptyRounds) {
-          setTimeout(pollForResponse, 5000)
-        } else {
+            }
+          }).catch(err => {
+            console.error('[OpenClawChat] Failed to reload history:', err)
+          })
+        },
+        // onError: Handle errors
+        (error) => {
+          setError(error)
+          setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId))
           setIsLoading(false)
         }
-      }
-
-      setTimeout(pollForResponse, 5000)
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
       setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId))
