@@ -9,6 +9,7 @@ export interface ChatHistoryMessage {
   role: 'user' | 'assistant'
   content: string
   timestamp?: number
+  thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[]
 }
 
 export interface SendMessageResponse {
@@ -91,12 +92,15 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
   const rawContent = m.content
   if (isSystemMessage(rawContent)) return null
   
+  // Extract thinking blocks
+  const thinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
+  
   let content: string
   if (Array.isArray(rawContent)) {
     const parts: string[] = []
     for (const item of rawContent) {
       if (!item || typeof item !== 'object') continue
-      const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown>; id?: string }
+      const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown>; id?: string; thinking?: string; thinkingSignature?: string }
       if (obj.type === 'toolCall') {
         const toolName = obj.name || 'unknown'
         const args = obj.arguments || {}
@@ -105,7 +109,13 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
           .join(', ')
         parts.push(`🔧 **Tool Call**: ${toolName}\n\`${argsStr}\``)
       } else if (obj.type === 'thinking') {
-        // Skip thinking in simplified view
+        if (obj.thinking) {
+          thinkingBlocks.push({
+            type: 'thinking',
+            thinking: obj.thinking,
+            thinkingSignature: obj.thinkingSignature,
+          })
+        }
       } else if (obj.text) {
         parts.push(obj.text)
       }
@@ -128,6 +138,7 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
     role: m.role,
     content,
     timestamp: m.timestamp,
+    thinkingBlocks: thinkingBlocks.length > 0 ? thinkingBlocks : undefined,
   }
 }
 

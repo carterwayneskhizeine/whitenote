@@ -62,6 +62,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
             id: msg.timestamp ? `${msg.timestamp}-${idx}` : `msg-${idx}`,
             content: msg.content,
             timestamp: msg.timestamp ?? Date.now(),
+            thinkingBlocks: msg.thinkingBlocks,
           }))
           setMessages(messagesWithIds)
         }
@@ -205,6 +206,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
                 <AIMessageViewer
                   key={`${message.id}-${JSON.stringify(message.content).slice(0, 20)}`}
                   message={message}
+                  thinkingBlocks={(message as any).thinkingBlocks}
                   className={message.role === 'user' ? 'text-primary-foreground' : ''}
                 />
                 {message.role === 'assistant' && isLoading &&

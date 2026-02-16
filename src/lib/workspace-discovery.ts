@@ -179,7 +179,7 @@ export function readWorkspaceMetadata(workspaceId: string): any | null {
 export function writeWorkspaceMetadata(workspaceId: string, data: any): boolean {
   // First, try to get the metadata path (this will use cache if available)
   let metadataPath: string
-  let meta = getWorkspaceMeta(workspaceId)
+  const meta = getWorkspaceMeta(workspaceId)
 
   if (meta) {
     // Workspace is in cache, use the cached path

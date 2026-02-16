@@ -12,7 +12,7 @@ import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import { cn } from "@/lib/utils"
-import type { ChatMessage, OpenClawContentBlock, OpenClawTextContent } from './types'
+import type { ChatMessage, OpenClawContentBlock, OpenClawTextContent, OpenClawThinkingContent } from './types'
 import { Terminal, FileText, Brain, ChevronRight, Clock } from 'lucide-react'
 
 // Format timestamp to human-readable string
@@ -50,6 +50,7 @@ function formatTimestamp(timestamp: number): string {
 interface AIMessageViewerProps {
   message: ChatMessage
   className?: string
+  thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[]
 }
 
 // Helper to render tool call
@@ -135,6 +136,8 @@ function ToolResultBlock({ message }: { message: ChatMessage }) {
 function ThinkingBlock({ content }: { content: OpenClawContentBlock }) {
   if (content.type !== 'thinking') return null
 
+  const thinkingContent = content as OpenClawThinkingContent
+
   return (
     <div className="my-3 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/30 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 bg-purple-100 dark:bg-purple-900/30 border-b border-purple-200 dark:border-purple-800">
@@ -142,9 +145,14 @@ function ThinkingBlock({ content }: { content: OpenClawContentBlock }) {
         <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
           Thinking
         </span>
+        {thinkingContent.thinkingSignature && (
+          <span className="text-xs ml-auto bg-purple-200 dark:bg-purple-800 px-2 py-0.5 rounded text-purple-800 dark:text-purple-200">
+            {thinkingContent.thinkingSignature}
+          </span>
+        )}
       </div>
       <div className="p-3 text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap">
-        {content.thinking}
+        {thinkingContent.thinking}
       </div>
     </div>
   )
@@ -152,11 +160,27 @@ function ThinkingBlock({ content }: { content: OpenClawContentBlock }) {
 
 export function AIMessageViewer({
   message,
-  className
+  className,
+  thinkingBlocks
 }: AIMessageViewerProps) {
   const lowlight = createLowlight(common)
 
-  // Extract text content for TipTap
+  // Get thinking blocks from props or from message content
+  const getThinkingBlocks = () => {
+    if (thinkingBlocks && thinkingBlocks.length > 0) {
+      return thinkingBlocks
+    }
+    
+    if (Array.isArray(message.content)) {
+      return message.content.filter((block): block is OpenClawThinkingContent => {
+        return block.type === 'thinking'
+      })
+    }
+    
+    return []
+  }
+  
+  const contentThinkingBlocks = getThinkingBlocks()
   const getTextContent = () => {
     if (typeof message.content === 'string') {
       return message.content
@@ -291,11 +315,13 @@ export function AIMessageViewer({
 
   return (
     <div className={cn("ai-message-viewer max-w-full", className)}>
-      {/* Render non-text blocks first */}
+      {/* Render thinking blocks first (from props or content) */}
+      {contentThinkingBlocks.map((block, idx) => (
+        <ThinkingBlock key={`thinking-${idx}`} content={block} />
+      ))}
+
+      {/* Render tool calls from message content */}
       {contentBlocks.map((block, idx) => {
-        if (block.type === 'thinking') {
-          return <ThinkingBlock key={`thinking-${idx}`} content={block} />
-        }
         if (block.type === 'toolCall') {
           return <ToolCallBlock key={`toolcall-${idx}`} content={block} />
         }
