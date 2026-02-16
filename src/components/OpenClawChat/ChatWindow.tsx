@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -44,6 +44,10 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // 使用 ref 跟踪当前活跃的 assistant 消息 ID 和加载状态，避免闭包问题
+  const currentAssistantIdRef = useRef<string | null>(null)
+  const isLoadingRef = useRef(false)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -60,6 +64,22 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         clearInterval(pollingRef.current)
         pollingRef.current = null
       }
+      if (pollingTimeoutRef.current) {
+        clearTimeout(pollingTimeoutRef.current)
+        pollingTimeoutRef.current = null
+      }
+    }
+  }, [])
+
+  // 清除所有轮询的辅助函数
+  const clearAllPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current)
+      pollingTimeoutRef.current = null
     }
   }, [])
 
@@ -104,12 +124,19 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       timestamp: Date.now(),
     }
 
+    // 先清除之前的轮询
+    clearAllPolling()
+
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
+    isLoadingRef.current = true
     setError(null)
 
     const assistantMessageId = (Date.now() + 1).toString()
+    // 保存当前 assistant 消息 ID 到 ref，供轮询使用
+    currentAssistantIdRef.current = assistantMessageId
+
     const assistantMessage: ChatMessage = {
       id: assistantMessageId,
       role: 'assistant',
@@ -126,6 +153,11 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         content,
         // onChunk: Update message with new content and content blocks
         (_delta, fullContent, contentBlocks) => {
+          // 检查是否仍在加载当前消息
+          if (!isLoadingRef.current || currentAssistantIdRef.current !== assistantMessageId) {
+            return
+          }
+
           // Convert contentBlocks to thinkingBlocks and display format
           const thinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
           const displayContentBlocks: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
@@ -177,16 +209,17 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         },
         // onFinish: Loading complete
         async () => {
+          // 先更新 ref 状态，防止轮询继续
+          isLoadingRef.current = false
           setIsLoading(false)
-          // Clear polling
-          if (pollingRef.current) {
-            clearInterval(pollingRef.current)
-            pollingRef.current = null
-          }
+          // Clear all polling
+          clearAllPolling()
+
           // Reload to get complete message data including thinking blocks and tool calls
           try {
             const completeMsg = await openclawApi.getLastCompleteResponse(DEFAULT_SESSION_KEY)
-            if (completeMsg && completeMsg.role === 'assistant') {
+            // 确保仍在处理同一条消息
+            if (completeMsg && completeMsg.role === 'assistant' && currentAssistantIdRef.current === assistantMessageId) {
               setMessages(prev =>
                 prev.map(msg => {
                   if (msg.id === assistantMessageId && msg.role === 'assistant') {
@@ -208,49 +241,64 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         // onError: Handle errors
         (error) => {
           setError(error)
+          isLoadingRef.current = false
+          // 只移除 assistant 消息，保留用户消息
           setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId))
           setIsLoading(false)
-          // Clear polling on error
-          if (pollingRef.current) {
-            clearInterval(pollingRef.current)
-            pollingRef.current = null
-          }
+          // Clear all polling
+          clearAllPolling()
         }
       )
 
       // Start polling after 3 seconds to get progress updates (thinking, tool calls, etc.)
-      setTimeout(() => {
-        if (isLoading) {
-          console.log('[OpenClawChat] Starting progress polling...')
-          pollingRef.current = setInterval(async () => {
-            try {
-              const progressMsg = await openclawApi.getLastCompleteResponse(DEFAULT_SESSION_KEY)
-              if (progressMsg && progressMsg.role === 'assistant') {
-                console.log('[OpenClawChat] Polling update:', progressMsg.contentBlocks?.map(b => ({ type: b.type, name: b.name })))
-                setMessages(prev =>
-                  prev.map(msg => {
-                    if (msg.id === assistantMessageId && msg.role === 'assistant') {
-                      return {
-                        ...msg,
-                        content: progressMsg.content,
-                        thinkingBlocks: progressMsg.thinkingBlocks,
-                        contentBlocks: progressMsg.contentBlocks,
-                      } as ChatMessage
-                    }
-                    return msg
-                  })
-                )
-              }
-            } catch (err) {
-              console.error('[OpenClawChat] Polling error:', err)
-            }
-          }, 3000)
+      // 使用 ref 检查状态，避免闭包问题
+      pollingTimeoutRef.current = setTimeout(() => {
+        if (!isLoadingRef.current) {
+          console.log('[OpenClawChat] Loading already finished, skip polling')
+          return
         }
+        console.log('[OpenClawChat] Starting progress polling...')
+        pollingRef.current = setInterval(async () => {
+          // 使用 ref 检查是否仍在加载
+          if (!isLoadingRef.current) {
+            clearAllPolling()
+            return
+          }
+          // 获取当前 assistant 消息 ID
+          const currentId = currentAssistantIdRef.current
+          if (!currentId) return
+
+          try {
+            const progressMsg = await openclawApi.getLastCompleteResponse(DEFAULT_SESSION_KEY)
+            // 确保仍在处理同一条消息
+            if (progressMsg && progressMsg.role === 'assistant' && currentAssistantIdRef.current === currentId && isLoadingRef.current) {
+              console.log('[OpenClawChat] Polling update:', progressMsg.contentBlocks?.map(b => ({ type: b.type, name: b.name })))
+              setMessages(prev =>
+                prev.map(msg => {
+                  if (msg.id === currentId && msg.role === 'assistant') {
+                    return {
+                      ...msg,
+                      content: progressMsg.content,
+                      thinkingBlocks: progressMsg.thinkingBlocks,
+                      contentBlocks: progressMsg.contentBlocks,
+                    } as ChatMessage
+                  }
+                  return msg
+                })
+              )
+            }
+          } catch (err) {
+            console.error('[OpenClawChat] Polling error:', err)
+          }
+        }, 3000)
       }, 3000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
+      isLoadingRef.current = false
+      // 只移除 assistant 消息，保留用户消息
       setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId))
       setIsLoading(false)
+      clearAllPolling()
     }
   }
 

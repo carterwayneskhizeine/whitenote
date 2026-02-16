@@ -315,6 +315,8 @@ export function AIMessageViewer({
   // Separate non-text blocks from text blocks
   const nonTextBlocks = contentBlocks.filter(b => b.type !== 'text')
   const hasTextBlocks = contentBlocks.some(b => b.type === 'text')
+  // 对于用户消息（纯字符串内容），即使没有 contentBlocks 也应该渲染
+  const shouldRenderText = hasTextBlocks || (typeof message.content === 'string' && message.content.trim() !== '')
 
   return (
     <div className={cn("ai-message-viewer max-w-full", className)}>
@@ -347,7 +349,7 @@ export function AIMessageViewer({
       })}
 
       {/* Render text content with TipTap (only once at the end) */}
-      {hasTextBlocks && textContent && <EditorContent editor={editor} />}
+      {shouldRenderText && textContent && <EditorContent editor={editor} />}
 
       {/* Timestamp */}
       {message.timestamp && (

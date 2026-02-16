@@ -6,6 +6,67 @@
 
 ## 更新日志
 
+### 2026-02-17: 修复用户消息消失和流式内容问题
+
+**问题 1: 用户消息发送后消失**
+
+**原因分析**:
+1. **轮询闭包问题**: `setTimeout` 和 `setInterval` 中的回调函数捕获了旧的 `isLoading` 状态值，导致轮询在 `onFinish` 后仍继续执行
+2. **轮询清除时序问题**: `onFinish` 中清除轮询时，`pollingRef.current` 可能还是 `null`（因为 `setTimeout` 还没执行），所以 `clearInterval` 无效
+3. **用户消息渲染问题**: `AIMessageViewer` 中的 `hasTextBlocks` 检查对于用户消息（纯字符串内容）返回 `false`，导致 `EditorContent` 不渲染
+
+**解决方案**:
+
+1. **ChatWindow.tsx - 修复轮询闭包问题**:
+   ```tsx
+   // 添加 ref 跟踪状态，避免闭包问题
+   const currentAssistantIdRef = useRef<string | null>(null)
+   const isLoadingRef = useRef(false)
+   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+   // 清除所有轮询的辅助函数
+   const clearAllPolling = useCallback(() => {
+     if (pollingRef.current) {
+       clearInterval(pollingRef.current)
+       pollingRef.current = null
+     }
+     if (pollingTimeoutRef.current) {
+       clearTimeout(pollingTimeoutRef.current)
+       pollingTimeoutRef.current = null
+     }
+   }, [])
+   ```
+
+2. **AIMessageViewer.tsx - 修复用户消息渲染**:
+   ```tsx
+   // 修复前：用户消息（纯字符串）不渲染
+   {hasTextBlocks && textContent && <EditorContent editor={editor} />}
+
+   // 修复后：用户消息也能正确渲染
+   const shouldRenderText = hasTextBlocks || (typeof message.content === 'string' && message.content.trim() !== '')
+   {shouldRenderText && textContent && <EditorContent editor={editor} />}
+   ```
+
+**问题 2: 流式内容只显示一部分，重复前几个字**
+
+**原因分析**:
+后端有两种事件源：
+- `agent` 事件：发送增量的 thinking/toolCall（需要累积）
+- `chat` 事件：发送累积的完整 contentBlocks（需要替换）
+
+之前的代码对所有 contentBlocks 都进行累积，导致重复。
+
+**解决方案** (api.ts):
+```tsx
+if (hasThinkingOrToolCall && !hasTextBlocks) {
+  // 增量数据：thinking 或 toolCall，需要累积
+  accumulatedContentBlocks.push(...data.contentBlocks)
+} else {
+  // 累积数据：包含 text blocks，直接替换
+  accumulatedContentBlocks = data.contentBlocks
+}
+```
+
 ### 2026-02-15: 设备身份认证 + 历史记录
 
 成功实现 OpenClaw 设备身份认证，解决历史记录权限问题：

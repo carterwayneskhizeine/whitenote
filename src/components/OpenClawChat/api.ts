@@ -455,12 +455,22 @@ export const openclawApi = {
               } else if (data.type === 'content') {
                 // Content chunk - may have contentBlocks or delta/content
                 if (data.contentBlocks) {
-                  // New format: full content blocks including thinking and tool calls
-                  // Accumulate all content blocks instead of replacing
                   console.log('[OpenClaw] Received', data.contentBlocks.length, 'content blocks:', data.contentBlocks.map((b: any) => ({ type: b.type, hasText: !!b.text, hasThinking: !!b.thinking, name: b.name })))
-                  accumulatedContentBlocks.push(...data.contentBlocks)
 
-                  const textParts = data.contentBlocks
+                  // 检查是否是增量数据（thinking/toolCall）还是累积数据（text）
+                  const hasTextBlocks = data.contentBlocks.some((b: any) => b.type === 'text')
+                  const hasThinkingOrToolCall = data.contentBlocks.some((b: any) => b.type === 'thinking' || b.type === 'toolCall')
+
+                  if (hasThinkingOrToolCall && !hasTextBlocks) {
+                    // 增量数据：thinking 或 toolCall，需要累积
+                    accumulatedContentBlocks.push(...data.contentBlocks)
+                  } else {
+                    // 累积数据：包含 text blocks，直接替换
+                    accumulatedContentBlocks = data.contentBlocks
+                  }
+
+                  // 从 contentBlocks 中提取文本
+                  const textParts = accumulatedContentBlocks
                     .filter((block: unknown) => {
                       const b = block as { type?: string; text?: string }
                       return b.type === 'text' && typeof b.text === 'string'
@@ -472,7 +482,7 @@ export const openclawApi = {
                     .join('')
 
                   accumulatedContent = textParts
-                  console.log('[OpenClaw] Total accumulated blocks:', accumulatedContentBlocks.length, 'text length:', accumulatedContent.length)
+                  console.log('[OpenClaw] Total blocks:', accumulatedContentBlocks.length, 'text length:', accumulatedContent.length)
                   onChunk('', accumulatedContent, accumulatedContentBlocks)
                 } else {
                   // Legacy format: delta/content
