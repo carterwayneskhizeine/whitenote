@@ -43,6 +43,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -51,6 +52,16 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -167,6 +178,11 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         // onFinish: Loading complete
         async () => {
           setIsLoading(false)
+          // Clear polling
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current)
+            pollingRef.current = null
+          }
           // Reload to get complete message data including thinking blocks and tool calls
           try {
             const completeMsg = await openclawApi.getLastCompleteResponse(DEFAULT_SESSION_KEY)
@@ -194,8 +210,43 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
           setError(error)
           setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId))
           setIsLoading(false)
+          // Clear polling on error
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current)
+            pollingRef.current = null
+          }
         }
       )
+
+      // Start polling after 3 seconds to get progress updates (thinking, tool calls, etc.)
+      setTimeout(() => {
+        if (isLoading) {
+          console.log('[OpenClawChat] Starting progress polling...')
+          pollingRef.current = setInterval(async () => {
+            try {
+              const progressMsg = await openclawApi.getLastCompleteResponse(DEFAULT_SESSION_KEY)
+              if (progressMsg && progressMsg.role === 'assistant') {
+                console.log('[OpenClawChat] Polling update:', progressMsg.contentBlocks?.map(b => ({ type: b.type, name: b.name })))
+                setMessages(prev =>
+                  prev.map(msg => {
+                    if (msg.id === assistantMessageId && msg.role === 'assistant') {
+                      return {
+                        ...msg,
+                        content: progressMsg.content,
+                        thinkingBlocks: progressMsg.thinkingBlocks,
+                        contentBlocks: progressMsg.contentBlocks,
+                      } as ChatMessage
+                    }
+                    return msg
+                  })
+                )
+              }
+            } catch (err) {
+              console.error('[OpenClawChat] Polling error:', err)
+            }
+          }, 3000)
+        }
+      }, 3000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
       setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId))
