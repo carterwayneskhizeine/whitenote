@@ -266,16 +266,34 @@ export const openclawApi = {
     }) as unknown[]
 
     console.log('[OpenClaw] pollMessage: relevant messages:', relevantMessages.length,
-      relevantMessages.map((m: any) => ({ role: m.role, timestamp: m.timestamp })))
+      relevantMessages.map((m: any) => ({ role: m.role, timestamp: m.timestamp, contentType: Array.isArray(m.content) ? 'array' : typeof m.content })))
 
     if (relevantMessages.length === 0) {
       return null
     }
 
-    // Merge all assistant messages and tool results into one
+    // Sort messages by timestamp to maintain chronological order
+    relevantMessages.sort((a: unknown, b: unknown) => {
+      const tsA = (a as { timestamp?: number }).timestamp || 0
+      const tsB = (b as { timestamp?: number }).timestamp || 0
+      return tsA - tsB
+    })
+
+    // Build content blocks in chronological order (not grouped by type)
+    // This mimics what you see when you refresh the page:
+    // - Thinking block 1 -> Tool Call -> Tool Result -> Thinking block 2 -> Text
     const mergedContentBlocks: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
     const mergedTextParts: string[] = []
     const mergedThinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
+
+    // Track tool calls to match with results
+    interface ToolCallInfo {
+      id: string
+      name: string
+      arguments: Record<string, unknown>
+      timestamp: number
+    }
+    const pendingToolCalls: ToolCallInfo[] = []
 
     for (const msg of relevantMessages) {
       const m = msg as { role?: string; content?: unknown; timestamp?: number; name?: string; toolCallId?: string }
@@ -284,18 +302,22 @@ export const openclawApi = {
       if (m.role === 'user') continue
 
       const rawContent = m.content
+      const msgTimestamp = m.timestamp || 0
 
       // Handle toolResult messages
       if (m.role === 'toolResult') {
         let toolResultText = ''
+        let toolResultId = m.toolCallId
+
         if (typeof rawContent === 'string') {
           toolResultText = rawContent
         } else if (Array.isArray(rawContent)) {
           for (const item of rawContent) {
             if (!item || typeof item !== 'object') continue
-            const obj = item as { type?: string; text?: string }
+            const obj = item as { type?: string; text?: string; id?: string }
             if (obj.type === 'toolResult' && obj.text) {
               toolResultText = obj.text
+              toolResultId = obj.id || toolResultId
             } else if (obj.text) {
               toolResultText = obj.text
             }
@@ -303,10 +325,13 @@ export const openclawApi = {
         }
 
         if (toolResultText) {
+          // Find matching tool call
+          const matchedCall = pendingToolCalls.find(tc => tc.id === toolResultId)
+
           mergedContentBlocks.push({
             type: 'toolResult' as const,
-            id: m.toolCallId,
-            name: m.name,
+            id: toolResultId,
+            name: m.name || matchedCall?.name,
             text: toolResultText,
           })
           mergedTextParts.push(toolResultText)
@@ -321,6 +346,14 @@ export const openclawApi = {
           const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown>; id?: string; thinking?: string; thinkingSignature?: string }
 
           if (obj.type === 'toolCall') {
+            const toolCallInfo: ToolCallInfo = {
+              id: obj.id || '',
+              name: obj.name || '',
+              arguments: obj.arguments || {},
+              timestamp: msgTimestamp,
+            }
+            pendingToolCalls.push(toolCallInfo)
+
             mergedContentBlocks.push({
               type: 'toolCall',
               id: obj.id,
@@ -347,6 +380,10 @@ export const openclawApi = {
           }
         }
       } else if (typeof rawContent === 'string' && rawContent.trim()) {
+        mergedContentBlocks.push({
+          type: 'text',
+          text: rawContent,
+        })
         mergedTextParts.push(rawContent)
       }
     }

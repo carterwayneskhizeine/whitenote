@@ -50,7 +50,7 @@ function formatTimestamp(timestamp: number): string {
 interface AIMessageViewerProps {
   message: ChatMessage
   className?: string
-  thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[]
+  thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] // Deprecated, use contentBlocks instead
   contentBlocks?: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[]
 }
 
@@ -167,33 +167,6 @@ export function AIMessageViewer({
 }: AIMessageViewerProps) {
   const lowlight = createLowlight(common)
 
-  // Get thinking blocks from props or from message content
-  const getThinkingBlocks = () => {
-    if (thinkingBlocks && thinkingBlocks.length > 0) {
-      return thinkingBlocks
-    }
-    
-    // Try from propContentBlocks first
-    if (propContentBlocks && propContentBlocks.length > 0) {
-      return propContentBlocks
-        .filter((block): block is OpenClawThinkingContent => block.type === 'thinking')
-        .map(block => ({
-          type: 'thinking' as const,
-          thinking: block.thinking || '',
-          thinkingSignature: block.thinkingSignature,
-        }))
-    }
-    
-    if (Array.isArray(message.content)) {
-      return message.content.filter((block): block is OpenClawThinkingContent => {
-        return block.type === 'thinking'
-      })
-    }
-    
-    return []
-  }
-  
-  const contentThinkingBlocks = getThinkingBlocks()
   const getTextContent = () => {
     // First, try to get text from propContentBlocks
     if (propContentBlocks && propContentBlocks.length > 0) {
@@ -339,15 +312,17 @@ export function AIMessageViewer({
     ? propContentBlocks as OpenClawContentBlock[]
     : (Array.isArray(message.content) ? message.content : [])
 
+  // Separate non-text blocks from text blocks
+  const nonTextBlocks = contentBlocks.filter(b => b.type !== 'text')
+  const hasTextBlocks = contentBlocks.some(b => b.type === 'text')
+
   return (
     <div className={cn("ai-message-viewer max-w-full", className)}>
-      {/* Render thinking blocks first (from props or content) */}
-      {contentThinkingBlocks.map((block, idx) => (
-        <ThinkingBlock key={`thinking-${idx}`} content={block} />
-      ))}
-
-      {/* Render tool calls and tool results from message content */}
-      {contentBlocks.map((block, idx) => {
+      {/* Render thinking, toolCall, toolResult blocks in order */}
+      {nonTextBlocks.map((block, idx) => {
+        if (block.type === 'thinking') {
+          return <ThinkingBlock key={`thinking-${idx}`} content={block} />
+        }
         if (block.type === 'toolCall') {
           return <ToolCallBlock key={`toolcall-${idx}`} content={block} />
         }
@@ -371,8 +346,8 @@ export function AIMessageViewer({
         return null
       })}
 
-      {/* Render text content with TipTap */}
-      {textContent && <EditorContent editor={editor} />}
+      {/* Render text content with TipTap (only once at the end) */}
+      {hasTextBlocks && textContent && <EditorContent editor={editor} />}
 
       {/* Timestamp */}
       {message.timestamp && (
