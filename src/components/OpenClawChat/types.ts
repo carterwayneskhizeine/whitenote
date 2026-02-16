@@ -17,6 +17,13 @@ export interface OpenClawToolCallContent {
   arguments: Record<string, unknown>;
 }
 
+export interface OpenClawToolResultContent {
+  type: 'toolResult';
+  id?: string;
+  name?: string;
+  text: string;
+}
+
 export interface OpenClawToolCallArguments {
   command?: string;
   path?: string;
@@ -27,7 +34,8 @@ export interface OpenClawToolCallArguments {
 export type OpenClawContentBlock =
   | OpenClawTextContent
   | OpenClawThinkingContent
-  | OpenClawToolCallContent;
+  | OpenClawToolCallContent
+  | OpenClawToolResultContent;
 
 // Tool result message
 export interface OpenClawToolResultMessage {

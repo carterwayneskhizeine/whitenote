@@ -109,7 +109,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
 
     let lastContent = ''
     let consecutiveEmpty = 0
-    const maxEmptyRounds = 15
+    const maxEmptyRounds = 20
 
     try {
       const content = typeof userMessage.content === 'string' ? userMessage.content : JSON.stringify(userMessage.content)
@@ -129,10 +129,13 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
             ? latestMsg.content 
             : JSON.stringify(latestMsg.content)
 
-        if (latestContent !== lastContent) {
-          lastContent = latestContent
-          consecutiveEmpty = 0
-          setMessages(prev =>
+          // Check if there's a toolResult in the contentBlocks
+          const hasToolResult = latestMsg.contentBlocks?.some(block => block.type === 'toolResult')
+          
+          if (latestContent !== lastContent || hasToolResult) {
+            lastContent = latestContent
+            consecutiveEmpty = 0
+            setMessages(prev =>
               prev.map(msg =>
                 msg.id === assistantMessageId
                   ? { 

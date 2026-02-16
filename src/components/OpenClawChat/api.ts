@@ -10,7 +10,7 @@ export interface ChatHistoryMessage {
   content: string
   timestamp?: number
   thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[]
-  contentBlocks?: { type: 'thinking' | 'toolCall' | 'text'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[]
+  contentBlocks?: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[]
 }
 
 export interface SendMessageResponse {
@@ -233,6 +233,8 @@ export const openclawApi = {
     const data = await response.json()
     let allMessages = (data.messages || []) as unknown[]
     
+    console.log('[OpenClaw] pollMessage: total messages:', allMessages.length, 'afterTimestamp:', afterTimestamp)
+    
     // Find the user message timestamp to filter
     let userTimestamp = afterTimestamp
     if (!userTimestamp && allMessages.length > 0) {
@@ -246,38 +248,77 @@ export const openclawApi = {
       }
     }
     
+    console.log('[OpenClaw] pollMessage: userTimestamp:', userTimestamp)
+    
     // Filter messages: user message, all assistant messages, and tool results after (or equal to) user timestamp
+    // Also include toolResults that might have earlier timestamps than assistant messages
     const relevantMessages = allMessages.filter((m: unknown) => {
-      const msg = m as { role?: string; timestamp?: number }
+      const msg = m as { role?: string; timestamp?: number; runId?: string }
+      // Include user messages
       if (msg.role === 'user' && msg.timestamp && userTimestamp && msg.timestamp >= userTimestamp) {
         return true
       }
+      // Include assistant messages
       if (msg.role === 'assistant' && msg.timestamp && userTimestamp && msg.timestamp >= userTimestamp) {
         return true
       }
-      if (msg.role === 'toolResult' && msg.timestamp && userTimestamp && msg.timestamp >= userTimestamp) {
+      // Include toolResult messages - they may have timestamps around or slightly before assistant messages
+      if (msg.role === 'toolResult' && msg.timestamp && userTimestamp && msg.timestamp >= userTimestamp - 30000) {
         return true
       }
       return false
     }) as unknown[]
+    
+    console.log('[OpenClaw] pollMessage: relevant messages:', relevantMessages.length, 
+      relevantMessages.map((m: any) => ({ role: m.role, timestamp: m.timestamp })))
     
     if (relevantMessages.length === 0) {
       return null
     }
     
     // Merge all assistant messages and tool results into one
-    const mergedContentBlocks: { type: 'thinking' | 'toolCall' | 'text'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
+    const mergedContentBlocks: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
     const mergedTextParts: string[] = []
     const mergedThinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
     
     for (const msg of relevantMessages) {
-      const m = msg as { role?: string; content?: unknown; timestamp?: number }
+      const m = msg as { role?: string; content?: unknown; timestamp?: number; name?: string; toolCallId?: string }
       
       // Skip user messages in the merge
       if (m.role === 'user') continue
       
       const rawContent = m.content
       
+      // Handle toolResult messages
+      if (m.role === 'toolResult') {
+        let toolResultText = ''
+        if (typeof rawContent === 'string') {
+          toolResultText = rawContent
+        } else if (Array.isArray(rawContent)) {
+          for (const item of rawContent) {
+            if (!item || typeof item !== 'object') continue
+            const obj = item as { type?: string; text?: string }
+            if (obj.type === 'toolResult' && obj.text) {
+              toolResultText = obj.text
+            } else if (obj.text) {
+              toolResultText = obj.text
+            }
+          }
+        }
+        
+        if (toolResultText) {
+          mergedContentBlocks.push({
+            type: 'toolResult' as const,
+            id: m.toolCallId,
+            name: m.name,
+            text: toolResultText,
+          })
+          mergedTextParts.push(toolResultText)
+        }
+        continue
+      }
+      
+      // Handle assistant messages
       if (Array.isArray(rawContent)) {
         for (const item of rawContent) {
           if (!item || typeof item !== 'object') continue
@@ -290,13 +331,6 @@ export const openclawApi = {
               name: obj.name,
               arguments: obj.arguments,
             })
-            // Also add to text for backward compatibility
-            const toolName = obj.name || 'unknown'
-            const args = obj.arguments || {}
-            const argsStr = Object.entries(args)
-              .map(([k, v]) => `${k}:${JSON.stringify(v)}`)
-              .join(', ')
-            mergedTextParts.push(`🔧 **Tool Call**: ${toolName}\n\`${argsStr}\``)
           } else if (obj.type === 'thinking') {
             mergedContentBlocks.push({
               type: 'thinking',

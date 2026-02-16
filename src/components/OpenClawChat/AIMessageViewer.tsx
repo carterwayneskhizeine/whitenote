@@ -51,7 +51,7 @@ interface AIMessageViewerProps {
   message: ChatMessage
   className?: string
   thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[]
-  contentBlocks?: { type: 'thinking' | 'toolCall' | 'text'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[]
+  contentBlocks?: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[]
 }
 
 // Helper to render tool call
@@ -346,10 +346,27 @@ export function AIMessageViewer({
         <ThinkingBlock key={`thinking-${idx}`} content={block} />
       ))}
 
-      {/* Render tool calls from message content */}
+      {/* Render tool calls and tool results from message content */}
       {contentBlocks.map((block, idx) => {
         if (block.type === 'toolCall') {
           return <ToolCallBlock key={`toolcall-${idx}`} content={block} />
+        }
+        if (block.type === 'toolResult') {
+          return (
+            <div key={`toolresult-${idx}`} className="my-3 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30 overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 bg-green-100 dark:bg-green-900/30 border-b border-green-200 dark:border-green-800">
+                <ChevronRight className="w-4 h-4 text-green-600 dark:text-green-400" />
+                <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                  Tool Result: {block.name || 'exec'}
+                </span>
+              </div>
+              <div className="p-3">
+                <pre className="text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all bg-white dark:bg-black/30 p-3 rounded border border-green-200 dark:border-green-800">
+                  {block.text}
+                </pre>
+              </div>
+            </div>
+          )
         }
         return null
       })}
