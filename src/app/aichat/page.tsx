@@ -50,15 +50,20 @@ export default function AIChatPage() {
   return (
     <div
       className={cn(
-        "flex flex-col desktop:static fixed top-0 left-0 right-0 desktop:z-0 bg-background desktop:h-auto",
+        "flex flex-col desktop:static fixed top-0 left-0 right-0 desktop:z-0 bg-background desktop:h-auto overflow-x-hidden",
         isKeyboardOpen ? "z-[45]" : "z-[35]"
       )}
       style={{
-        height: viewportHeight && typeof window !== 'undefined' && window.innerWidth < 750
-          ? `${viewportHeight}px`
-          : '100vh',
-        overflow: 'hidden',
-        overscrollBehavior: 'none'
+        ...(typeof window !== 'undefined' && window.innerWidth < 750 ? {
+          width: '100vw',
+          maxWidth: '100vw',
+          left: 0,
+          right: 0,
+          height: viewportHeight ? `${viewportHeight}px` : '100vh',
+          overflow: 'hidden',
+          overflowX: 'hidden',
+          overscrollBehavior: 'none'
+        } : {})
       }}
     >
       <div className="shrink-0 border-b px-4 py-3 bg-background desktop:bg-transparent z-50 desktop:z-0 relative">

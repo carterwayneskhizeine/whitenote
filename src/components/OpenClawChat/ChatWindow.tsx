@@ -304,6 +304,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
             >
               <div
                 className="rounded-lg px-4 py-2 w-full min-w-0 break-words bg-transparent"
+                style={{ maxWidth: 'calc(100vw - 32px)' }}
               >
                 {message.role === 'user' && (
                   <div className="text-sm font-semibold text-muted-foreground mb-1">You</div>
