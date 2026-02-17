@@ -175,4 +175,5 @@ export interface ChatStreamResponse {
   usage?: unknown;
   stopReason?: string;
   error?: string;
+  incremental?: boolean; // 标记是否为增量数据（thinking/toolCall），需要前端累积
 }

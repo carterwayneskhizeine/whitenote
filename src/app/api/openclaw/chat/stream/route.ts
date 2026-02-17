@@ -66,6 +66,9 @@ export async function POST(request: NextRequest) {
 
         let hasError = false
         let hasFinished = false
+        
+        // 累积 thinking 和 toolCall 块，实现真正的流式显示
+        const accumulatedBlocks: Array<{ type: string; thinking?: string; name?: string; arguments?: Record<string, unknown>; id?: string }> = []
 
         // Set up event listener for this request
         const eventHandler = (eventFrame: { event: string; payload?: unknown }) => {
@@ -96,24 +99,32 @@ export async function POST(request: NextRequest) {
               console.log('[OpenClaw Stream] Agent assistant stream:', JSON.stringify(agentPayload.data)?.substring(0, 200))
             } else if (agentPayload.stream === 'thinking') {
               console.log('[OpenClaw Stream] Agent THINKING stream:', JSON.stringify(agentPayload.data)?.substring(0, 500))
-              // Send thinking blocks to frontend
+              // 累积 thinking 块并发送所有已累积的块
               const data = agentPayload.data as { text?: string } | undefined
               if (data?.text) {
+                // 添加新的 thinking 块到累积列表
+                accumulatedBlocks.push({ type: 'thinking', thinking: data.text })
+                // 发送所有累积的块（实现真正的流式显示）
                 sendEvent({
                   type: 'content',
                   runId: agentPayload.runId,
-                  contentBlocks: [{ type: 'thinking', thinking: data.text }],
+                  contentBlocks: [...accumulatedBlocks],
+                  incremental: true, // 标记为增量数据
                 })
               }
             } else if (agentPayload.stream === 'toolCall') {
               console.log('[OpenClaw Stream] Agent TOOL CALL stream:', JSON.stringify(agentPayload.data)?.substring(0, 500))
-              // Send tool calls to frontend
+              // 累积 toolCall 块并发送所有已累积的块
               const data = agentPayload.data as { name?: string; arguments?: Record<string, unknown>; id?: string } | undefined
               if (data?.name) {
+                // 添加新的 toolCall 块到累积列表
+                accumulatedBlocks.push({ type: 'toolCall', name: data.name, arguments: data.arguments, id: data.id })
+                // 发送所有累积的块（实现真正的流式显示）
                 sendEvent({
                   type: 'content',
                   runId: agentPayload.runId,
-                  contentBlocks: [{ type: 'toolCall', name: data.name, arguments: data.arguments, id: data.id }],
+                  contentBlocks: [...accumulatedBlocks],
+                  incremental: true, // 标记为增量数据
                 })
               }
             }

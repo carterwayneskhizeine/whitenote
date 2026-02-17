@@ -455,17 +455,15 @@ export const openclawApi = {
               } else if (data.type === 'content') {
                 // Content chunk - may have contentBlocks or delta/content
                 if (data.contentBlocks) {
-                  console.log('[OpenClaw] Received', data.contentBlocks.length, 'content blocks:', data.contentBlocks.map((b: any) => ({ type: b.type, hasText: !!b.text, hasThinking: !!b.thinking, name: b.name })))
+                  console.log('[OpenClaw] Received', data.contentBlocks.length, 'content blocks, incremental:', data.incremental, 
+                    'types:', data.contentBlocks.map((b: any) => b.type))
 
-                  // 检查是否是增量数据（thinking/toolCall）还是累积数据（text）
-                  const hasTextBlocks = data.contentBlocks.some((b: any) => b.type === 'text')
-                  const hasThinkingOrToolCall = data.contentBlocks.some((b: any) => b.type === 'thinking' || b.type === 'toolCall')
-
-                  if (hasThinkingOrToolCall && !hasTextBlocks) {
-                    // 增量数据：thinking 或 toolCall，需要累积
-                    accumulatedContentBlocks.push(...data.contentBlocks)
+                  // 使用后端发送的 incremental 标志来判断如何处理数据
+                  if (data.incremental) {
+                    // 增量数据：后端已经累积了所有块，直接替换
+                    accumulatedContentBlocks = data.contentBlocks
                   } else {
-                    // 累积数据：包含 text blocks，直接替换
+                    // 非增量数据（chat delta）：包含完整的 content blocks，直接替换
                     accumulatedContentBlocks = data.contentBlocks
                   }
 
