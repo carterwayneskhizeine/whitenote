@@ -147,40 +147,128 @@ export const openclawApi = {
   },
 
   async getLastCompleteResponse(sessionKey: string = 'main'): Promise<ChatHistoryMessage | null> {
-    const response = await fetch(`${API_BASE}/chat/history?sessionKey=${sessionKey}`)
+    const messages = await this.getAssistantMessages(sessionKey)
+    if (messages.length === 0) return null
+    return messages[messages.length - 1]
+  },
+
+  async getAssistantMessages(sessionKey: string = 'main', afterTimestamp?: number): Promise<ChatHistoryMessage[]> {
+    const params = new URLSearchParams({ sessionKey })
+    const response = await fetch(`${API_BASE}/chat/history?${params}`)
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to get history')
+      console.error('[OpenClaw] getAssistantMessages failed:', response.status)
+      return []
     }
 
     const data = await response.json()
     const allMessages = (data.messages || []) as unknown[]
 
-    if (allMessages.length === 0) {
-      return null
-    }
-
-    // Find the last user message timestamp
-    let userTimestamp: number | undefined
-    for (let i = allMessages.length - 1; i >= 0; i--) {
-      const msg = allMessages[i] as { role?: string; timestamp?: number }
-      if (msg.role === 'user' && msg.timestamp) {
-        userTimestamp = msg.timestamp
-        break
+    let userTimestamp = afterTimestamp
+    if (!userTimestamp && allMessages.length > 0) {
+      for (let i = allMessages.length - 1; i >= 0; i--) {
+        const msg = allMessages[i] as { role?: string; timestamp?: number }
+        if (msg.role === 'user' && msg.timestamp) {
+          userTimestamp = msg.timestamp
+          break
+        }
       }
     }
 
-    if (!userTimestamp) {
-      // No user message found, return the last message if it's an assistant message
-      const lastMsg = allMessages[allMessages.length - 1] as { role?: string }
-      if (lastMsg.role === 'assistant') {
-        return this.pollMessage(sessionKey, undefined)
+    if (!userTimestamp) return []
+
+    const assistantMessages: ChatHistoryMessage[] = []
+    let toolResults: { id?: string; name?: string; text: string; timestamp: number }[] = []
+
+    const relevantMessages = allMessages.filter((m: unknown) => {
+      const msg = m as { role?: string; timestamp?: number }
+      if (msg.role === 'assistant' && msg.timestamp && msg.timestamp >= userTimestamp!) return true
+      if (msg.role === 'toolResult' && msg.timestamp && msg.timestamp >= userTimestamp! - 30000) return true
+      return false
+    }) as unknown[]
+
+    relevantMessages.sort((a: unknown, b: unknown) => {
+      const tsA = (a as { timestamp?: number }).timestamp || 0
+      const tsB = (b as { timestamp?: number }).timestamp || 0
+      return tsA - tsB
+    })
+
+    for (const msg of relevantMessages) {
+      const m = msg as { role?: string; content?: unknown; timestamp?: number; name?: string; toolCallId?: string }
+
+      if (m.role === 'toolResult') {
+        let toolResultText = ''
+        let toolResultId = m.toolCallId
+        if (typeof m.content === 'string') {
+          toolResultText = m.content
+        } else if (Array.isArray(m.content)) {
+          for (const item of m.content) {
+            if (!item || typeof item !== 'object') continue
+            const obj = item as { type?: string; text?: string; id?: string }
+            if (obj.text) {
+              toolResultText = obj.text
+              toolResultId = obj.id || toolResultId
+            }
+          }
+        }
+        if (toolResultText) {
+          toolResults.push({ id: toolResultId, name: m.name, text: toolResultText, timestamp: m.timestamp || 0 })
+        }
+        continue
       }
-      return null
+
+      if (m.role === 'assistant') {
+        const contentBlocks: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
+        const thinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
+        const textParts: string[] = []
+
+        const rawContent = m.content
+        if (Array.isArray(rawContent)) {
+          for (const item of rawContent) {
+            if (!item || typeof item !== 'object') continue
+            const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown>; id?: string; thinking?: string; thinkingSignature?: string }
+
+            if (obj.type === 'toolCall') {
+              contentBlocks.push({ type: 'toolCall', id: obj.id, name: obj.name, arguments: obj.arguments })
+            } else if (obj.type === 'thinking') {
+              contentBlocks.push({ type: 'thinking', thinking: obj.thinking, thinkingSignature: obj.thinkingSignature })
+              if (obj.thinking) thinkingBlocks.push({ type: 'thinking', thinking: obj.thinking, thinkingSignature: obj.thinkingSignature })
+            } else if (obj.text) {
+              contentBlocks.push({ type: 'text', text: obj.text })
+              textParts.push(obj.text)
+            }
+          }
+        } else if (typeof rawContent === 'string' && rawContent.trim()) {
+          contentBlocks.push({ type: 'text', text: rawContent })
+          textParts.push(rawContent)
+        }
+
+        const matchingToolResults = toolResults.filter(tr => {
+          const hasToolCall = contentBlocks.some(b => b.type === 'toolCall')
+          if (!hasToolCall) return false
+          const toolCallIds = contentBlocks.filter(b => b.type === 'toolCall').map(b => b.id)
+          if (tr.id && toolCallIds.includes(tr.id)) return true
+          return false
+        })
+
+        for (const tr of matchingToolResults) {
+          contentBlocks.push({ type: 'toolResult', id: tr.id, name: tr.name, text: tr.text })
+          textParts.push(tr.text)
+        }
+
+        assistantMessages.push({
+          role: 'assistant',
+          content: textParts.join('\n\n'),
+          timestamp: m.timestamp,
+          thinkingBlocks: thinkingBlocks.length > 0 ? thinkingBlocks : undefined,
+          contentBlocks: contentBlocks.length > 0 ? contentBlocks : undefined,
+        })
+
+        toolResults = toolResults.filter(tr => !matchingToolResults.includes(tr))
+      }
     }
 
-    // Use pollMessage to get the merged response
-    return this.pollMessage(sessionKey, userTimestamp)
+    console.log('[OpenClaw] getAssistantMessages:', assistantMessages.length, 'messages')
+    return assistantMessages
   },
 
   async createSession(label?: string): Promise<SessionResponse> {
@@ -389,8 +477,7 @@ export const openclawApi = {
     }
 
     const mergedContent = mergedTextParts.join('\n\n')
-    const lastTimestamp = relevantMessages.reduce((max: number, m: unknown) => {
-      const msg = m as { timestamp?: number }
+    const lastTimestamp: number = (relevantMessages as { timestamp?: number }[]).reduce((max, msg) => {
       return msg.timestamp && msg.timestamp > max ? msg.timestamp : max
     }, 0)
 

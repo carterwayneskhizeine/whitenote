@@ -67,6 +67,7 @@ export interface OpenClawMessage {
   usage?: unknown;
   stopReason?: string;
   thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[];
+  contentBlocks?: any[];  // Flexible type for content blocks from API
 }
 
 export type ChatMessage = OpenClawMessage | OpenClawToolResultMessage;

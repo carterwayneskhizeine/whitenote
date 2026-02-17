@@ -45,8 +45,8 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const pollingRef = useRef<NodeJS.Timeout | null>(null)
   const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  // 使用 ref 跟踪当前活跃的 assistant 消息 ID 和加载状态，避免闭包问题
-  const currentAssistantIdRef = useRef<string | null>(null)
+  // 使用 ref 跟踪用户消息时间戳和加载状态，避免闭包问题
+  const userMessageTimestampRef = useRef<number | null>(null)
   const isLoadingRef = useRef(false)
 
   const scrollToBottom = () => {
@@ -88,14 +88,14 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       try {
         const history = await openclawApi.getHistory(DEFAULT_SESSION_KEY)
         if (history.length > 0) {
-          const messagesWithIds: ChatMessage[] = history.map((msg, idx) => ({
+          const messagesWithIds = history.map((msg, idx) => ({
             ...msg,
             id: msg.timestamp ? `${msg.timestamp}-${idx}` : `msg-${idx}`,
             content: msg.content,
             timestamp: msg.timestamp ?? Date.now(),
             thinkingBlocks: msg.thinkingBlocks,
             contentBlocks: msg.contentBlocks,
-          }))
+          })) as ChatMessage[]
           setMessages(messagesWithIds)
         }
       } catch (err) {
@@ -117,14 +117,14 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
+    const userTimestamp = Date.now()
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: userTimestamp.toString(),
       role: 'user',
       content: input.trim(),
-      timestamp: Date.now(),
+      timestamp: userTimestamp,
     }
 
-    // 先清除之前的轮询
     clearAllPolling()
 
     setMessages(prev => [...prev, userMessage])
@@ -132,18 +132,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
     setIsLoading(true)
     isLoadingRef.current = true
     setError(null)
-
-    const assistantMessageId = (Date.now() + 1).toString()
-    // 保存当前 assistant 消息 ID 到 ref，供轮询使用
-    currentAssistantIdRef.current = assistantMessageId
-
-    const assistantMessage: ChatMessage = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
-    }
-    setMessages(prev => [...prev, assistantMessage])
+    userMessageTimestampRef.current = userTimestamp
 
     try {
       const content = typeof userMessage.content === 'string' ? userMessage.content : JSON.stringify(userMessage.content)
@@ -151,14 +140,9 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       await openclawApi.sendMessageStream(
         DEFAULT_SESSION_KEY,
         content,
-        // onChunk: Update message with new content and content blocks
         (_delta, fullContent, contentBlocks) => {
-          // 检查是否仍在加载当前消息
-          if (!isLoadingRef.current || currentAssistantIdRef.current !== assistantMessageId) {
-            return
-          }
+          if (!isLoadingRef.current) return
 
-          // Convert contentBlocks to thinkingBlocks and display format
           const thinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
           const displayContentBlocks: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
 
@@ -167,136 +151,99 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
               const b = block as { type?: string; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }
 
               if (b.type === 'thinking' && b.thinking) {
-                thinkingBlocks.push({
-                  type: 'thinking',
-                  thinking: b.thinking,
-                  thinkingSignature: b.thinkingSignature,
-                })
-                displayContentBlocks.push({
-                  type: 'thinking',
-                  thinking: b.thinking,
-                  thinkingSignature: b.thinkingSignature,
-                })
+                thinkingBlocks.push({ type: 'thinking', thinking: b.thinking, thinkingSignature: b.thinkingSignature })
+                displayContentBlocks.push({ type: 'thinking', thinking: b.thinking, thinkingSignature: b.thinkingSignature })
               } else if (b.type === 'toolCall') {
-                displayContentBlocks.push({
-                  type: 'toolCall',
-                  id: b.id,
-                  name: b.name,
-                  arguments: b.arguments,
-                })
+                displayContentBlocks.push({ type: 'toolCall', id: b.id, name: b.name, arguments: b.arguments })
               } else if (b.type === 'text' && b.text) {
-                displayContentBlocks.push({
-                  type: 'text',
-                  text: b.text,
-                })
+                displayContentBlocks.push({ type: 'text', text: b.text })
               }
             }
           }
 
-          setMessages(prev =>
-            prev.map(msg => {
-              if (msg.id === assistantMessageId && msg.role === 'assistant') {
-                return {
-                  ...msg,
+          setMessages(prev => {
+            const lastAssistantIdx = prev.map((m, i) => m.role === 'assistant' ? i : -1).filter(i => i >= 0).pop()
+            if (lastAssistantIdx !== undefined && lastAssistantIdx >= 0) {
+              const updated = [...prev]
+              const existing = updated[lastAssistantIdx]
+              if (existing.role === 'assistant') {
+                updated[lastAssistantIdx] = {
+                  ...existing,
                   content: fullContent,
                   thinkingBlocks: thinkingBlocks.length > 0 ? thinkingBlocks : undefined,
                   contentBlocks: displayContentBlocks.length > 0 ? displayContentBlocks : undefined,
                 } as ChatMessage
               }
-              return msg
-            })
-          )
+              return updated
+            }
+            return prev
+          })
         },
-        // onFinish: Loading complete
         async () => {
-          // 先更新 ref 状态，防止轮询继续
           isLoadingRef.current = false
           setIsLoading(false)
-          // Clear all polling
           clearAllPolling()
 
-          // Reload to get complete message data including thinking blocks and tool calls
           try {
-            const completeMsg = await openclawApi.getLastCompleteResponse(DEFAULT_SESSION_KEY)
-            // 确保仍在处理同一条消息
-            if (completeMsg && completeMsg.role === 'assistant' && currentAssistantIdRef.current === assistantMessageId) {
-              setMessages(prev =>
-                prev.map(msg => {
-                  if (msg.id === assistantMessageId && msg.role === 'assistant') {
-                    return {
-                      ...msg,
-                      content: completeMsg.content,
-                      thinkingBlocks: completeMsg.thinkingBlocks,
-                      contentBlocks: completeMsg.contentBlocks,
-                    } as ChatMessage
-                  }
-                  return msg
-                })
-              )
+            const assistantMsgs = await openclawApi.getAssistantMessages(DEFAULT_SESSION_KEY, userMessageTimestampRef.current || undefined)
+            if (assistantMsgs.length > 0 && userMessageTimestampRef.current === userTimestamp) {
+              setMessages(prev => {
+                const userIdx = prev.findIndex(m => m.timestamp === userTimestamp)
+                if (userIdx < 0) return prev
+                const beforeUser = prev.slice(0, userIdx + 1)
+                const afterUser = prev.slice(userIdx + 1).filter(m => !assistantMsgs.some(am => am.timestamp && m.timestamp === am.timestamp))
+                const newMessages: ChatMessage[] = assistantMsgs.map((msg, idx) => ({
+                  ...msg,
+                  id: msg.timestamp ? `${msg.timestamp}-${idx}` : `assistant-${idx}`,
+                  timestamp: msg.timestamp ?? Date.now(),
+                }))
+                return [...beforeUser, ...newMessages, ...afterUser]
+              })
             }
           } catch (err) {
             console.error('[OpenClawChat] Failed to reload complete message:', err)
           }
         },
-        // onError: Handle errors
         (error) => {
           setError(error)
           isLoadingRef.current = false
-          // 只移除 assistant 消息，保留用户消息
-          setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId))
+          setMessages(prev => prev.filter(m => m.timestamp !== userTimestamp || m.role !== 'assistant'))
           setIsLoading(false)
-          // Clear all polling
           clearAllPolling()
         }
       )
 
-      // Start polling after 3 seconds to get progress updates (thinking, tool calls, etc.)
-      // 使用 ref 检查状态，避免闭包问题
-      pollingTimeoutRef.current = setTimeout(() => {
-        if (!isLoadingRef.current) {
-          console.log('[OpenClawChat] Loading already finished, skip polling')
+      console.log('[OpenClawChat] Starting progress polling...')
+      pollingRef.current = setInterval(async () => {
+        if (!isLoadingRef.current || userMessageTimestampRef.current !== userTimestamp) {
+          clearAllPolling()
           return
         }
-        console.log('[OpenClawChat] Starting progress polling...')
-        pollingRef.current = setInterval(async () => {
-          // 使用 ref 检查是否仍在加载
-          if (!isLoadingRef.current) {
-            clearAllPolling()
-            return
-          }
-          // 获取当前 assistant 消息 ID
-          const currentId = currentAssistantIdRef.current
-          if (!currentId) return
 
-          try {
-            const progressMsg = await openclawApi.getLastCompleteResponse(DEFAULT_SESSION_KEY)
-            // 确保仍在处理同一条消息
-            if (progressMsg && progressMsg.role === 'assistant' && currentAssistantIdRef.current === currentId && isLoadingRef.current) {
-              console.log('[OpenClawChat] Polling update:', progressMsg.contentBlocks?.map(b => ({ type: b.type, name: b.name })))
-              setMessages(prev =>
-                prev.map(msg => {
-                  if (msg.id === currentId && msg.role === 'assistant') {
-                    return {
-                      ...msg,
-                      content: progressMsg.content,
-                      thinkingBlocks: progressMsg.thinkingBlocks,
-                      contentBlocks: progressMsg.contentBlocks,
-                    } as ChatMessage
-                  }
-                  return msg
-                })
-              )
-            }
-          } catch (err) {
-            console.error('[OpenClawChat] Polling error:', err)
+        try {
+          const assistantMsgs = await openclawApi.getAssistantMessages(DEFAULT_SESSION_KEY, userTimestamp)
+          if (assistantMsgs.length > 0 && userMessageTimestampRef.current === userTimestamp && isLoadingRef.current) {
+            console.log('[OpenClawChat] Polling update:', assistantMsgs.length, 'messages')
+            setMessages(prev => {
+              const userIdx = prev.findIndex(m => m.timestamp === userTimestamp)
+              if (userIdx < 0) return prev
+              const beforeUser = prev.slice(0, userIdx + 1)
+              const newMessages: ChatMessage[] = assistantMsgs.map((msg, idx) => ({
+                ...msg,
+                id: msg.timestamp ? `${msg.timestamp}-${idx}` : `assistant-${idx}`,
+                timestamp: msg.timestamp ?? Date.now(),
+              }))
+              return [...beforeUser, ...newMessages]
+            })
           }
-        }, 3000)
-      }, 3000)
+        } catch (err) {
+          console.error('[OpenClawChat] Polling error:', err)
+        }
+      }, 1000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
       isLoadingRef.current = false
-      // 只移除 assistant 消息，保留用户消息
-      setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId))
+      setMessages(prev => prev.filter(m => m.timestamp !== userTimestamp || m.role !== 'assistant'))
       setIsLoading(false)
       clearAllPolling()
     }

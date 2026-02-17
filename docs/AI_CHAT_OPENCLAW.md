@@ -6,6 +6,67 @@
 
 ## 更新日志
 
+### 2026-02-17: 优化 thinking/toolCall 流式显示
+
+**问题**: 流式回复时，thinking 和 toolCall 内容不够实时，用户需要等待较长时间才能看到这些内容。
+
+**原因分析**:
+1. 后端每次只发送单个 thinking/toolCall 块
+2. 前端需要自己累积这些块，但逻辑不够清晰
+3. 当 chat delta 事件到来时，会覆盖之前累积的内容
+
+**解决方案**:
+
+1. **后端累积发送** (`src/app/api/openclaw/chat/stream/route.ts`):
+   ```typescript
+   // 累积 thinking 和 toolCall 块，实现真正的流式显示
+   const accumulatedBlocks: Array<...> = []
+
+   // 当收到 thinking 或 toolCall 时
+   if (agentPayload.stream === 'thinking') {
+     const data = agentPayload.data as { text?: string } | undefined
+     if (data?.text) {
+       // 添加新的 thinking 块到累积列表
+       accumulatedBlocks.push({ type: 'thinking', thinking: data.text })
+       // 发送所有已累积的块（实现真正的流式显示）
+       sendEvent({
+         type: 'content',
+         runId: agentPayload.runId,
+         contentBlocks: [...accumulatedBlocks],
+         incremental: true, // 标记为增量数据
+       })
+     }
+   }
+   ```
+
+2. **类型定义更新** (`src/lib/openclaw/types.ts`):
+   ```typescript
+   export interface ChatStreamResponse {
+     // ... 其他字段
+     incremental?: boolean; // 标记是否为增量数据（thinking/toolCall），需要前端累积
+   }
+   ```
+
+3. **前端简化处理** (`src/components/OpenClawChat/api.ts`):
+   ```typescript
+   if (data.contentBlocks) {
+     // 使用后端发送的 incremental 标志来判断如何处理数据
+     if (data.incremental) {
+       // 增量数据：后端已经累积了所有块，直接替换
+       accumulatedContentBlocks = data.contentBlocks
+     } else {
+       // 非增量数据（chat delta）：包含完整的 content blocks，直接替换
+       accumulatedContentBlocks = data.contentBlocks
+     }
+     // ... 更新 UI
+   }
+   ```
+
+**效果**:
+- thinking 内容实时流式显示，用户可以看到 AI 的思考过程
+- toolCall 一旦生成就立即显示，不需要等待完整响应
+- 前端逻辑简化，后端负责累积，前端只需替换
+
 ### 2026-02-17: 修复用户消息消失和流式内容问题
 
 **问题 1: 用户消息发送后消失**
