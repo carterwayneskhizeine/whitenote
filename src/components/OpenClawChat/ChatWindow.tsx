@@ -48,6 +48,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   // 使用 ref 跟踪用户消息时间戳和加载状态，避免闭包问题
   const userMessageTimestampRef = useRef<number | null>(null)
   const isLoadingRef = useRef(false)
+  const pendingAssistantIdRef = useRef<string | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -125,14 +126,24 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       timestamp: userTimestamp,
     }
 
+    // 创建临时的 assistant 消息占位符
+    const pendingAssistantId = `pending-${userTimestamp}`
+    const pendingAssistantMessage: ChatMessage = {
+      id: pendingAssistantId,
+      role: 'assistant',
+      content: '',
+      timestamp: userTimestamp + 1,
+    }
+
     clearAllPolling()
 
-    setMessages(prev => [...prev, userMessage])
+    setMessages(prev => [...prev, userMessage, pendingAssistantMessage])
     setInput('')
     setIsLoading(true)
     isLoadingRef.current = true
     setError(null)
     userMessageTimestampRef.current = userTimestamp
+    pendingAssistantIdRef.current = pendingAssistantId
 
     try {
       const content = typeof userMessage.content === 'string' ? userMessage.content : JSON.stringify(userMessage.content)
@@ -161,28 +172,29 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
             }
           }
 
-          setMessages(prev => {
-            const lastAssistantIdx = prev.map((m, i) => m.role === 'assistant' ? i : -1).filter(i => i >= 0).pop()
-            if (lastAssistantIdx !== undefined && lastAssistantIdx >= 0) {
-              const updated = [...prev]
-              const existing = updated[lastAssistantIdx]
-              if (existing.role === 'assistant') {
-                updated[lastAssistantIdx] = {
-                  ...existing,
+          // 只更新 pending assistant 消息
+          const pendingId = pendingAssistantIdRef.current
+          if (!pendingId) return
+
+          setMessages(prev =>
+            prev.map(msg => {
+              if (msg.id === pendingId && msg.role === 'assistant') {
+                return {
+                  ...msg,
                   content: fullContent,
                   thinkingBlocks: thinkingBlocks.length > 0 ? thinkingBlocks : undefined,
                   contentBlocks: displayContentBlocks.length > 0 ? displayContentBlocks : undefined,
                 } as ChatMessage
               }
-              return updated
-            }
-            return prev
-          })
+              return msg
+            })
+          )
         },
         async () => {
           isLoadingRef.current = false
           setIsLoading(false)
           clearAllPolling()
+          pendingAssistantIdRef.current = null
 
           try {
             const assistantMsgs = await openclawApi.getAssistantMessages(DEFAULT_SESSION_KEY, userMessageTimestampRef.current || undefined)
@@ -190,14 +202,14 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
               setMessages(prev => {
                 const userIdx = prev.findIndex(m => m.timestamp === userTimestamp)
                 if (userIdx < 0) return prev
-                const beforeUser = prev.slice(0, userIdx + 1)
-                const afterUser = prev.slice(userIdx + 1).filter(m => !assistantMsgs.some(am => am.timestamp && m.timestamp === am.timestamp))
+                // 移除 pending 消息和旧的 assistant 消息
+                const beforePending = prev.slice(0, userIdx + 1).filter(m => !m.id.startsWith('pending-'))
                 const newMessages: ChatMessage[] = assistantMsgs.map((msg, idx) => ({
                   ...msg,
                   id: msg.timestamp ? `${msg.timestamp}-${idx}` : `assistant-${idx}`,
                   timestamp: msg.timestamp ?? Date.now(),
                 }))
-                return [...beforeUser, ...newMessages, ...afterUser]
+                return [...beforePending, ...newMessages]
               })
             }
           } catch (err) {
@@ -207,7 +219,9 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         (error) => {
           setError(error)
           isLoadingRef.current = false
-          setMessages(prev => prev.filter(m => m.timestamp !== userTimestamp || m.role !== 'assistant'))
+          pendingAssistantIdRef.current = null
+          // 移除 pending 消息
+          setMessages(prev => prev.filter(m => !m.id.startsWith('pending-')))
           setIsLoading(false)
           clearAllPolling()
         }
@@ -227,13 +241,14 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
             setMessages(prev => {
               const userIdx = prev.findIndex(m => m.timestamp === userTimestamp)
               if (userIdx < 0) return prev
-              const beforeUser = prev.slice(0, userIdx + 1)
+              // 移除 pending 消息和旧的 assistant 消息
+              const beforePending = prev.slice(0, userIdx + 1).filter(m => !m.id.startsWith('pending-'))
               const newMessages: ChatMessage[] = assistantMsgs.map((msg, idx) => ({
                 ...msg,
                 id: msg.timestamp ? `${msg.timestamp}-${idx}` : `assistant-${idx}`,
                 timestamp: msg.timestamp ?? Date.now(),
               }))
-              return [...beforeUser, ...newMessages]
+              return [...beforePending, ...newMessages]
             })
           }
         } catch (err) {
@@ -243,7 +258,9 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
       isLoadingRef.current = false
-      setMessages(prev => prev.filter(m => m.timestamp !== userTimestamp || m.role !== 'assistant'))
+      pendingAssistantIdRef.current = null
+      // 移除 pending 消息
+      setMessages(prev => prev.filter(m => !m.id.startsWith('pending-')))
       setIsLoading(false)
       clearAllPolling()
     }

@@ -6,66 +6,105 @@
 
 ## 更新日志
 
+### 2026-02-17: 修复 SSE 流式更新错误的 assistant 消息
+
+**问题**: SSE 流式更新时，会错误地更新历史记录中的 assistant 消息，导致用户消息上方显示一条旧的 assistant 消息内容。
+
+**原因分析**:
+1. SSE `onChunk` 回调查找"最后一个 assistant 消息"来更新
+2. 如果历史记录中有旧消息，会错误地更新它而不是当前会话的新消息
+3. 轮询获取多条 assistant 消息后，刷新页面才显示正确
+
+**解决方案**:
+
+1. **添加 pending 消息占位符** (`ChatWindow.tsx`):
+   ```tsx
+   const pendingAssistantIdRef = useRef<string | null>(null)
+
+   // 发送消息时创建临时占位符
+   const pendingAssistantId = `pending-${userTimestamp}`
+   const pendingAssistantMessage: ChatMessage = {
+     id: pendingAssistantId,
+     role: 'assistant',
+     content: '',
+     timestamp: userTimestamp + 1,
+   }
+   setMessages(prev => [...prev, userMessage, pendingAssistantMessage])
+   pendingAssistantIdRef.current = pendingAssistantId
+   ```
+
+2. **SSE onChunk 只更新 pending 消息**:
+   ```tsx
+   (_delta, fullContent, contentBlocks) => {
+     const pendingId = pendingAssistantIdRef.current
+     if (!pendingId) return
+     
+     // 只更新 pending 消息（通过 ID 匹配）
+     setMessages(prev =>
+       prev.map(msg => {
+         if (msg.id === pendingId && msg.role === 'assistant') {
+           return {
+             ...msg,
+             content: fullContent,
+             thinkingBlocks: ...,
+             contentBlocks: ...,
+           }
+         }
+         return msg
+       })
+     )
+   }
+   ```
+
+3. **轮询和 onFinish 移除 pending 消息**:
+   ```tsx
+   // 轮询获取真实消息后，移除 pending 消息
+   const assistantMsgs = await openclawApi.getAssistantMessages(...)
+   setMessages(prev => {
+     const beforePending = prev.slice(0, userIdx + 1).filter(m => !m.id.startsWith('pending-'))
+     const newMessages = assistantMsgs.map(...)
+     return [...beforePending, ...newMessages]
+   })
+   ```
+
+4. **新增 getAssistantMessages API** (`api.ts`):
+   - 返回多条 assistant 消息（不合并）
+   - 正确匹配 toolResult 到对应的 toolCall
+   - 按时间顺序排列
+
+**效果**:
+- SSE 流式更新不再错误地更新历史消息
+- 用户消息上方不会出现错误的旧内容
+- 轮询获取多条 assistant 消息后，立即正确显示（无需刷新）
+
+### 2026-02-17: 优化轮询间隔
+
+**问题**: 轮询延迟 3 秒才开始，间隔 3 秒，导致 thinking/toolCall 内容显示不够及时。
+
+**解决方案**:
+- 移除 3 秒延迟，立即开始轮询
+- 缩短轮询间隔从 3 秒改为 1 秒
+
+**效果**:
+- thinking/toolCall 内容更快显示
+- 长任务时用户能更快看到进度
+
 ### 2026-02-17: 优化 thinking/toolCall 流式显示
 
 **问题**: 流式回复时，thinking 和 toolCall 内容不够实时，用户需要等待较长时间才能看到这些内容。
 
 **原因分析**:
-1. 后端每次只发送单个 thinking/toolCall 块
-2. 前端需要自己累积这些块，但逻辑不够清晰
-3. 当 chat delta 事件到来时，会覆盖之前累积的内容
+1. OpenClaw Gateway 的 `agent` 事件不发送 thinking 和 toolCall（只发送 `assistant` 文本流）
+2. SSE 只收到纯文本内容，thinking/toolCall 需要通过轮询历史记录获取
 
-**解决方案**:
-
-1. **后端累积发送** (`src/app/api/openclaw/chat/stream/route.ts`):
-   ```typescript
-   // 累积 thinking 和 toolCall 块，实现真正的流式显示
-   const accumulatedBlocks: Array<...> = []
-
-   // 当收到 thinking 或 toolCall 时
-   if (agentPayload.stream === 'thinking') {
-     const data = agentPayload.data as { text?: string } | undefined
-     if (data?.text) {
-       // 添加新的 thinking 块到累积列表
-       accumulatedBlocks.push({ type: 'thinking', thinking: data.text })
-       // 发送所有已累积的块（实现真正的流式显示）
-       sendEvent({
-         type: 'content',
-         runId: agentPayload.runId,
-         contentBlocks: [...accumulatedBlocks],
-         incremental: true, // 标记为增量数据
-       })
-     }
-   }
-   ```
-
-2. **类型定义更新** (`src/lib/openclaw/types.ts`):
-   ```typescript
-   export interface ChatStreamResponse {
-     // ... 其他字段
-     incremental?: boolean; // 标记是否为增量数据（thinking/toolCall），需要前端累积
-   }
-   ```
-
-3. **前端简化处理** (`src/components/OpenClawChat/api.ts`):
-   ```typescript
-   if (data.contentBlocks) {
-     // 使用后端发送的 incremental 标志来判断如何处理数据
-     if (data.incremental) {
-       // 增量数据：后端已经累积了所有块，直接替换
-       accumulatedContentBlocks = data.contentBlocks
-     } else {
-       // 非增量数据（chat delta）：包含完整的 content blocks，直接替换
-       accumulatedContentBlocks = data.contentBlocks
-     }
-     // ... 更新 UI
-   }
-   ```
+**解决方案**: 
+- 立即开始轮询（1 秒间隔）获取 thinking/toolCall
+- SSE 流式显示文本内容，轮询补充 thinking/toolCall
 
 **效果**:
-- thinking 内容实时流式显示，用户可以看到 AI 的思考过程
-- toolCall 一旦生成就立即显示，不需要等待完整响应
-- 前端逻辑简化，后端负责累积，前端只需替换
+- thinking 内容通过轮询较快显示
+- toolCall 一旦生成就通过轮询显示
+- 文本内容通过 SSE 实时流式显示
 
 ### 2026-02-17: 修复用户消息消失和流式内容问题
 
@@ -108,26 +147,6 @@
    {shouldRenderText && textContent && <EditorContent editor={editor} />}
    ```
 
-**问题 2: 流式内容只显示一部分，重复前几个字**
-
-**原因分析**:
-后端有两种事件源：
-- `agent` 事件：发送增量的 thinking/toolCall（需要累积）
-- `chat` 事件：发送累积的完整 contentBlocks（需要替换）
-
-之前的代码对所有 contentBlocks 都进行累积，导致重复。
-
-**解决方案** (api.ts):
-```tsx
-if (hasThinkingOrToolCall && !hasTextBlocks) {
-  // 增量数据：thinking 或 toolCall，需要累积
-  accumulatedContentBlocks.push(...data.contentBlocks)
-} else {
-  // 累积数据：包含 text blocks，直接替换
-  accumulatedContentBlocks = data.contentBlocks
-}
-```
-
 ### 2026-02-15: 设备身份认证 + 历史记录
 
 成功实现 OpenClaw 设备身份认证，解决历史记录权限问题：
@@ -157,31 +176,6 @@ if (hasThinkingOrToolCall && !hasTextBlocks) {
    - 页面加载时调用 `/api/openclaw/chat/history` API
    - 将历史消息转换为本地格式并显示
 
-### 2026-02-15: 伪流式实现
-
-由于移动端 SSE 流式传输在某些网络环境下不稳定，改为 5 秒轮询的伪流式实现：
-
-**核心改动**:
-
-1. **新增 `/api/openclaw/chat/send` 接口** - 发送消息后立即返回，不等待 AI 响应
-
-2. **前端轮询机制** (`ChatWindow.tsx`):
-   - 发送消息后每 5 秒轮询一次 `/chat/history`
-   - 获取最新助手消息与本地对比
-   - 内容变化时更新 UI
-   - 连续 15 秒（15 次轮询）无新内容时结束
-
-3. **强制渲染更新**:
-   - `AIMessageViewer` 添加 `key` 属性确保内容变化时重新渲染
-   ```tsx
-   key={`${message.id}-${message.content.slice(0, 20)}`}
-   ```
-
-4. **API 适配** (`api.ts`):
-   - `sendMessage()`: 发送消息，返回 messageId
-   - `pollMessage()`: 获取最新助手消息
-   - 客户端过滤：只返回 `role: 'assistant'` 且时间戳大于用户消息的消息
-
 ### 2026-02-17: SSE 流式传输实现
 
 改用 SSE (Server-Sent Events) 流式传输，利用 OpenClaw Gateway 的 WebSocket 事件推送，实现真正的实时流式响应：
@@ -196,8 +190,8 @@ if (hasThinkingOrToolCall && !hasTextBlocks) {
 
 2. **前端 SSE 客户端** (`api.ts`):
    - 使用 Fetch API + ReadableStream 读取 SSE 流
-   - 实时更新 UI，每 50ms 检查一次
-   - 流式完成后自动调用 `getLastCompleteResponse()` 获取完整数据
+   - 实时更新 UI
+   - 流式完成后自动调用获取完整消息数据
 
 3. **ChatWindow 组件更新** (`ChatWindow.tsx`):
    - 使用 `sendMessageStream()` 替代轮询
@@ -209,46 +203,6 @@ if (hasThinkingOrToolCall && !hasTextBlocks) {
    - sessionKey 可能是 `agent:main:main` 格式，需要灵活匹配
    - 不需要调用 `chat.subscribe`（该方法不存在）
 
-### 2026-02-17: 消息按时间顺序渲染
-
-**问题**: 之前的实现将所有 thinking blocks 合并在一起渲染，然后是所有 toolCalls，最后是 toolResults 和文本。这与刷新页面后看到的效果不一致。
-
-**原因分析**: 通过日志分析发现，历史记录中的消息是按时间顺序排列的：
-- 第一条 assistant 消息：thinking → toolCall
-- toolResult 消息
-- 第二条 assistant 消息：thinking → text
-
-**解决方案**:
-
-1. **修改 `pollMessage` 方法** (`api.ts`):
-   - 按时间戳排序相关消息
-   - 按原始顺序保留所有 content blocks（不按类型分组）
-   - 使用 `pendingToolCalls` 数组跟踪未匹配的 tool calls
-
-2. **修改 `AIMessageViewer` 组件** (`AIMessageViewer.tsx`):
-   - 不再单独渲染 thinkingBlocks
-   - 直接按 `contentBlocks` 数组的顺序渲染所有 blocks
-   - thinking → toolCall → toolResult → text 按原始顺序显示
-
-**渲染效果**:
-```
-Thinking    reasoning_content
-用户要求使用 Bash 计算 3 * 3 * 3 * 999...
-
-🔧 Tool Call: exec
-Command: echo $((3 * 3 * 3 * 999))
-
-Tool Result: exec
-512
-
-Thinking    reasoning_content
-计算结果是 26973，正确。
-
-Text (最终回复)
-```
-
-这与刷新页面后看到的效果完全一致。
-
 ## 架构
 
 ```
@@ -256,12 +210,12 @@ Text (最终回复)
 │  Web 浏览器 (前端)                                                       │
 │  /aichat 页面 → ChatWindow 组件                                         │
 └─────────────────────────────┬───────────────────────────────────────────┘
-                              │ HTTP + SSE
+                               │ HTTP + SSE
 ┌─────────────────────────────▼───────────────────────────────────────────┐
 │  WhiteNote 后端 (Next.js)                                               │
 │  /api/openclaw/chat/stream → OpenClawGateway WebSocket 客户端           │
 └─────────────────────────────┬───────────────────────────────────────────┘
-                              │ WebSocket (ws://localhost:18789)
+                               │ WebSocket (ws://localhost:18789)
 ┌─────────────────────────────▼───────────────────────────────────────────┐
 │  OpenClaw Gateway                                                       │
 │  处理对话，连接 OpenClaw Agent                                          │
@@ -300,7 +254,6 @@ data: {"type":"finish","runId":"...","usage":{...},"stopReason":"..."}
 | `src/lib/openclaw/deviceAuthStore.ts` | 设备 token 存储模块 |
 | `src/app/api/openclaw/sessions/route.ts` | 会话管理 API |
 | `src/app/api/openclaw/chat/stream/route.ts` | 流式聊天 API (SSE) |
-| `src/app/api/openclaw/chat/send/route.ts` | 伪流式发送 API (立即返回) |
 | `src/app/api/openclaw/chat/history/route.ts` | 聊天历史 API |
 
 ### 后端 - 核心文件
@@ -309,7 +262,6 @@ data: {"type":"finish","runId":"...","usage":{...},"stopReason":"..."}
 |------|------|
 | `src/app/api/openclaw/sessions/route.ts` | 会话管理 API |
 | `src/app/api/openclaw/chat/stream/route.ts` | 流式聊天 API (SSE) |
-| `src/app/api/openclaw/chat/send/route.ts` | 伪流式发送 API (立即返回) |
 
 ### 前端
 
@@ -358,22 +310,22 @@ OPENCLAW_TOKEN=your-token-here
 2. 网关发送 connect.challenge (包含 nonce)
    ↓
 3. 客户端发送 connect 请求:
-   - role: "operator"
-   - scopes: ["operator.admin", "operator.read", "operator.write"]
-   - auth: { token: 设备token }
-   - device: {
-       id: 设备ID (公钥指纹),
-       publicKey: Base64URL 编码的公钥,
-       signature: 签名的 payload,
-       signedAt: 时间戳,
-       nonce: 网关提供的 nonce
-     }
+    - role: "operator"
+    - scopes: ["operator.admin", "operator.read", "operator.write"]
+    - auth: { token: 设备token }
+    - device: {
+        id: 设备ID (公钥指纹),
+        publicKey: Base64URL 编码的公钥,
+        signature: 签名的 payload,
+        signedAt: 时间戳,
+        nonce: 网关提供的 nonce
+      }
    ↓
 4. 网关验证:
-   - 验证设备签名
-   - 验证设备 token
-   - 检查 scopes 权限
-   - 返回 hello-ok (包含新的 deviceToken)
+    - 验证设备签名
+    - 验证设备 token
+    - 检查 scopes 权限
+    - 返回 hello-ok (包含新的 deviceToken)
    ↓
 5. 客户端存储 deviceToken 用于下次连接
 ```
@@ -400,42 +352,7 @@ OPENCLAW_TOKEN=your-token-here
 - 通过 `onChunk` 回调实时更新 UI
 - 通过 `onFinish` 回调重新加载历史记录
 - AI 回答完成后立即允许发送新消息
-
-```tsx
-await openclawApi.sendMessageStream(
-  sessionKey,
-  content,
-  // onChunk: 每次收到增量内容时调用
-  (delta, fullContent) => {
-    setMessages(prev =>
-      prev.map(msg =>
-        msg.id === assistantMessageId
-          ? { ...msg, content: fullContent }
-          : msg
-      )
-    )
-  },
-  // onFinish: 流式传输完成时调用
-  () => {
-    setIsLoading(false)
-    // 重新加载历史记录获取完整数据
-    openclawApi.getHistory(sessionKey).then(history => {
-      // 更新完整消息（包括 thinking blocks）
-    })
-  },
-  // onError: 发生错误时调用
-  (error) => {
-    setError(error)
-  }
-)
-```
-
-### 4. 发送 API (chat/send/route.ts) - 保留用于轮询场景
-
-- POST 接口，接收 `sessionKey` 和 `content`
-- 发送消息后**立即返回**，不等待 AI 响应
-- 返回 `{ success: true, timestamp: number }`
-- 适用于某些特殊场景
+- 创建 `pending-{timestamp}` ID 的占位符消息，避免错误更新历史消息
 
 ### 4. 消息渲染 (AIMessageViewer.tsx)
 
@@ -445,14 +362,6 @@ await openclawApi.sendMessageStream(
 - 保留表格功能
 - 保留代码块语法高亮和复制按钮
 - 保留基本 Markdown 样式（标题、列表、链接、引用等）
-
-接口：
-```tsx
-interface AIMessageViewerProps {
-  content: string      // Markdown 内容
-  className?: string   // 额外样式类
-}
-```
 
 ### 5. 前端 API (api.ts)
 
@@ -466,9 +375,8 @@ openclawApi.sendMessageStream(
   onError       // (error: string) => void
 )
 
-// 伪流式 API (保留用于特殊场景)
-openclawApi.sendMessage(sessionKey, content)  // 发送消息，立即返回
-openclawApi.pollMessage(sessionKey, afterTimestamp)  // 轮询获取最新助手消息
+// 获取多条 assistant 消息
+openclawApi.getAssistantMessages(sessionKey, afterTimestamp)  // 返回多条消息，不合并
 
 // 其他 API
 openclawApi.getHistory(sessionKey, limit)  // 获取聊天历史
@@ -539,13 +447,6 @@ cat ~/.openclaw/identity/device-auth.json
 # 查看设备密钥
 cat ~/.openclaw/identity/device.json
 ```
-
-### 日志调试
-
-在 `gateway.ts` 中添加了详细的调试日志：
-- `[OpenClawGateway] Connect params:` - 连接参数
-- `[OpenClawGateway] Auth info:` - 网关返回的认证信息
-- `[OpenClaw Chat History]` - 历史记录 API 调用日志
 
 ## 扩展
 
