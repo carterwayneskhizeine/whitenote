@@ -300,23 +300,19 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
            {messages.map(message => (
             <div
               key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} w-full min-w-0`}
+              className="flex justify-start w-full min-w-0"
             >
               <div
-                className={`rounded-lg px-4 py-2 max-w-[85%] md:max-w-[90%] min-w-0 break-words ${
-                  message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : message.role === 'toolResult'
-                    ? 'bg-transparent'
-                    : 'bg-muted'
-                }`}
+                className="rounded-lg px-4 py-2 w-full min-w-0 break-words bg-transparent"
               >
+                {message.role === 'user' && (
+                  <div className="text-sm font-semibold text-muted-foreground mb-1">You</div>
+                )}
                 <AIMessageViewer
                   key={`${message.id}-${JSON.stringify(message.content).slice(0, 20)}`}
                   message={message}
                   thinkingBlocks={(message as any).thinkingBlocks}
                   contentBlocks={(message as any).contentBlocks}
-                  className={message.role === 'user' ? 'text-primary-foreground' : ''}
                 />
                 {message.role === 'assistant' && isLoading &&
                   ((typeof message.content === 'string' && message.content === '') ||
