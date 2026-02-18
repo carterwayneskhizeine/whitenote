@@ -50,7 +50,7 @@ export default function AIChatPage() {
   return (
     <div
       className={cn(
-        "flex flex-col desktop:static fixed top-0 left-0 right-0 desktop:z-0 bg-background desktop:h-auto overflow-x-hidden",
+        "flex flex-col desktop:h-dvh fixed desktop:sticky top-0 left-0 right-0 desktop:z-0 bg-background overflow-hidden",
         isKeyboardOpen ? "z-[45]" : "z-[35]"
       )}
       style={{
@@ -66,7 +66,7 @@ export default function AIChatPage() {
         } : {})
       }}
     >
-      <div className="shrink-0 border-b px-4 py-3 bg-background desktop:bg-transparent z-50 desktop:z-0 relative">
+      <div className="shrink-0 sticky top-0 border-b px-4 py-3 bg-background z-50">
         <h1 className="text-xl font-bold">AI Chat</h1>
       </div>
       <ChatWindow isKeyboardOpen={isKeyboardOpen} />
