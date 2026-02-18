@@ -66,12 +66,6 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
           name: obj.name,
           arguments: obj.arguments,
         })
-        const toolName = obj.name || 'unknown'
-        const args = obj.arguments || {}
-        const argsStr = Object.entries(args)
-          .map(([k, v]) => `${k}:${JSON.stringify(v)}`)
-          .join(', ')
-        parts.push(`🔧 **Tool Call**: ${toolName}\n\`${argsStr}\``)
       } else if (obj.type === 'thinking') {
         contentBlocks.push({
           type: 'thinking',
@@ -98,14 +92,14 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
     content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent)
   }
   
-  if (!content || !content.trim()) return null
+  const hasContentBlocks = contentBlocks.length > 0
+  if ((!content || !content.trim()) && !hasContentBlocks) return null
   
-  // Clean user messages to remove metadata and timestamp
   if (m.role === 'user') {
     content = cleanUserMessage(content)
   }
   
-  if (!content || !content.trim()) return null
+  if ((!content || !content.trim()) && !hasContentBlocks) return null
   
   return {
     role: m.role,

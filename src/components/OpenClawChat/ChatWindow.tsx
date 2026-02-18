@@ -283,7 +283,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       )}
 
       <ScrollArea className="flex-1 w-full min-h-0">
-        <div className="space-y-4 w-full px-4 min-w-0 pb-4">
+        <div className="space-y-4 w-full px-2 min-w-0 pb-4">
           {isLoadingHistory ? (
             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
               <Loader2 className="w-8 h-8 mb-4 animate-spin" />
@@ -303,8 +303,8 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
               className="flex justify-start w-full min-w-0"
             >
               <div
-                className="rounded-lg px-4 py-2 w-full min-w-0 break-words bg-transparent"
-                style={{ maxWidth: 'calc(100vw - 32px)' }}
+                className="rounded-lg px-2 py-2 w-full min-w-0 break-words bg-transparent"
+                style={{ maxWidth: 'calc(100vw - 16px)' }}
               >
                 {message.role === 'user' && (
                   <div className="text-sm font-semibold text-muted-foreground mb-1">You</div>
@@ -334,7 +334,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       <form 
         onSubmit={handleSubmit} 
         className={cn(
-          "p-4 pb-safe-or-4 border-t w-full shrink-0 bg-background",
+          "p-2 pb-safe-or-2 border-t w-full shrink-0 bg-background",
           !isKeyboardOpen && "mb-[53px] desktop:mb-0"
         )}
       >
