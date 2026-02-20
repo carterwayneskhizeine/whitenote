@@ -28,10 +28,7 @@ function isSystemMessage(content: unknown): boolean {
 function cleanUserMessage(text: string): string {
   let cleaned = text
 
-  // Remove "Conversation info (untrusted metadata):" block with JSON
   cleaned = cleaned.replace(/Conversation info \(untrusted metadata\):\s*```json\n[\s\S]*?```\n*/g, '')
-
-  // Remove timestamp prefix like "[Mon 2026-02-16 12:14 GMT+8]"
   cleaned = cleaned.replace(/\[[A-Z][a-z]{2}\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+GMT[+-]\d+\]\s*/g, '')
 
   return cleaned.trim()
@@ -47,7 +44,6 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
   const rawContent = m.content
   if (isSystemMessage(rawContent)) return null
   
-  // Extract thinking blocks and preserve content blocks
   const thinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
   const contentBlocks: { type: 'thinking' | 'toolCall' | 'text'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
   
@@ -58,7 +54,6 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
       if (!item || typeof item !== 'object') continue
       const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown>; id?: string; thinking?: string; thinkingSignature?: string }
       
-      // Preserve the block for later rendering
       if (obj.type === 'toolCall') {
         contentBlocks.push({
           type: 'toolCall',
@@ -256,7 +251,6 @@ export const openclawApi = {
       }
     }
 
-    console.log('[OpenClaw] getAssistantMessages:', assistantMessages.length, 'messages')
     return assistantMessages
   },
 
@@ -276,7 +270,7 @@ export const openclawApi = {
   async sendMessageStream(
     sessionKey: string,
     content: string,
-    onChunk: (delta: string, fullContent: string, contentBlocks?: unknown[]) => void,
+    onChunk: (delta: string, fullContent: string) => void,
     onFinish: () => void,
     onError: (error: string) => void
   ): Promise<void> {
@@ -299,7 +293,6 @@ export const openclawApi = {
     const decoder = new TextDecoder()
     let buffer = ''
     let accumulatedContent = ''
-    let accumulatedContentBlocks: unknown[] = []
 
     try {
       while (true) {
@@ -308,7 +301,6 @@ export const openclawApi = {
 
         buffer += decoder.decode(value, { stream: true })
 
-        // Process complete SSE messages
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
 
@@ -318,53 +310,16 @@ export const openclawApi = {
               const data = JSON.parse(line.slice(6))
 
               if (data.type === 'start') {
-                // Stream started
                 accumulatedContent = ''
-                accumulatedContentBlocks = []
-                console.log('[OpenClaw] Stream started')
               } else if (data.type === 'content') {
-                // Content chunk - may have contentBlocks or delta/content
-                if (data.contentBlocks) {
-                  console.log('[OpenClaw] Received', data.contentBlocks.length, 'content blocks, incremental:', data.incremental, 
-                    'types:', data.contentBlocks.map((b: any) => b.type))
-
-                  // 使用后端发送的 incremental 标志来判断如何处理数据
-                  if (data.incremental) {
-                    // 增量数据：后端已经累积了所有块，直接替换
-                    accumulatedContentBlocks = data.contentBlocks
-                  } else {
-                    // 非增量数据（chat delta）：包含完整的 content blocks，直接替换
-                    accumulatedContentBlocks = data.contentBlocks
-                  }
-
-                  // 从 contentBlocks 中提取文本
-                  const textParts = accumulatedContentBlocks
-                    .filter((block: unknown) => {
-                      const b = block as { type?: string; text?: string }
-                      return b.type === 'text' && typeof b.text === 'string'
-                    })
-                    .map((block: unknown) => {
-                      const b = block as { text?: string }
-                      return b.text || ''
-                    })
-                    .join('')
-
-                  accumulatedContent = textParts
-                  console.log('[OpenClaw] Total blocks:', accumulatedContentBlocks.length, 'text length:', accumulatedContent.length)
-                  onChunk('', accumulatedContent, accumulatedContentBlocks)
-                } else {
-                  // Legacy format: delta/content
-                  const delta = data.delta || data.content || ''
-                  accumulatedContent += delta
-                  onChunk(delta, accumulatedContent)
-                }
+                // 只处理文本内容（流式）
+                const delta = data.delta || data.content || ''
+                accumulatedContent += delta
+                onChunk(delta, accumulatedContent)
               } else if (data.type === 'finish') {
-                // Stream finished
                 onFinish()
                 return
               } else if (data.type === 'error') {
-                // Error occurred
-                console.error('[OpenClaw] Stream error:', data.error)
                 onError(data.error || 'Unknown error')
                 return
               }

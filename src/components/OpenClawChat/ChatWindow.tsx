@@ -1,10 +1,9 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, Bot, User, AlertCircle, Loader2 } from 'lucide-react'
+import { Send, Bot, AlertCircle, Loader2 } from 'lucide-react'
 import { openclawApi } from './api'
 import { AIMessageViewer } from './AIMessageViewer'
 import type { ChatMessage } from './types'
@@ -43,9 +42,6 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const pollingRef = useRef<NodeJS.Timeout | null>(null)
-  const pollingTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  // 使用 ref 跟踪用户消息时间戳和加载状态，避免闭包问题
   const userMessageTimestampRef = useRef<number | null>(null)
   const isLoadingRef = useRef(false)
   const pendingAssistantIdRef = useRef<string | null>(null)
@@ -57,32 +53,6 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
-
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current)
-        pollingRef.current = null
-      }
-      if (pollingTimeoutRef.current) {
-        clearTimeout(pollingTimeoutRef.current)
-        pollingTimeoutRef.current = null
-      }
-    }
-  }, [])
-
-  // 清除所有轮询的辅助函数
-  const clearAllPolling = useCallback(() => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current)
-      pollingRef.current = null
-    }
-    if (pollingTimeoutRef.current) {
-      clearTimeout(pollingTimeoutRef.current)
-      pollingTimeoutRef.current = null
-    }
-  }, [])
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -126,7 +96,6 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       timestamp: userTimestamp,
     }
 
-    // 创建临时的 assistant 消息占位符
     const pendingAssistantId = `pending-${userTimestamp}`
     const pendingAssistantMessage: ChatMessage = {
       id: pendingAssistantId,
@@ -134,8 +103,6 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       content: '',
       timestamp: userTimestamp + 1,
     }
-
-    clearAllPolling()
 
     setMessages(prev => [...prev, userMessage, pendingAssistantMessage])
     setInput('')
@@ -151,28 +118,9 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       await openclawApi.sendMessageStream(
         DEFAULT_SESSION_KEY,
         content,
-        (_delta, fullContent, contentBlocks) => {
+        (delta, fullContent) => {
           if (!isLoadingRef.current) return
 
-          const thinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
-          const displayContentBlocks: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
-
-          if (contentBlocks && Array.isArray(contentBlocks)) {
-            for (const block of contentBlocks) {
-              const b = block as { type?: string; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }
-
-              if (b.type === 'thinking' && b.thinking) {
-                thinkingBlocks.push({ type: 'thinking', thinking: b.thinking, thinkingSignature: b.thinkingSignature })
-                displayContentBlocks.push({ type: 'thinking', thinking: b.thinking, thinkingSignature: b.thinkingSignature })
-              } else if (b.type === 'toolCall') {
-                displayContentBlocks.push({ type: 'toolCall', id: b.id, name: b.name, arguments: b.arguments })
-              } else if (b.type === 'text' && b.text) {
-                displayContentBlocks.push({ type: 'text', text: b.text })
-              }
-            }
-          }
-
-          // 只更新 pending assistant 消息
           const pendingId = pendingAssistantIdRef.current
           if (!pendingId) return
 
@@ -182,8 +130,6 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
                 return {
                   ...msg,
                   content: fullContent,
-                  thinkingBlocks: thinkingBlocks.length > 0 ? thinkingBlocks : undefined,
-                  contentBlocks: displayContentBlocks.length > 0 ? displayContentBlocks : undefined,
                 } as ChatMessage
               }
               return msg
@@ -193,16 +139,15 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         async () => {
           isLoadingRef.current = false
           setIsLoading(false)
-          clearAllPolling()
           pendingAssistantIdRef.current = null
 
+          // 流结束后，获取完整的消息（包含 thinking/toolCall）
           try {
-            const assistantMsgs = await openclawApi.getAssistantMessages(DEFAULT_SESSION_KEY, userMessageTimestampRef.current || undefined)
-            if (assistantMsgs.length > 0 && userMessageTimestampRef.current === userTimestamp) {
+            const assistantMsgs = await openclawApi.getAssistantMessages(DEFAULT_SESSION_KEY, userTimestamp)
+            if (assistantMsgs.length > 0) {
               setMessages(prev => {
                 const userIdx = prev.findIndex(m => m.timestamp === userTimestamp)
                 if (userIdx < 0) return prev
-                // 移除 pending 消息和旧的 assistant 消息
                 const beforePending = prev.slice(0, userIdx + 1).filter(m => !m.id.startsWith('pending-'))
                 const newMessages: ChatMessage[] = assistantMsgs.map((msg, idx) => ({
                   ...msg,
@@ -213,56 +158,23 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
               })
             }
           } catch (err) {
-            console.error('[OpenClawChat] Failed to reload complete message:', err)
+            console.error('[OpenClawChat] Final fetch error:', err)
           }
         },
         (error) => {
           setError(error)
           isLoadingRef.current = false
           pendingAssistantIdRef.current = null
-          // 移除 pending 消息
           setMessages(prev => prev.filter(m => !m.id.startsWith('pending-')))
           setIsLoading(false)
-          clearAllPolling()
         }
       )
-
-      console.log('[OpenClawChat] Starting progress polling...')
-      pollingRef.current = setInterval(async () => {
-        if (!isLoadingRef.current || userMessageTimestampRef.current !== userTimestamp) {
-          clearAllPolling()
-          return
-        }
-
-        try {
-          const assistantMsgs = await openclawApi.getAssistantMessages(DEFAULT_SESSION_KEY, userTimestamp)
-          if (assistantMsgs.length > 0 && userMessageTimestampRef.current === userTimestamp && isLoadingRef.current) {
-            console.log('[OpenClawChat] Polling update:', assistantMsgs.length, 'messages')
-            setMessages(prev => {
-              const userIdx = prev.findIndex(m => m.timestamp === userTimestamp)
-              if (userIdx < 0) return prev
-              // 移除 pending 消息和旧的 assistant 消息
-              const beforePending = prev.slice(0, userIdx + 1).filter(m => !m.id.startsWith('pending-'))
-              const newMessages: ChatMessage[] = assistantMsgs.map((msg, idx) => ({
-                ...msg,
-                id: msg.timestamp ? `${msg.timestamp}-${idx}` : `assistant-${idx}`,
-                timestamp: msg.timestamp ?? Date.now(),
-              }))
-              return [...beforePending, ...newMessages]
-            })
-          }
-        } catch (err) {
-          console.error('[OpenClawChat] Polling error:', err)
-        }
-      }, 1000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
       isLoadingRef.current = false
       pendingAssistantIdRef.current = null
-      // 移除 pending 消息
       setMessages(prev => prev.filter(m => !m.id.startsWith('pending-')))
       setIsLoading(false)
-      clearAllPolling()
     }
   }
 
