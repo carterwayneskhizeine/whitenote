@@ -41,11 +41,21 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const userMessageTimestampRef = useRef<number | null>(null)
   const isLoadingRef = useRef(false)
   const pendingAssistantIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const checkDesktop = () => {
+      setIsDesktop(window.innerWidth >= 750)
+    }
+    checkDesktop()
+    window.addEventListener('resize', checkDesktop)
+    return () => window.removeEventListener('resize', checkDesktop)
+  }, [])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -202,9 +212,16 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   }
 
   const toggleFullscreen = () => {
-    setIsFullscreen(!isFullscreen)
-    if (!isFullscreen) {
-      setTimeout(() => inputRef.current?.focus(), 100)
+    if (isDesktop) {
+      setIsFullscreen(!isFullscreen)
+      if (!isFullscreen) {
+        setTimeout(() => inputRef.current?.focus(), 100)
+      }
+    } else {
+      setIsFullscreen(!isFullscreen)
+      if (!isFullscreen) {
+        setTimeout(() => inputRef.current?.focus(), 100)
+      }
     }
   }
 
@@ -212,12 +229,12 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
     setIsFullscreen(false)
   }
 
-  if (isFullscreen) {
+  if (isFullscreen && isDesktop) {
     return (
-      <div className="fixed inset-0 z-[60] bg-background flex flex-col">
-        <div className="flex items-center justify-between px-4 py-3 border-b">
-          <h2 className="text-lg font-semibold">New Message</h2>
-          <div className="flex items-center gap-2">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden desktop:items-center">
+        <div className="flex flex-col flex-1 min-h-0 w-full desktop:max-w-xl overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <h2 className="text-lg font-semibold">New Message</h2>
             <Button
               type="button"
               variant="ghost"
@@ -228,38 +245,39 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
               <X className="w-5 h-5" />
             </Button>
           </div>
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder="What's happening?"
+              className="flex-1 w-full resize-none bg-transparent px-4 py-3 text-base placeholder:text-muted-foreground/60 focus:outline-none"
+              disabled={isLoading}
+              autoFocus
+            />
+            <div className="flex items-center justify-between px-4 py-3 border-t">
+              <div className="text-xs text-muted-foreground">
+                {input.length > 0 && <span>{input.length} characters</span>}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className="rounded-full px-5"
+                >
+                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
+                </Button>
+              </div>
+            </div>
+          </form>
         </div>
-        <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            placeholder="What's happening?"
-            className="flex-1 w-full resize-none bg-transparent px-4 py-3 text-base placeholder:text-muted-foreground/60 focus:outline-none"
-            disabled={isLoading}
-            autoFocus
-          />
-          <div className="flex items-center justify-between px-4 py-3 border-t">
-            <div className="text-xs text-muted-foreground">
-              {input.length > 0 && <span>{input.length} characters</span>}
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                className="rounded-full px-5"
-              >
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
-              </Button>
-            </div>
-          </div>
-        </form>
       </div>
     )
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden desktop:items-center">
+      <div className="flex flex-col flex-1 min-h-0 w-full desktop:max-w-xl overflow-hidden">
       {error && (
         <div className="flex items-center gap-2 p-3 mb-2 text-sm text-red-500 bg-red-50 rounded-md mx-4">
           <AlertCircle className="w-4 h-4" />
@@ -355,6 +373,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
           </Button>
         </div>
       </form>
+      </div>
     </div>
   )
 }
