@@ -6,6 +6,65 @@
 
 ## 更新日志
 
+### 2026-02-20: 全屏输入模式与自动扩展输入框
+
+实现了 Twitter 风格的输入框 UI，包含：
+- 自动扩展到最多3行的 textarea
+- 全屏输入模式切换按钮
+- 更现代的圆角设计
+
+```tsx
+// src/components/OpenClawChat/ChatWindow.tsx
+
+// 自动调整 textarea 高度 (最多3行)
+const adjustTextareaHeight = useCallback(() => {
+  const textarea = inputRef.current
+  if (!textarea) return
+  
+  textarea.style.height = 'auto'
+  const lineHeight = 22
+  const maxHeight = lineHeight * 3 + 16
+  const newHeight = Math.min(textarea.scrollHeight, maxHeight)
+  textarea.style.height = `${newHeight}px`
+}, [])
+
+// 全屏输入模式
+const [isFullscreen, setIsFullscreen] = useState(false)
+
+// 输入框样式 (Twitter 风格)
+<div className="flex-1 relative flex items-end bg-muted/30 rounded-2xl border border-transparent focus-within:border-primary/20 focus-within:bg-muted/50 transition-colors">
+  <textarea
+    className="flex-1 w-full min-h-[40px] max-h-[82px] resize-none bg-transparent px-4 py-2.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none"
+    rows={1}
+  />
+  <Button onClick={toggleFullscreen} className="rounded-full">
+    <Maximize2 className="w-4 h-4" />
+  </Button>
+</div>
+```
+
+全屏模式渲染：
+```tsx
+if (isFullscreen) {
+  return (
+    <div className="fixed inset-0 z-[60] bg-background flex flex-col">
+      {/* 顶部栏 */}
+      <div className="flex items-center justify-between px-4 py-3 border-b">
+        <h2 className="text-lg font-semibold">New Message</h2>
+        <Button variant="ghost" size="icon" onClick={closeFullscreen}>
+          <X className="w-5 h-5" />
+        </Button>
+      </div>
+      {/* 全屏输入区域 */}
+      <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+        <textarea className="flex-1 w-full resize-none bg-transparent px-4 py-3 text-base" />
+        {/* 底部发送按钮 */}
+      </form>
+    </div>
+  )
+}
+```
+
 ### 2026-02-15: 历史记录加载
 
 在页面加载时从 OpenClaw Gateway API 获取聊天历史记录：

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, Bot, AlertCircle, Loader2 } from 'lucide-react'
+import { Send, Bot, AlertCircle, Loader2, Maximize2, X } from 'lucide-react'
 import { openclawApi } from './api'
 import { AIMessageViewer } from './AIMessageViewer'
 import type { ChatMessage } from './types'
@@ -40,6 +40,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingHistory, setIsLoadingHistory] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const userMessageTimestampRef = useRef<number | null>(null)
@@ -49,6 +50,21 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
+
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = inputRef.current
+    if (!textarea) return
+    
+    textarea.style.height = 'auto'
+    const lineHeight = 22
+    const maxHeight = lineHeight * 3 + 16
+    const newHeight = Math.min(textarea.scrollHeight, maxHeight)
+    textarea.style.height = `${newHeight}px`
+  }, [])
+
+  useEffect(() => {
+    adjustTextareaHeight()
+  }, [input, adjustTextareaHeight])
 
   useEffect(() => {
     scrollToBottom()
@@ -179,10 +195,67 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !isFullscreen) {
       e.preventDefault()
       handleSubmit(e)
     }
+  }
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen)
+    if (!isFullscreen) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }
+
+  const closeFullscreen = () => {
+    setIsFullscreen(false)
+  }
+
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-[60] bg-background flex flex-col">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h2 className="text-lg font-semibold">New Message</h2>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={closeFullscreen}
+              className="rounded-full"
+            >
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="What's happening?"
+            className="flex-1 w-full resize-none bg-transparent px-4 py-3 text-base placeholder:text-muted-foreground/60 focus:outline-none"
+            disabled={isLoading}
+            autoFocus
+          />
+          <div className="flex items-center justify-between px-4 py-3 border-t">
+            <div className="text-xs text-muted-foreground">
+              {input.length > 0 && <span>{input.length} characters</span>}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="submit"
+                disabled={isLoading || !input.trim()}
+                className="rounded-full px-5"
+              >
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </div>
+    )
   }
 
   return (
@@ -246,23 +319,39 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       <form 
         onSubmit={handleSubmit} 
         className={cn(
-          "p-2 pb-safe-or-2 border-t w-full shrink-0 bg-background",
+          "p-3 pb-safe-or-3 border-t w-full shrink-0 bg-background",
           !isKeyboardOpen && "mb-[53px] desktop:mb-0"
         )}
       >
-        <div className="flex gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
-            className="flex-1 min-h-[44px] max-h-[200px] resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={isLoading}
-            rows={1}
-          />
-          <Button type="submit" size="icon" disabled={isLoading || !input.trim()}>
-            <Send className="w-4 h-4" />
+        <div className="flex items-end gap-2">
+          <div className="flex-1 relative flex items-end bg-muted/30 rounded-2xl border border-transparent focus-within:border-primary/20 focus-within:bg-muted/50 transition-colors">
+            <textarea
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Message..."
+              className="flex-1 w-full min-h-[40px] max-h-[82px] resize-none bg-transparent px-4 py-2.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none"
+              disabled={isLoading}
+              rows={1}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={toggleFullscreen}
+              className="shrink-0 rounded-full w-8 h-8 mr-1 mb-1 text-muted-foreground hover:text-foreground"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </Button>
+          </div>
+          <Button 
+            type="submit" 
+            size="icon"
+            disabled={isLoading || !input.trim()}
+            className="rounded-full w-10 h-10 shrink-0"
+          >
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
           </Button>
         </div>
       </form>
