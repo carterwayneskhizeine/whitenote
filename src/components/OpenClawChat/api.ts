@@ -15,6 +15,7 @@ export interface ChatHistoryMessage {
 
 function isSystemMessage(content: unknown): boolean {
   if (typeof content !== 'string') return false
+  // Filter out messages that start with time stamps or contain "Conversation info"
   return content.startsWith('[Sat') ||
          content.startsWith('[Sun') ||
          content.startsWith('[Mon') ||
@@ -22,38 +23,64 @@ function isSystemMessage(content: unknown): boolean {
          content.startsWith('[Wed') ||
          content.startsWith('[Thu') ||
          content.startsWith('[Fri') ||
-         content.includes('Reasoning STREAM')
+         content.includes('Reasoning STREAM') ||
+         content.includes('Conversation info')
 }
 
 function cleanUserMessage(text: string): string {
   let cleaned = text
 
-  cleaned = cleaned.replace(/Conversation info \(untrusted metadata\):\s*```json\n[\s\S]*?```\n*/g, '')
-  cleaned = cleaned.replace(/\[[A-Z][a-z]{2}\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\s+GMT[+-]\d+\]\s*/g, '')
+  // Remove "Conversation info (untrusted metadata):" section with JSON block
+  cleaned = cleaned.replace(/Conversation info \(untrusted metadata\):\s*\n(?:\s*\n)?[\s\S]*?\n\n/g, '')
+
+  // Remove JSON block (in case it's not caught by the above)
+  cleaned = cleaned.replace(/```json\n[\s\S]*?```\n*/g, '')
+
+  // Remove time stamp like [Sat 2026-02-21 15:28 GMT+8] or [Sat 2026-02-21 15:28 GMT+8]
+  cleaned = cleaned.replace(/\[[A-Z][a-z]{2}\s+\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}\sGMT[+-]\d+\]\s*/g, '')
+
+  // Remove any remaining empty lines
+  cleaned = cleaned.replace(/^\s*\n/gm, '')
 
   return cleaned.trim()
 }
 
 function convertMessage(msg: unknown): ChatHistoryMessage | null {
   if (!msg || typeof msg !== 'object') return null
-  
+
   const m = msg as { role?: string; content?: unknown; timestamp?: number }
-  
+
   if (m.role !== 'user' && m.role !== 'assistant') return null
-  
+
   const rawContent = m.content
-  if (isSystemMessage(rawContent)) return null
-  
+
+  // Check if this is a system message BEFORE processing array content
+  // For array content, we need to check if any text block contains system message patterns
+  if (Array.isArray(rawContent)) {
+    const hasSystemMessage = rawContent.some((item: unknown) => {
+      if (!item || typeof item !== 'object') return false
+      const obj = item as { type?: string; text?: string }
+      return obj.type === 'text' && isSystemMessage(obj.text)
+    })
+    if (hasSystemMessage) {
+      // Don't filter out entirely - we'll clean the text instead
+    }
+  } else if (isSystemMessage(rawContent)) {
+    return null
+  }
+
   const thinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
   const contentBlocks: { type: 'thinking' | 'toolCall' | 'text'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
-  
+
   let content: string
+  const isUserMessage = m.role === 'user'
+
   if (Array.isArray(rawContent)) {
     const parts: string[] = []
     for (const item of rawContent) {
       if (!item || typeof item !== 'object') continue
       const obj = item as { type?: string; text?: string; name?: string; arguments?: Record<string, unknown>; id?: string; thinking?: string; thinkingSignature?: string }
-      
+
       if (obj.type === 'toolCall') {
         contentBlocks.push({
           type: 'toolCall',
@@ -75,27 +102,33 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
           })
         }
       } else if (obj.text) {
-        contentBlocks.push({
-          type: 'text',
-          text: obj.text,
-        })
-        parts.push(obj.text)
+        // Clean user message text before adding to contentBlocks
+        const cleanedText = isUserMessage ? cleanUserMessage(obj.text) : obj.text
+        // Only add if there's content after cleaning
+        if (cleanedText.trim()) {
+          contentBlocks.push({
+            type: 'text',
+            text: cleanedText,
+          })
+          parts.push(cleanedText)
+        }
       }
     }
     content = parts.join('\n')
   } else {
     content = typeof rawContent === 'string' ? rawContent : JSON.stringify(rawContent)
   }
-  
+
   const hasContentBlocks = contentBlocks.length > 0
   if ((!content || !content.trim()) && !hasContentBlocks) return null
-  
-  if (m.role === 'user') {
+
+  // Clean content string for user messages (if not already cleaned)
+  if (isUserMessage && (!hasContentBlocks || content)) {
     content = cleanUserMessage(content)
   }
-  
+
   if ((!content || !content.trim()) && !hasContentBlocks) return null
-  
+
   return {
     role: m.role,
     content,
@@ -120,12 +153,16 @@ export const openclawApi = {
     const messages = (data.messages || []) as unknown[]
     const converted: ChatHistoryMessage[] = []
 
+    //console.log('[OpenClaw] Raw messages from gateway:', JSON.stringify(messages, null, 2))
+
     for (const msg of messages) {
       const convertedMsg = convertMessage(msg)
       if (convertedMsg) {
         converted.push(convertedMsg)
       }
     }
+
+    //console.log('[OpenClaw] Converted messages:', converted)
 
     return converted
   },
