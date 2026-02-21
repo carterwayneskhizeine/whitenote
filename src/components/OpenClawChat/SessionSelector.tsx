@@ -29,6 +29,8 @@ export function SessionSelector({
   const [newSessionLabel, setNewSessionLabel] = useState('')
   const [editingLabel, setEditingLabel] = useState<string | null>(null)
   const [editedLabel, setEditedLabel] = useState('')
+  // Track custom labels that may not be in the sessions list yet
+  const customLabelsRef = useRef<Map<string, string>>(new Map())
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Load sessions when dropdown opens
@@ -65,7 +67,10 @@ export function SessionSelector({
       const sorted = result.sessions.sort((a, b) => b.updatedAt - a.updatedAt)
       setSessions(sorted)
     } catch (error) {
-      console.error('[SessionSelector] Failed to load sessions:', error)
+      // Silently handle connection errors - gateway might not be connected yet
+      // Don't log to console in production to avoid noise
+      console.debug('[SessionSelector] Failed to load sessions:', error)
+      setSessions([]) // Set empty sessions on error
     } finally {
       setIsLoading(false)
     }
@@ -76,12 +81,16 @@ export function SessionSelector({
 
     setIsCreating(true)
     try {
-      const result = await openclawApi.createSession(newSessionLabel.trim(), true)
+      const label = newSessionLabel.trim()
+      const result = await openclawApi.createSession(label, true)
+      // Store the custom label immediately for display
+      customLabelsRef.current.set(result.key, label)
       setNewSessionLabel('')
       setIsOpen(false)
-      onSessionCreated?.(result.key, result.label)
-      onSessionChange(result.key, result.label)
-      // Reload sessions to include the new one
+      // Use the label we provided as the display label
+      onSessionCreated?.(result.key, label)
+      onSessionChange(result.key, label)
+      // Reload sessions to include the new one and get fresh data
       await loadSessions()
     } catch (error) {
       console.error('[SessionSelector] Failed to create session:', error)
@@ -114,25 +123,48 @@ export function SessionSelector({
     }
 
     try {
-      await openclawApi.updateSession(sessionKey, editedLabel.trim())
+      const newLabel = editedLabel.trim()
+      await openclawApi.updateSession(sessionKey, newLabel)
+      setEditingLabel(null)
+      setEditedLabel('')
+
+      // Update custom labels cache
+      customLabelsRef.current.set(sessionKey, newLabel)
+
+      // Optimistically update the local state
       setSessions(prev =>
         prev.map(s =>
-          s.key === sessionKey ? { ...s, label: editedLabel.trim() } : s
+          s.key === sessionKey ? { ...s, label: newLabel } : s
         )
       )
-      setEditingLabel(null)
+
       // If updated session is current, notify parent
       if (sessionKey === currentSessionKey) {
-        onSessionChange(sessionKey, editedLabel.trim())
+        onSessionChange(sessionKey, newLabel)
       }
+
+      // Reload sessions to get the updated data from server
+      await loadSessions()
     } catch (error) {
       console.error('[SessionSelector] Failed to update label:', error)
+      // Show error to user
+      setEditingLabel(null)
+      setEditedLabel('')
     }
   }
 
   const getCurrentLabel = () => {
+    // First check custom labels (for newly created sessions)
+    const customLabel = customLabelsRef.current.get(currentSessionKey)
+    if (customLabel) return customLabel
+
+    // Then check sessions list
     const current = sessions.find(s => s.key === currentSessionKey)
-    if (current?.label) return current.label
+    if (current?.label) {
+      // Update custom labels cache with the label from server
+      customLabelsRef.current.set(currentSessionKey, current.label)
+      return current.label
+    }
     if (currentSessionKey === 'main' || currentSessionKey === 'agent:main:main') return 'Main Chat'
     return currentSessionKey
   }
@@ -150,7 +182,7 @@ export function SessionSelector({
       </Button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-1 w-72 bg-background border rounded-lg shadow-lg z-50">
+        <div className="absolute top-full right-0 mt-1 w-72 bg-background border rounded-lg shadow-lg z-50">
           <div className="p-2 border-b">
             <div className="flex items-center gap-2">
               <input
@@ -188,16 +220,37 @@ export function SessionSelector({
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
             ) : sessions.length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                No sessions yet.<br />Create one above!
-              </div>
+              <>
+                <div className="p-1">
+                  {/* Always show Main Chat option */}
+                  <div
+                    className={cn(
+                      "flex items-center gap-1 px-2 py-1.5 rounded-md group cursor-pointer",
+                      currentSessionKey === 'main' ? "bg-muted" : "hover:bg-muted/50"
+                    )}
+                    onClick={() => {
+                      onSessionChange('main', 'Main Chat')
+                      setIsOpen(false)
+                    }}
+                  >
+                    <button className="flex-1 text-left text-sm truncate px-2 py-1">
+                      Main Chat
+                    </button>
+                  </div>
+                </div>
+                <div className="py-4 text-center text-sm text-muted-foreground">
+                  No other sessions yet.<br />Create one above!
+                </div>
+              </>
             ) : (
               <div className="p-1">
                 {sessions.map(session => {
                   const isCurrent = session.key === currentSessionKey
                   const isDeletingThis = isDeleting === session.key
                   const isEditingThis = editingLabel === session.key
-                  const displayLabel = session.label ||
+                  // Use custom label first, then session label, then fallback
+                  const displayLabel = customLabelsRef.current.get(session.key) ||
+                    session.label ||
                     (session.key === 'main' || session.key === 'agent:main:main' ? 'Main Chat' : session.key)
 
                   return (
