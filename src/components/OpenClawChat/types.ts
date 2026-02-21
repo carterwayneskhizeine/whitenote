@@ -78,3 +78,41 @@ export interface ChatState {
   sessionKey: string | null;
   error: string | null;
 }
+
+// Session types
+export interface OpenClawSession {
+  key: string
+  kind: 'direct' | 'group' | 'global' | 'unknown'
+  updatedAt: number
+  sessionId?: string
+  label?: string
+  flags?: string[]
+  lastMessage?: string
+}
+
+export interface SessionListResponse {
+  sessions: OpenClawSession[]
+  count: number
+}
+
+export interface CreateSessionResponse {
+  key: string
+  sessionId: string
+  label?: string
+}
+
+export interface UpdateSessionResponse {
+  ok: boolean
+  path: string
+  entry: {
+    key: string
+    label?: string
+  }
+}
+
+export interface DeleteSessionResponse {
+  ok: boolean
+  key: string
+  deleted: boolean
+  archived: string[]
+}

@@ -5,6 +5,13 @@ export interface SessionResponse {
   sessionId: string
 }
 
+import type {
+  SessionListResponse,
+  CreateSessionResponse,
+  UpdateSessionResponse,
+  DeleteSessionResponse,
+} from './types'
+
 export interface ChatHistoryMessage {
   role: 'user' | 'assistant'
   content: string
@@ -291,19 +298,6 @@ export const openclawApi = {
     return assistantMessages
   },
 
-  async createSession(label?: string): Promise<SessionResponse> {
-    const response = await fetch(`${API_BASE}/sessions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label }),
-    })
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.error || 'Failed to create session')
-    }
-    return response.json()
-  },
-
   async sendMessageStream(
     sessionKey: string,
     content: string,
@@ -369,5 +363,60 @@ export const openclawApi = {
     } finally {
       reader.releaseLock()
     }
+  },
+
+  // Session management methods
+  async listSessions(limit?: number, activeMinutes?: number): Promise<SessionListResponse> {
+    const params = new URLSearchParams()
+    if (limit) params.append('limit', limit.toString())
+    if (activeMinutes) params.append('activeMinutes', activeMinutes.toString())
+    params.append('includeLastMessage', 'true')
+
+    const response = await fetch(`${API_BASE}/sessions?${params}`)
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to list sessions')
+    }
+    return response.json()
+  },
+
+  async createSession(label?: string, createNew?: boolean): Promise<CreateSessionResponse> {
+    const response = await fetch(`${API_BASE}/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label, createNew }),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to create session')
+    }
+    return response.json()
+  },
+
+  async updateSession(sessionKey: string, label?: string): Promise<UpdateSessionResponse> {
+    const response = await fetch(`${API_BASE}/sessions/${encodeURIComponent(sessionKey)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label }),
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to update session')
+    }
+    return response.json()
+  },
+
+  async deleteSession(sessionKey: string, deleteTranscript?: boolean): Promise<DeleteSessionResponse> {
+    const params = new URLSearchParams()
+    if (deleteTranscript) params.append('deleteTranscript', 'true')
+
+    const response = await fetch(`${API_BASE}/sessions/${encodeURIComponent(sessionKey)}?${params}`, {
+      method: 'DELETE',
+    })
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to delete session')
+    }
+    return response.json()
   },
 }

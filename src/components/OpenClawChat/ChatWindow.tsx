@@ -6,35 +6,72 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Send, Bot, AlertCircle, Loader2, Maximize2, X } from 'lucide-react'
 import { openclawApi } from './api'
 import { AIMessageViewer } from './AIMessageViewer'
+import { SessionSelector } from './SessionSelector'
 import type { ChatMessage } from './types'
 import { cn } from '@/lib/utils'
 
 const DEFAULT_SESSION_KEY = 'main'
 
-const STORAGE_KEY = 'openclaw-chat-messages'
+const STORAGE_KEY_PREFIX = 'openclaw-chat-messages-'
+const SESSION_KEY_STORAGE = 'openclaw-current-session'
 
-function loadFromStorage(): ChatMessage[] {
+function loadSessionFromStorage(): string {
+  if (typeof window === 'undefined') return DEFAULT_SESSION_KEY
+  try {
+    const stored = localStorage.getItem(SESSION_KEY_STORAGE)
+    if (stored) return stored
+  } catch (e) {
+    console.error('[OpenClaw Chat] Failed to load session key:', e)
+  }
+  return DEFAULT_SESSION_KEY
+}
+
+function saveSessionToStorage(sessionKey: string) {
+  try {
+    localStorage.setItem(SESSION_KEY_STORAGE, sessionKey)
+  } catch (e) {
+    console.error('[OpenClaw Chat] Failed to save session key:', e)
+  }
+}
+
+function loadMessagesFromStorage(sessionKey: string): ChatMessage[] {
   if (typeof window === 'undefined') return []
   try {
-    const stored = localStorage.getItem(STORAGE_KEY)
+    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${sessionKey}`)
     if (stored) {
       return JSON.parse(stored)
     }
   } catch (e) {
-    console.error('[OpenClaw Chat] Failed to load from storage:', e)
+    console.error('[OpenClaw Chat] Failed to load messages from storage:', e)
   }
   return []
 }
 
-function saveToStorage(messages: ChatMessage[]) {
+function saveMessagesToStorage(sessionKey: string, messages: ChatMessage[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${sessionKey}`, JSON.stringify(messages))
   } catch (e) {
-    console.error('[OpenClaw Chat] Failed to save to storage:', e)
+    console.error('[OpenClaw Chat] Failed to save messages to storage:', e)
   }
 }
 
-export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
+interface ChatWindowProps {
+  isKeyboardOpen?: boolean
+  currentSessionKey?: string
+  onSessionChange?: (sessionKey: string, label?: string) => void
+}
+
+export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, onSessionChange: propOnSessionChange }: ChatWindowProps) {
+  const [internalSessionKey, setInternalSessionKey] = useState(() => loadSessionFromStorage())
+  const [currentSessionLabel, setCurrentSessionLabel] = useState<string | undefined>()
+
+  // Use prop session key if provided, otherwise use internal state
+  const currentSessionKey = propSessionKey ?? internalSessionKey
+  const handleSessionChange = propOnSessionChange ?? ((key: string, label?: string) => {
+    setInternalSessionKey(key)
+    setCurrentSessionLabel(label)
+    saveSessionToStorage(key)
+  })
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -64,7 +101,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
   const adjustTextareaHeight = useCallback(() => {
     const textarea = inputRef.current
     if (!textarea) return
-    
+
     textarea.style.height = 'auto'
     const lineHeight = 22
     const maxHeight = lineHeight * 3 + 16
@@ -80,10 +117,21 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
     scrollToBottom()
   }, [messages])
 
+  // Load messages for current session
   useEffect(() => {
     const loadHistory = async () => {
+      setIsLoadingHistory(true)
+      setMessages([])
+
       try {
-        const history = await openclawApi.getHistory(DEFAULT_SESSION_KEY)
+        // First try to load from localStorage for instant display
+        const cached = loadMessagesFromStorage(currentSessionKey)
+        if (cached.length > 0) {
+          setMessages(cached)
+        }
+
+        // Then fetch fresh data from OpenClaw
+        const history = await openclawApi.getHistory(currentSessionKey)
         if (history.length > 0) {
           const messagesWithIds = history.map((msg, idx) => ({
             ...msg,
@@ -94,21 +142,29 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
             contentBlocks: msg.contentBlocks,
           })) as ChatMessage[]
           setMessages(messagesWithIds)
+          saveMessagesToStorage(currentSessionKey, messagesWithIds)
+        } else if (cached.length === 0) {
+          setMessages([])
         }
       } catch (err) {
         console.error('[OpenClawChat] Failed to load history:', err)
+        // If fetch fails, use cached data if available
+        const cached = loadMessagesFromStorage(currentSessionKey)
+        if (cached.length > 0) {
+          setMessages(cached)
+        }
       } finally {
         setIsLoadingHistory(false)
       }
     }
     loadHistory()
-  }, [])
+  }, [currentSessionKey])
 
   useEffect(() => {
     if (!isLoadingHistory && messages.length > 0) {
-      saveToStorage(messages)
+      saveMessagesToStorage(currentSessionKey, messages)
     }
-  }, [messages, isLoadingHistory])
+  }, [messages, isLoadingHistory, currentSessionKey])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -142,9 +198,9 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
       const content = typeof userMessage.content === 'string' ? userMessage.content : JSON.stringify(userMessage.content)
 
       await openclawApi.sendMessageStream(
-        DEFAULT_SESSION_KEY,
+        currentSessionKey,
         content,
-        (delta, fullContent) => {
+        (_delta, fullContent) => {
           if (!isLoadingRef.current) return
 
           const pendingId = pendingAssistantIdRef.current
@@ -169,7 +225,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
 
           // 流结束后，获取完整的消息（包含 thinking/toolCall）
           try {
-            const assistantMsgs = await openclawApi.getAssistantMessages(DEFAULT_SESSION_KEY, userTimestamp)
+            const assistantMsgs = await openclawApi.getAssistantMessages(currentSessionKey, userTimestamp)
             if (assistantMsgs.length > 0) {
               setMessages(prev => {
                 const userIdx = prev.findIndex(m => m.timestamp === userTimestamp)
@@ -306,7 +362,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
               className="flex justify-start w-full min-w-0"
             >
               <div
-                className="rounded-lg px-2 py-2 w-full min-w-0 break-words bg-transparent"
+                className="rounded-lg px-2 py-2 w-full min-w-0 wrap-break-word bg-transparent"
                 style={{ maxWidth: 'calc(100vw - 16px)' }}
               >
                 {message.role === 'user' && (
@@ -334,8 +390,8 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
         </div>
       </ScrollArea>
 
-      <form 
-        onSubmit={handleSubmit} 
+      <form
+        onSubmit={handleSubmit}
         className={cn(
           "p-3 pb-safe-or-3 border-t w-full shrink-0 bg-background",
           !isKeyboardOpen && "mb-[53px] desktop:mb-0"
@@ -349,7 +405,7 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Message..."
-              className="flex-1 w-full min-h-[40px] max-h-[82px] resize-none bg-transparent px-4 py-2.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none"
+              className="flex-1 w-full min-h-10 max-h-20.5 resize-none bg-transparent px-4 py-2.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none"
               disabled={isLoading}
               rows={1}
             />
@@ -363,8 +419,8 @@ export function ChatWindow({ isKeyboardOpen }: { isKeyboardOpen?: boolean }) {
               <Maximize2 className="w-4 h-4" />
             </Button>
           </div>
-          <Button 
-            type="submit" 
+          <Button
+            type="submit"
             size="icon"
             disabled={isLoading || !input.trim()}
             className="rounded-full w-10 h-10 shrink-0"

@@ -2,11 +2,14 @@
 
 import { useState, useEffect, useRef } from "react"
 import { ChatWindow } from "@/components/OpenClawChat/ChatWindow"
+import { SessionSelector } from "@/components/OpenClawChat/SessionSelector"
 import { cn } from "@/lib/utils"
 
 export default function AIChatPage() {
   const [viewportHeight, setViewportHeight] = useState(0)
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false)
+  const [currentSessionKey, setCurrentSessionKey] = useState('main')
+  const [currentSessionLabel, setCurrentSessionLabel] = useState<string | undefined>('Main Chat')
   const maxHeightRef = useRef(0)
   const lastWidthRef = useRef(0)
 
@@ -16,20 +19,20 @@ export default function AIChatPage() {
       if (window.visualViewport) {
         const height = window.visualViewport.height
         const width = window.visualViewport.width
-        
+
         setViewportHeight(height)
-        
+
         // If width changed, we likely rotated - reset max height
         if (width !== lastWidthRef.current) {
           maxHeightRef.current = height
           lastWidthRef.current = width
         }
-        
+
         // Update maximum height seen so far (likely keyboard closed state)
         if (height > maxHeightRef.current) {
           maxHeightRef.current = height
         }
-        
+
         // Detect if keyboard is likely open (height significantly less than max height)
         setIsKeyboardOpen(maxHeightRef.current - height > 150)
       }
@@ -46,6 +49,11 @@ export default function AIChatPage() {
       }
     }
   }, [])
+
+  const handleSessionChange = (sessionKey: string, label?: string) => {
+    setCurrentSessionKey(sessionKey)
+    setCurrentSessionLabel(label)
+  }
 
   return (
     <div
@@ -67,9 +75,29 @@ export default function AIChatPage() {
       }}
     >
       <div className="shrink-0 sticky top-0 border-b px-4 py-3 bg-background z-50">
-        <h1 className="text-xl font-bold">AI Chat</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold">AI Chat</h1>
+          <SessionSelector
+            currentSessionKey={currentSessionKey}
+            onSessionChange={handleSessionChange}
+            onSessionCreated={(key, label) => {
+              setCurrentSessionKey(key)
+              setCurrentSessionLabel(label)
+            }}
+            onSessionDeleted={(key) => {
+              if (key === currentSessionKey) {
+                setCurrentSessionKey('main')
+                setCurrentSessionLabel('Main Chat')
+              }
+            }}
+          />
+        </div>
       </div>
-      <ChatWindow isKeyboardOpen={isKeyboardOpen} />
+      <ChatWindow
+        isKeyboardOpen={isKeyboardOpen}
+        currentSessionKey={currentSessionKey}
+        onSessionChange={handleSessionChange}
+      />
     </div>
   )
 }
