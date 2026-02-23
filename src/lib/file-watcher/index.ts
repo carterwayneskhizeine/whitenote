@@ -333,13 +333,13 @@ function scanCommentFolder(workspaceId: string, folderPath: string, folderName: 
       // Check if file is tracked in workspace.json
       const trackedFile = Object.values(ws.comments || {}).find((c: any) =>
         c.currentFilename === file.name && c.folderName === folderName
-      )
+      ) as any
 
       if (trackedFile) {
         // File is tracked, check if it was modified
         const lastModified = stats.mtime.toISOString()
 
-        if (trackedFile.updated_at !== lastModified) {
+        if ((trackedFile.updated_at as string | undefined) !== lastModified) {
           console.log(`[FileWatcher] Modified comment file detected: ${folderName}/${file.name}`)
 
           // Add to import queue

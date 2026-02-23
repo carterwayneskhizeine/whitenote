@@ -62,7 +62,8 @@ export function SessionSelector({
   const loadSessions = async () => {
     setIsLoading(true)
     try {
-      const result = await openclawApi.listSessions(50, 60 * 24) // Last 24 hours
+      // Get all sessions without time limit
+      const result = await openclawApi.listSessions(100, undefined)
       // Sort by updated time (most recent first)
       const sorted = result.sessions.sort((a, b) => b.updatedAt - a.updatedAt)
       setSessions(sorted)

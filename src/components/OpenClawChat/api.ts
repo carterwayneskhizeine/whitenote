@@ -369,7 +369,9 @@ export const openclawApi = {
   async listSessions(limit?: number, activeMinutes?: number): Promise<SessionListResponse> {
     const params = new URLSearchParams()
     if (limit) params.append('limit', limit.toString())
-    if (activeMinutes) params.append('activeMinutes', activeMinutes.toString())
+    // Only append activeMinutes if it's defined (not undefined)
+    // undefined means get all sessions, 0 or a number means filter by time
+    if (activeMinutes !== undefined) params.append('activeMinutes', activeMinutes.toString())
     params.append('includeLastMessage', 'true')
 
     const response = await fetch(`${API_BASE}/sessions?${params}`)
