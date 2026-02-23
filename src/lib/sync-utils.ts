@@ -454,11 +454,38 @@ export async function exportToLocal(type: "message" | "comment", id: string) {
   const tagString = data.tags.map((t: any) => `#${t.tag.name}`).join(" ")
   const fileContent = `${tagString}\n\n${data.content}`
 
-  // Get workspace directory
-  const workspaceDir = getWorkspaceDir(workspaceId)
-  ensureDirectoryExists(workspaceDir)
-
+  // Get workspace data first to check if it exists
   const ws = getWorkspaceData(workspaceId)
+
+  // For new workspaces, initialize the directory with a friendly name
+  // before calling getWorkspaceDir
+  const workspaceName = data.workspace?.name || workspaceId
+  if (!ws.workspace.id || ws.workspace.originalFolderName === workspaceId) {
+    // This is a new or uninitialized workspace, create directory with friendly name
+    const sanitizedFolderName = sanitizeFolderName(workspaceName)
+    const workspaceDir = path.join(SYNC_DIR, sanitizedFolderName)
+
+    console.log(`[SyncUtils] Initializing new workspace directory: ${workspaceId} -> "${sanitizedFolderName}"`)
+
+    ensureDirectoryExists(workspaceDir)
+
+    // Initialize workspace.json with proper folder names
+    ws.workspace.id = workspaceId
+    ws.workspace.originalFolderName = sanitizedFolderName
+    ws.workspace.currentFolderName = sanitizedFolderName
+    ws.workspace.name = workspaceName
+    ws.workspace.lastSyncedAt = new Date().toISOString()
+
+    // Write workspace.json immediately to establish the mapping
+    saveWorkspaceData(workspaceId, ws)
+
+    // Clear cache to ensure new workspace is discoverable
+    const { clearWorkspaceCache } = require("@/lib/workspace-discovery")
+    clearWorkspaceCache()
+  }
+
+  // Now get the workspace directory (it will use the friendly name we just set up)
+  const workspaceDir = getWorkspaceDir(workspaceId)
 
   if (type === "message") {
     // ========== MESSAGE EXPORT ==========

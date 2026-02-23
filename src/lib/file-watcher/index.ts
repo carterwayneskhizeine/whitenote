@@ -1,6 +1,7 @@
 import * as fs from "fs"
 import * as path from "path"
 import { addTask } from "@/lib/queue"
+import { importFromLocal, parseFilePath } from "@/lib/sync-utils"
 import redis from "@/lib/redis"
 
 // 获取文件监听目录，支持 Docker 和本地开发环境
@@ -35,6 +36,47 @@ const processedFolders = new Set<string>()
 // Track file skip counts to handle frequently-saved files
 const fileSkipCounts = new Map<string, number>()
 const MAX_SKIP_COUNT = 3 // Allow file to be skipped 3 times before forcing process
+
+// Import queue for serializing file imports
+const importQueue: Array<{ workspaceId: string; filePath: string }> = []
+let isProcessingQueue = false
+
+/**
+ * Process import queue serially to avoid database transaction timeout
+ */
+async function processImportQueue() {
+  if (isProcessingQueue || importQueue.length === 0) {
+    return
+  }
+
+  isProcessingQueue = true
+
+  while (importQueue.length > 0) {
+    const item = importQueue.shift()
+    if (item) {
+      try {
+        console.log(`[FileWatcher] Processing ${item.filePath}`)
+        await importFromLocal(item.workspaceId, item.filePath)
+        console.log(`[FileWatcher] ✓ Imported ${item.filePath}`)
+      } catch (error) {
+        console.error(`[FileWatcher] ✗ Error importing ${item.filePath}:`, error)
+      }
+    }
+    // Small delay between imports to avoid overwhelming the database
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+
+  isProcessingQueue = false
+}
+
+/**
+ * Add file to import queue
+ */
+function enqueueImport(workspaceId: string, filePath: string) {
+  importQueue.push({ workspaceId, filePath })
+  // Start processing if not already processing
+  processImportQueue().catch(console.error)
+}
 
 /**
  * Check if a folder should be ignored
@@ -148,7 +190,7 @@ function scanDirectory() {
 
 function scanWorkspaceFolder(workspacePath: string, folderName: string) {
   try {
-    const files = fs.readdirSync(workspacePath, { withFileTypes: true })
+    const items = fs.readdirSync(workspacePath, { withFileTypes: true })
     const workspaceFile = path.join(workspacePath, ".whitenote", "workspace.json")
 
     if (!fs.existsSync(workspaceFile)) {
@@ -164,50 +206,51 @@ function scanWorkspaceFolder(workspacePath: string, folderName: string) {
       return
     }
 
-    const trackedFiles = new Set(
-      Object.values(ws.messages || {})
-        .map((m: any) => m.currentFilename)
-        .concat(Object.values(ws.comments || {}).map((c: any) => c.currentFilename))
+    const trackedFiles = new Map(
+      Object.entries(ws.messages || {})
+        .concat(Object.entries(ws.comments || {}))
+        .map(([key, value]: [string, any]) => [value.currentFilename, value])
     )
 
-    for (const file of files) {
-      if (!file.isFile() || !file.name.endsWith('.md')) continue
-
-      const filePath = path.join(workspacePath, file.name)
-
-      // Skip if already tracked in workspace.json (file was processed before)
-      if (trackedFiles.has(file.name)) {
+    for (const item of items) {
+      // Skip .whitenote folder
+      if (item.isDirectory() && item.name === '.whitenote') {
         continue
       }
 
-      // Check if file is in processedFiles
-      const fileKey = `${actualWorkspaceId}:${file.name}`
-      if (processedFiles.has(fileKey)) {
-        // File was processed before, but not in workspace.json
-        // This might be a failed attempt, allow retry
-        console.log(`[FileWatcher] Retrying previously processed file: ${file.name}`)
+      // Recursively scan subdirectories (comment folders)
+      if (item.isDirectory()) {
+        const subDirPath = path.join(workspacePath, item.name)
+        scanCommentFolder(actualWorkspaceId, subDirPath, item.name, ws)
+        continue
       }
 
-      // Check file size - skip very small files (likely being edited)
+      if (!item.isFile() || !item.name.endsWith('.md')) continue
+
+      const filePath = path.join(workspacePath, item.name)
       const stats = fs.statSync(filePath)
+
+      // Check file size - skip very small files (likely being edited)
       if (stats.size < 5) {
-        console.log(`[FileWatcher] Skipping empty file (0 bytes): ${file.name}`)
+        console.log(`[FileWatcher] Skipping empty file (${stats.size} bytes): ${item.name}`)
         continue
       }
 
       // Check file age - skip files created/modified in the last 2 seconds
       const fileAge = Date.now() - stats.mtimeMs
+      const fileKey = `${actualWorkspaceId}:${item.name}`
+
       if (fileAge < 2000) {
         // Increment skip count
         const currentSkipCount = fileSkipCounts.get(fileKey) || 0
         fileSkipCounts.set(fileKey, currentSkipCount + 1)
 
         if (currentSkipCount < MAX_SKIP_COUNT) {
-          console.log(`[FileWatcher] Skipping recent file (${fileAge}ms ago, skip ${currentSkipCount + 1}/${MAX_SKIP_COUNT}): ${file.name}`)
+          console.log(`[FileWatcher] Skipping recent file (${fileAge}ms ago, skip ${currentSkipCount + 1}/${MAX_SKIP_COUNT}): ${item.name}`)
           // Don't mark as processed, will retry on next scan
           continue
         } else {
-          console.log(`[FileWatcher] File skipped ${MAX_SKIP_COUNT} times, forcing process: ${file.name}`)
+          console.log(`[FileWatcher] File skipped ${MAX_SKIP_COUNT} times, forcing process: ${item.name}`)
           // Clear skip count and proceed to process
           fileSkipCounts.delete(fileKey)
         }
@@ -216,17 +259,105 @@ function scanWorkspaceFolder(workspacePath: string, folderName: string) {
         fileSkipCounts.delete(fileKey)
       }
 
-      console.log(`[FileWatcher] New message file detected: ${file.name} in workspace ${actualWorkspaceId}`)
+      // Check if file is already tracked in workspace.json
+      const trackedFile = trackedFiles.get(item.name)
+
+      if (trackedFile) {
+        // File is tracked, check if it was modified
+        const lastModified = stats.mtime.toISOString()
+
+        if (trackedFile.updated_at !== lastModified) {
+          console.log(`[FileWatcher] Modified file detected: ${item.name} in workspace ${actualWorkspaceId}`)
+
+          // Add to import queue instead of processing immediately
+          enqueueImport(actualWorkspaceId, filePath)
+        }
+        // File not modified, skip
+        continue
+      }
+
+      // New file not tracked yet
+      if (processedFiles.has(fileKey)) {
+        // File was processed before, but not in workspace.json
+        // This might be a failed attempt, allow retry
+        console.log(`[FileWatcher] Retrying previously processed file: ${item.name}`)
+      }
+
+      console.log(`[FileWatcher] New message file detected: ${item.name} in workspace ${actualWorkspaceId}`)
       processedFiles.add(fileKey)
 
       // Queue message creation with actual workspace ID
       addTask("create-message-from-file", {
         workspaceId: actualWorkspaceId,
         filePath,
-        filename: file.name
+        filename: item.name
       }).catch(console.error)
     }
   } catch (error) {
     console.error(`[FileWatcher] Error scanning workspace folder:`, error)
+  }
+}
+
+function scanCommentFolder(workspaceId: string, folderPath: string, folderName: string, ws: any) {
+  try {
+    const files = fs.readdirSync(folderPath, { withFileTypes: true })
+
+    for (const file of files) {
+      if (!file.isFile() || !file.name.endsWith('.md')) continue
+
+      const filePath = path.join(folderPath, file.name)
+      const stats = fs.statSync(filePath)
+
+      // Check file size - skip very small files (likely being edited)
+      if (stats.size < 5) {
+        continue
+      }
+
+      // Check file age - skip files created/modified in the last 2 seconds
+      const fileAge = Date.now() - stats.mtimeMs
+      const fileKey = `${workspaceId}:${folderName}:${file.name}`
+
+      if (fileAge < 2000) {
+        const currentSkipCount = fileSkipCounts.get(fileKey) || 0
+        fileSkipCounts.set(fileKey, currentSkipCount + 1)
+
+        if (currentSkipCount < MAX_SKIP_COUNT) {
+          continue
+        } else {
+          fileSkipCounts.delete(fileKey)
+        }
+      } else {
+        fileSkipCounts.delete(fileKey)
+      }
+
+      // Check if file is tracked in workspace.json
+      const trackedFile = Object.values(ws.comments || {}).find((c: any) =>
+        c.currentFilename === file.name && c.folderName === folderName
+      )
+
+      if (trackedFile) {
+        // File is tracked, check if it was modified
+        const lastModified = stats.mtime.toISOString()
+
+        if (trackedFile.updated_at !== lastModified) {
+          console.log(`[FileWatcher] Modified comment file detected: ${folderName}/${file.name}`)
+
+          // Add to import queue
+          enqueueImport(workspaceId, filePath)
+        }
+        continue
+      }
+
+      // New comment file not tracked yet
+      console.log(`[FileWatcher] New comment file detected: ${folderName}/${file.name}`)
+      processedFiles.add(fileKey)
+
+      // Import the new comment file
+      importFromLocal(workspaceId, filePath).catch(error => {
+        console.error(`[FileWatcher] Error importing new comment file:`, error)
+      })
+    }
+  } catch (error) {
+    console.error(`[FileWatcher] Error scanning comment folder ${folderName}:`, error)
   }
 }
