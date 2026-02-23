@@ -2,6 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import prisma from "@/lib/prisma"
 import { addTask } from "@/lib/queue"
+import redis from "@/lib/redis"
 import {
   getWorkspaceDir,
   getWorkspaceMetadataPath,
@@ -509,8 +510,24 @@ export async function exportToLocal(type: "message" | "comment", id: string) {
 
     const filePath = path.join(workspaceDir, currentFilename)
 
-    // Write file
-    fs.writeFileSync(filePath, fileContent)
+    // Check if file content has actually changed
+    let shouldWrite = true
+    if (fs.existsSync(filePath)) {
+      const existingContent = fs.readFileSync(filePath, "utf-8")
+      if (existingContent === fileContent) {
+        shouldWrite = false
+        console.log(`[SyncUtils] File content unchanged, skipping write: ${currentFilename}`)
+      }
+    }
+
+    if (shouldWrite) {
+      // Pause file watcher to prevent it from importing the file we just exported
+      // This avoids the "too recent" skip issue and circular sync
+      await redis.set("file-watcher:paused", "1", "EX", 5) // Pause for 5 seconds
+
+      // Write file
+      fs.writeFileSync(filePath, fileContent)
+    }
 
     // Update workspace.json
     ws.workspace.id = workspaceId
@@ -626,8 +643,24 @@ export async function exportToLocal(type: "message" | "comment", id: string) {
 
     const filePath = path.join(commentFolderPath, currentFilename)
 
-    // Write file
-    fs.writeFileSync(filePath, fileContent)
+    // Check if file content has actually changed
+    let shouldWrite = true
+    if (fs.existsSync(filePath)) {
+      const existingContent = fs.readFileSync(filePath, "utf-8")
+      if (existingContent === fileContent) {
+        shouldWrite = false
+        console.log(`[SyncUtils] File content unchanged, skipping write: ${currentFilename}`)
+      }
+    }
+
+    if (shouldWrite) {
+      // Pause file watcher to prevent it from importing the file we just exported
+      // This avoids the "too recent" skip issue and circular sync
+      await redis.set("file-watcher:paused", "1", "EX", 5) // Pause for 5 seconds
+
+      // Write file
+      fs.writeFileSync(filePath, fileContent)
+    }
 
     // Update workspace.json
     ws.workspace.id = workspaceId
@@ -664,6 +697,9 @@ export async function exportToLocal(type: "message" | "comment", id: string) {
  * Import from local file to DB
  */
 export async function importFromLocal(workspaceId: string, filePath: string) {
+  // Pause file watcher during import to prevent race conditions
+  await redis.set("file-watcher:paused", "1", "EX", 3)
+
   const parsed = parseFilePath(filePath)
   if (!parsed) {
     console.log(`[SyncUtils] Could not parse file path ${filePath}, skipping`)
