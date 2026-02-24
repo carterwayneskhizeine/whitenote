@@ -302,6 +302,7 @@ export const openclawApi = {
     sessionKey: string,
     content: string,
     onChunk: (delta: string, fullContent: string) => void,
+    onReasoning: (delta: string, fullReasoning: string) => void,
     onFinish: () => void,
     onError: (error: string) => void
   ): Promise<void> {
@@ -324,6 +325,7 @@ export const openclawApi = {
     const decoder = new TextDecoder()
     let buffer = ''
     let accumulatedContent = ''
+    let accumulatedReasoning = ''
 
     try {
       while (true) {
@@ -342,11 +344,15 @@ export const openclawApi = {
 
               if (data.type === 'start') {
                 accumulatedContent = ''
+                accumulatedReasoning = ''
               } else if (data.type === 'content') {
-                // 只处理文本内容（流式）
                 const delta = data.delta || data.content || ''
                 accumulatedContent += delta
                 onChunk(delta, accumulatedContent)
+              } else if (data.type === 'reasoning') {
+                const delta = data.delta || data.content || ''
+                accumulatedReasoning += delta
+                onReasoning(delta, accumulatedReasoning)
               } else if (data.type === 'finish') {
                 onFinish()
                 return

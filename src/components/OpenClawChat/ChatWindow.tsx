@@ -79,6 +79,7 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
   const [error, setError] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
+  const [streamingReasoning, setStreamingReasoning] = useState<string>('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const userMessageTimestampRef = useRef<number | null>(null)
@@ -191,6 +192,7 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
     setIsLoading(true)
     isLoadingRef.current = true
     setError(null)
+    setStreamingReasoning('')
     userMessageTimestampRef.current = userTimestamp
     pendingAssistantIdRef.current = pendingAssistantId
 
@@ -218,9 +220,14 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
             })
           )
         },
+        (_delta, fullReasoning) => {
+          if (!isLoadingRef.current) return
+          setStreamingReasoning(fullReasoning)
+        },
         async () => {
           isLoadingRef.current = false
           setIsLoading(false)
+          setStreamingReasoning('')
           pendingAssistantIdRef.current = null
 
           // 流结束后，获取完整的消息（包含 thinking/toolCall）
@@ -247,6 +254,7 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
           setError(error)
           isLoadingRef.current = false
           pendingAssistantIdRef.current = null
+          setStreamingReasoning('')
           setMessages(prev => prev.filter(m => !m.id.startsWith('pending-')))
           setIsLoading(false)
         }
@@ -255,6 +263,7 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
       setError(err instanceof Error ? err.message : 'Failed to send message')
       isLoadingRef.current = false
       pendingAssistantIdRef.current = null
+      setStreamingReasoning('')
       setMessages(prev => prev.filter(m => !m.id.startsWith('pending-')))
       setIsLoading(false)
     }
@@ -356,7 +365,9 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
             </div>
           )}
 
-           {messages.map(message => (
+           {messages.map(message => {
+            const isPending = message.id.startsWith('pending-') && isLoading
+            return (
             <div
               key={message.id}
               className="flex justify-start w-full min-w-0"
@@ -369,12 +380,15 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
                   <div className="text-sm font-semibold text-muted-foreground mb-1">You</div>
                 )}
                 <AIMessageViewer
-                  key={`${message.id}-${JSON.stringify(message.content).slice(0, 20)}`}
+                  key={isPending ? message.id : `${message.id}-static`}
                   message={message}
                   thinkingBlocks={(message as any).thinkingBlocks}
                   contentBlocks={(message as any).contentBlocks}
+                  streamingReasoning={isPending ? streamingReasoning : undefined}
+                  isStreaming={isPending}
                 />
-                {message.role === 'assistant' && isLoading &&
+                {isPending &&
+                  streamingReasoning === '' &&
                   ((typeof message.content === 'string' && message.content === '') ||
                    (Array.isArray(message.content) && message.content.length === 0)) && (
                   <span className="inline-flex gap-1 ml-1">
@@ -385,7 +399,8 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
                 )}
               </div>
             </div>
-          ))}
+            )
+          })}
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>

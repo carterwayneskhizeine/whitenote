@@ -52,6 +52,8 @@ interface AIMessageViewerProps {
   className?: string
   thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] // Deprecated, use contentBlocks instead
   contentBlocks?: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[]
+  streamingReasoning?: string  // real-time reasoning content during streaming
+  isStreaming?: boolean         // if true, use plain-text streaming view instead of TipTap
 }
 
 // Helper to render tool call
@@ -163,7 +165,9 @@ export function AIMessageViewer({
   message,
   className,
   thinkingBlocks,
-  contentBlocks: propContentBlocks
+  contentBlocks: propContentBlocks,
+  streamingReasoning,
+  isStreaming,
 }: AIMessageViewerProps) {
   const lowlight = createLowlight(common)
 
@@ -296,6 +300,33 @@ export function AIMessageViewer({
 
   if (!editor) {
     return null
+  }
+
+  // Streaming view: plain-text rendering during active stream
+  if (isStreaming) {
+    return (
+      <div className={cn("ai-message-viewer max-w-full", className)}>
+        {streamingReasoning && (
+          <div className="my-3 rounded-lg border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/30 overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 bg-purple-100 dark:bg-purple-900/30 border-b border-purple-200 dark:border-purple-800">
+              <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400 animate-pulse" />
+              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                Thinking...
+              </span>
+            </div>
+            <div className="p-3 text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap font-mono max-h-48 overflow-y-auto">
+              {streamingReasoning}
+            </div>
+          </div>
+        )}
+        {textContent && (
+          <div className="text-sm leading-relaxed whitespace-pre-wrap">
+            {textContent}
+            <span className="inline-block w-0.5 h-[1em] bg-current animate-pulse ml-0.5 translate-y-0.5 align-middle" />
+          </div>
+        )}
+      </div>
+    )
   }
 
   // Render tool result messages

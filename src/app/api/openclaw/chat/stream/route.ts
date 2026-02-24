@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server'
 import { createGlobalGateway } from '@/lib/openclaw/gateway'
 import type { ChatEvent, ChatStreamResponse } from '@/lib/openclaw/types'
+import fs from 'fs'
+import path from 'path'
 
 function getOpenClawToken(): string {
   const token = process.env.OPENCLAW_TOKEN
@@ -8,6 +10,28 @@ function getOpenClawToken(): string {
     throw new Error('OPENCLAW_TOKEN is not configured')
   }
   return token
+}
+
+// ---- 事件日志 ----
+const LOG_DIR = path.join(process.cwd(), 'logs')
+let currentLogFile: string | null = null
+let logStream: fs.WriteStream | null = null
+
+function ensureLogFile() {
+  if (logStream) return
+  fs.mkdirSync(LOG_DIR, { recursive: true })
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+  currentLogFile = path.join(LOG_DIR, `openclaw-${ts}.jsonl`)
+  logStream = fs.createWriteStream(currentLogFile, { flags: 'a' })
+  console.log(`[OpenClaw Stream] Logging events to: ${currentLogFile}`)
+}
+
+function logEvent(label: string, data: unknown) {
+  try {
+    ensureLogFile()
+    const line = JSON.stringify({ ts: new Date().toISOString(), label, data }) + '\n'
+    logStream?.write(line)
+  } catch { /* ignore log errors */ }
 }
 
 export const runtime = 'nodejs'
@@ -65,6 +89,9 @@ export async function POST(request: NextRequest) {
         let hasFinished = false
 
         const eventHandler = (eventFrame: { event: string; payload?: unknown }) => {
+          // 记录所有事件到文件
+          logEvent(eventFrame.event, eventFrame.payload)
+
           if (eventFrame.event === 'agent') {
             const agentPayload = eventFrame.payload as {
               runId?: string
@@ -82,13 +109,27 @@ export async function POST(request: NextRequest) {
               return
             }
 
-            // 只发送 assistant 文本流
+            // 发送 assistant 文本流
             if (agentPayload.stream === 'assistant') {
               const data = agentPayload.data as { text?: string; delta?: string } | undefined
               const text = data?.delta || data?.text || ''
               if (text) {
                 sendEvent({
                   type: 'content',
+                  runId: agentPayload.runId,
+                  delta: text,
+                  content: text,
+                })
+              }
+            }
+
+            // 发送 reasoning 文本流
+            if (agentPayload.stream === 'reasoning') {
+              const data = agentPayload.data as { text?: string; delta?: string } | undefined
+              const text = data?.delta || data?.text || ''
+              if (text) {
+                sendEvent({
+                  type: 'reasoning',
                   runId: agentPayload.runId,
                   delta: text,
                   content: text,

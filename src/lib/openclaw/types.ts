@@ -158,7 +158,7 @@ export interface OpenClawMessage {
 }
 
 export interface ChatStreamResponse {
-  type: 'start' | 'content' | 'finish' | 'error';
+  type: 'start' | 'content' | 'reasoning' | 'finish' | 'error';
   runId?: string;
   sessionKey?: string;
   delta?: string;
