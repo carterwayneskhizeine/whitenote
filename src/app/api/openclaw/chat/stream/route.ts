@@ -92,54 +92,10 @@ export async function POST(request: NextRequest) {
           // 记录所有事件到文件
           logEvent(eventFrame.event, eventFrame.payload)
 
-          if (eventFrame.event === 'agent') {
-            const agentPayload = eventFrame.payload as {
-              runId?: string
-              sessionKey?: string
-              stream?: string
-              data?: unknown
-            }
-
-            const eventSessionKey = agentPayload.sessionKey
-            const isMatch = eventSessionKey === sessionKey ||
-                           eventSessionKey === `agent:${sessionKey}:${sessionKey}` ||
-                           eventSessionKey?.endsWith(`:${sessionKey}`)
-
-            if (!isMatch) {
-              return
-            }
-
-            // 发送 assistant 文本流
-            if (agentPayload.stream === 'assistant') {
-              const data = agentPayload.data as { text?: string; delta?: string } | undefined
-              const text = data?.delta || data?.text || ''
-              if (text) {
-                sendEvent({
-                  type: 'content',
-                  runId: agentPayload.runId,
-                  delta: text,
-                  content: text,
-                })
-              }
-            }
-
-            // 发送 reasoning 文本流
-            if (agentPayload.stream === 'reasoning') {
-              const data = agentPayload.data as { text?: string; delta?: string } | undefined
-              const text = data?.delta || data?.text || ''
-              if (text) {
-                sendEvent({
-                  type: 'reasoning',
-                  runId: agentPayload.runId,
-                  delta: text,
-                  content: text,
-                })
-              }
-            }
-          }
-
           if (eventFrame.event === 'chat') {
-            const payload = eventFrame.payload as ChatEvent
+            const payload = eventFrame.payload as ChatEvent & {
+              message?: { content?: Array<{ type?: string; text?: string; thinking?: string }> }
+            }
 
             const eventSessionKey = payload.sessionKey
             const isMatch = eventSessionKey === sessionKey ||
@@ -150,7 +106,26 @@ export async function POST(request: NextRequest) {
               return
             }
 
-            if (payload.state === 'final') {
+            // chat.delta: 提取 text/thinking 内容快照（与 Dashboard 做法一致）
+            if (payload.state === 'delta') {
+              const msgContent = payload.message?.content
+              if (Array.isArray(msgContent)) {
+                const textFull = msgContent
+                  .filter(b => b.type === 'text' && b.text)
+                  .map(b => b.text!)
+                  .join('\n')
+                const thinkingFull = msgContent
+                  .filter(b => b.type === 'thinking' && b.thinking)
+                  .map(b => b.thinking!)
+                  .join('\n')
+                if (textFull) {
+                  sendEvent({ type: 'content', runId: payload.runId, content: textFull, delta: textFull })
+                }
+                if (thinkingFull) {
+                  sendEvent({ type: 'reasoning', runId: payload.runId, content: thinkingFull, delta: thinkingFull })
+                }
+              }
+            } else if (payload.state === 'final') {
               hasFinished = true
               sendEvent({
                 type: 'finish',

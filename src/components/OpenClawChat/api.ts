@@ -324,8 +324,6 @@ export const openclawApi = {
 
     const decoder = new TextDecoder()
     let buffer = ''
-    let accumulatedContent = ''
-    let accumulatedReasoning = ''
 
     try {
       while (true) {
@@ -343,16 +341,15 @@ export const openclawApi = {
               const data = JSON.parse(line.slice(6))
 
               if (data.type === 'start') {
-                accumulatedContent = ''
-                accumulatedReasoning = ''
+                // nothing to reset - snapshots are self-contained
               } else if (data.type === 'content') {
-                const delta = data.delta || data.content || ''
-                accumulatedContent += delta
-                onChunk(delta, accumulatedContent)
+                // Full snapshot from chat.delta (not incremental delta)
+                const fullContent = data.content || data.delta || ''
+                onChunk(fullContent, fullContent)
               } else if (data.type === 'reasoning') {
-                const delta = data.delta || data.content || ''
-                accumulatedReasoning += delta
-                onReasoning(delta, accumulatedReasoning)
+                // Full thinking snapshot from chat.delta
+                const fullReasoning = data.content || data.delta || ''
+                onReasoning(fullReasoning, fullReasoning)
               } else if (data.type === 'finish') {
                 onFinish()
                 return
