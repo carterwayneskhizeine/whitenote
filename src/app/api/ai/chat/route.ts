@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma"
 import { buildSystemPrompt, callOpenAI } from "@/lib/ai/openai"
 import { callRAGFlowWithChatId } from "@/lib/ai/ragflow"
 import { getAiConfig } from "@/lib/ai/config"
+import { getCommentThreadContext } from "@/lib/ai/thread-context"
 import { NextRequest } from "next/server"
 import { addTask } from "@/lib/queue"
 
@@ -117,11 +118,14 @@ export async function POST(request: NextRequest) {
         )
       }
     } else {
-      // OpenAI 模式（@goldierill）：直接使用 OpenAI，上下文仅为当前帖子
-      const systemPrompt = await buildSystemPrompt(session.user.id)
+      // OpenAI 模式（@goldierill）：使用 OpenAI，上下文包含完整评论线程
+      const [systemPrompt, threadContext] = await Promise.all([
+        buildSystemPrompt(session.user.id),
+        getCommentThreadContext(messageId),
+      ])
       const messages = [
         { role: "system" as const, content: systemPrompt },
-        { role: "user" as const, content: `原文：${message.content}\n\n用户问题：${content}` },
+        { role: "user" as const, content: `原文：${message.content}${threadContext}\n\n用户最新问题：${content}` },
       ]
       aiResponse = await callOpenAI({ userId: session.user.id, messages })
     }

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma"
 import { buildSystemPrompt, callOpenAIStream } from "@/lib/ai/openai"
 import { callRAGFlowWithChatIdStream } from "@/lib/ai/ragflow"
 import { getAiConfig } from "@/lib/ai/config"
+import { getCommentThreadContext } from "@/lib/ai/thread-context"
 import { NextRequest } from "next/server"
 import { addTask } from "@/lib/queue"
 
@@ -68,6 +69,9 @@ export async function POST(request: NextRequest) {
         }
       )
     }
+
+    // 在创建占位符前获取评论线程上下文（避免将占位符 "Thinking..." 纳入上下文）
+    const threadContext = await getCommentThreadContext(messageId)
 
     // 创建空的 AI 评论（占位符）
     const placeholderComment = await prisma.comment.create({
@@ -177,11 +181,11 @@ export async function POST(request: NextRequest) {
               quotedMessageId = extractMessageIdFromDocument(references[0].source) || undefined
             }
           } else {
-            // OpenAI 流式模式
+            // OpenAI 流式模式（上下文包含完整评论线程）
             const systemPrompt = await buildSystemPrompt(session.user.id)
             const messages = [
               { role: "system" as const, content: systemPrompt },
-              { role: "user" as const, content: `原文：${message.content}\n\n用户问题：${content}` },
+              { role: "user" as const, content: `原文：${message.content}${threadContext}\n\n用户最新问题：${content}` },
             ]
 
             for await (const chunk of callOpenAIStream({ userId: session.user.id, messages })) {
