@@ -35,7 +35,7 @@ const processedFolders = new Set<string>()
 
 // Track file skip counts to handle frequently-saved files
 const fileSkipCounts = new Map<string, number>()
-const MAX_SKIP_COUNT = 3 // Allow file to be skipped 3 times before forcing process
+const MAX_SKIP_COUNT = 1 // Allow file to be skipped 1 time before forcing process
 
 // Import queue for serializing file imports
 const importQueue: Array<{ workspaceId: string; filePath: string }> = []
@@ -240,6 +240,7 @@ function scanWorkspaceFolder(workspacePath: string, folderName: string) {
       const fileAge = Date.now() - stats.mtimeMs
       const fileKey = `${actualWorkspaceId}:${item.name}`
 
+      let shouldForceProcess = false
       if (fileAge < 2000) {
         // Increment skip count
         const currentSkipCount = fileSkipCounts.get(fileKey) || 0
@@ -247,12 +248,11 @@ function scanWorkspaceFolder(workspacePath: string, folderName: string) {
 
         if (currentSkipCount < MAX_SKIP_COUNT) {
           console.log(`[FileWatcher] Skipping recent file (${fileAge}ms ago, skip ${currentSkipCount + 1}/${MAX_SKIP_COUNT}): ${item.name}`)
-          // Don't mark as processed, will retry on next scan
           continue
         } else {
           console.log(`[FileWatcher] File skipped ${MAX_SKIP_COUNT} times, forcing process: ${item.name}`)
-          // Clear skip count and proceed to process
-          fileSkipCounts.delete(fileKey)
+          shouldForceProcess = true
+          // Don't delete skip count yet, we'll handle it after import
         }
       } else {
         // File is old enough, clear skip count
@@ -266,11 +266,15 @@ function scanWorkspaceFolder(workspacePath: string, folderName: string) {
         // File is tracked, check if it was modified
         const lastModified = stats.mtime.toISOString()
 
-        if (trackedFile.updated_at !== lastModified) {
+        // Always import if force processing, or if timestamps don't match
+        if (shouldForceProcess || trackedFile.updated_at !== lastModified) {
           console.log(`[FileWatcher] Modified file detected: ${item.name} in workspace ${actualWorkspaceId}`)
 
           // Add to import queue instead of processing immediately
           enqueueImport(actualWorkspaceId, filePath)
+          
+          // Clear skip count after enqueuing
+          fileSkipCounts.delete(fileKey)
         }
         // File not modified, skip
         continue
@@ -317,6 +321,7 @@ function scanCommentFolder(workspaceId: string, folderPath: string, folderName: 
       const fileAge = Date.now() - stats.mtimeMs
       const fileKey = `${workspaceId}:${folderName}:${file.name}`
 
+      let shouldForceProcess = false
       if (fileAge < 2000) {
         const currentSkipCount = fileSkipCounts.get(fileKey) || 0
         fileSkipCounts.set(fileKey, currentSkipCount + 1)
@@ -324,7 +329,7 @@ function scanCommentFolder(workspaceId: string, folderPath: string, folderName: 
         if (currentSkipCount < MAX_SKIP_COUNT) {
           continue
         } else {
-          fileSkipCounts.delete(fileKey)
+          shouldForceProcess = true
         }
       } else {
         fileSkipCounts.delete(fileKey)
@@ -339,11 +344,15 @@ function scanCommentFolder(workspaceId: string, folderPath: string, folderName: 
         // File is tracked, check if it was modified
         const lastModified = stats.mtime.toISOString()
 
-        if ((trackedFile.updated_at as string | undefined) !== lastModified) {
+        // Always import if force processing, or if timestamps don't match
+        if (shouldForceProcess || (trackedFile.updated_at as string | undefined) !== lastModified) {
           console.log(`[FileWatcher] Modified comment file detected: ${folderName}/${file.name}`)
 
           // Add to import queue
           enqueueImport(workspaceId, filePath)
+          
+          // Clear skip count after enqueuing
+          fileSkipCounts.delete(fileKey)
         }
         continue
       }
