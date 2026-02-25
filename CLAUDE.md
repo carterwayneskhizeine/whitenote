@@ -139,10 +139,21 @@ src/
 │   │   └── MobileNav.tsx   # 移动端导航 (Mobile navigation)
 │   ├── InputMachine/      # TipTap editor with AI integration
 │   └── MessagesList/      # Message display with real-time updates
+│   └── OpenClawChat/      # AI Chat components
+│       ├── ChatWindow.tsx      # 对话主窗口组件
+│       ├── AIMessageViewer.tsx # AI 消息渲染组件（支持 thinking、tool call 等内容块）
+│       ├── SessionSelector.tsx # 会话选择器组件
+│       ├── api.ts              # API 客户端（流式、历史消息）
+│       └── types.ts            # 前端类型定义
 ├── lib/
 │   ├── socket/           # Socket.IO server configuration
 │   ├── queue/            # BullMQ job queue setup
-│   └── ai/               # RAGFlow and AI service integrations
+│   ├── ai/               # RAGFlow and AI service integrations
+│   └── openclaw/         # OpenClaw Gateway 核心库
+│       ├── gateway.ts        # WebSocket 客户端实现
+│       ├── types.ts          # 协议类型定义（帧、消息结构）
+│       ├── deviceIdentity.ts # 设备身份生成与签名
+│       └── deviceAuthStore.ts # 设备认证 Token 存储
 ├── store/                # Zustand state management
 ├── hooks/                # Custom React hooks
 │   ├── use-share.ts      # 分享功能 Hook (Share functionality hook)
@@ -160,19 +171,73 @@ HttpAPIRAGFlow/           # RAGFlow API automation scripts and documentation
 
 WhiteNote 集成了 OpenClaw Gateway 作为 AI 对话后端，提供类似 ChatGPT 的 Web UI 对话界面。
 
+### 架构概述
+
+OpenClaw 聊天系统采用 WebSocket 协议与 OpenClaw Gateway 通信，支持：
+- **设备认证**：基于 ECDSA 公私钥的设备身份认证
+- **会话管理**：多会话支持，会话持久化
+- **流式响应**：SSE 格式实时推送 AI 生成内容
+- **内容块**：支持 text、thinking、tool_call、tool_result 等多种内容类型
+
 ### 关键文件
 
-| 文件 | 说明 |
-|------|------|
-| `src/lib/openclaw/types.ts` | OpenClaw 协议类型定义 |
-| `src/lib/openclaw/gateway.ts` | WebSocket 客户端实现 |
-| `src/app/api/openclaw/chat/stream/route.ts` | 流式聊天 API |
-| `src/app/api/openclaw/chat/history/route.ts` | 获取聊天历史 API |
-| `src/app/api/openclaw/sessions/route.ts` | 会话管理 API |
-| `src/components/OpenClawChat/types.ts` | 前端类型定义 |
-| `src/components/OpenClawChat/api.ts` | API 客户端 |
-| `src/components/OpenClawChat/ChatWindow.tsx` | 对话主组件 |
-| `src/app/aichat/page.tsx` | AI Chat 页面 |
+| 文件路径 | 说明 |
+|----------|------|
+| `src/app/aichat/page.tsx` | AI Chat 页面入口 |
+| `src/components/OpenClawChat/ChatWindow.tsx` | 对话主窗口组件，包含输入框、消息列表 |
+| `src/components/OpenClawChat/AIMessageViewer.tsx` | AI 消息渲染组件，支持 thinking 展示和 tool call 渲染 |
+| `src/components/OpenClawChat/SessionSelector.tsx` | 会话选择器组件 |
+| `src/components/OpenClawChat/api.ts` | 前端 API 客户端，包含流式聊天和历史消息获取 |
+| `src/components/OpenClawChat/types.ts` | 前端类型定义（ChatMessage、OpenClawContentBlock 等） |
+| `src/lib/openclaw/gateway.ts` | WebSocket 客户端核心实现（OpenClawGateway 类） |
+| `src/lib/openclaw/types.ts` | 协议类型定义（RequestFrame、ResponseFrame、EventFrame、ChatEvent 等） |
+| `src/lib/openclaw/deviceIdentity.ts` | 设备身份生成与签名（ECDSA 公私钥） |
+| `src/lib/openclaw/deviceAuthStore.ts` | 设备认证 Token 存储（持久化到文件系统） |
+| `src/app/api/openclaw/chat/stream/route.ts` | 流式聊天 API（POST /api/openclaw/chat/stream） |
+| `src/app/api/openclaw/chat/history/route.ts` | 获取聊天历史 API（GET /api/openclaw/chat/history） |
+| `src/app/api/openclaw/sessions/route.ts` | 会话管理 API（列表、创建） |
+| `src/app/api/openclaw/sessions/[key]/route.ts` | 会话管理 API（更新、删除） |
+
+### API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/openclaw/chat/stream` | POST | 流式聊天，接收 `{ sessionKey, content, log? }`，返回 SSE 流 |
+| `/api/openclaw/chat/history` | GET | 获取历史消息，参数 `sessionKey`, `limit`, `before` |
+| `/api/openclaw/sessions` | GET | 列出所有会话 |
+| `/api/openclaw/sessions` | POST | 创建新会话 |
+| `/api/openclaw/sessions/[key]` | PATCH | 更新会话（如设置 label） |
+| `/api/openclaw/sessions/[key]` | DELETE | 删除会话 |
+
+### 前端组件结构
+
+```
+ChatWindow
+├── SessionSelector          # 会话选择器（下拉菜单）
+├── MessagesList            # 消息列表
+│   └── AIMessageViewer     # 单条 AI 消息渲染
+│       ├── TextBlock       # 文本内容块
+│       ├── ThinkingBlock  # thinking/推理过程展示
+│       └── ToolCallBlock  # tool_call 工具调用展示
+└── InputArea              # 输入区域
+```
+
+### 数据流
+
+1. **连接建立**：`ChatWindow` 加载时通过 `api.sendMessage()` 调用 `/api/openclaw/chat/stream`
+2. **认证流程**：API 内部调用 `createGlobalGateway(token)` 建立 WebSocket 连接，完成设备认证
+3. **消息发送**：用户输入内容后，通过 `gateway.sendMessage(sessionKey, content)` 发送
+4. **事件接收**：Gateway 监听 WebSocket 事件，触发 `onEvent` 回调
+5. **流式渲染**：API 将事件转换为 SSE 格式推送，前端逐步渲染
+
+### 内容块类型
+
+`OpenClawContentBlock` 支持以下类型：
+
+- **text**：普通文本内容
+- **thinking**：AI 推理过程（紫色高亮显示）
+- **tool_call**：AI 发起工具调用（显示工具名和参数）
+- **tool_result**：工具调用结果
 
 ### 配置
 
@@ -182,11 +247,20 @@ OPENCLAW_GATEWAY_URL=ws://localhost:18789
 OPENCLAW_TOKEN=your-token-here
 ```
 
+### 调试日志
+
+发送请求时传入 `log: true` 可将 AI 事件保存到 `logs/` 目录：
+- API 位置：`src/app/api/openclaw/chat/stream/route.ts:44`（参数定义）
+- 日志逻辑：`route.ts:93-95`（条件判断）
+- 日志格式：JSONL，每行包含时间戳、事件名和事件数据
+- 日志文件：`logs/openclaw-{timestamp}.jsonl`
+
 ### 使用
 
 - 访问 `http://localhost:3005/aichat` 进入 AI 对话页面
 - 使用固定的 `main` 会话，聊天记录会在刷新后自动从 OpenClaw Gateway 恢复
 - 支持流式响应
+- 支持创建多个会话，会话间数据隔离
 
 ## Database Schema Patterns
 
