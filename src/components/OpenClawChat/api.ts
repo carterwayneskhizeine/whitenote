@@ -324,6 +324,7 @@ export const openclawApi = {
 
     const decoder = new TextDecoder()
     let buffer = ''
+    let hadContent = false
 
     try {
       while (true) {
@@ -344,6 +345,7 @@ export const openclawApi = {
                 // nothing to reset - snapshots are self-contained
               } else if (data.type === 'content') {
                 // Full snapshot from chat.delta (not incremental delta)
+                hadContent = true
                 const fullContent = data.content || data.delta || ''
                 onChunk(fullContent, fullContent)
               } else if (data.type === 'reasoning') {
@@ -351,6 +353,13 @@ export const openclawApi = {
                 const fullReasoning = data.content || data.delta || ''
                 onReasoning(fullReasoning, fullReasoning)
               } else if (data.type === 'finish') {
+                // Delay finish to break React 18 automatic batching:
+                // chat.delta and chat.final arrive 4ms apart in the same SSE chunk,
+                // causing React to batch setMessages(content) + setIsLoading(false)
+                // into ONE render, so the streaming view (isStreaming=true) never renders.
+                if (hadContent) {
+                  await new Promise(resolve => setTimeout(resolve, 1500))
+                }
                 onFinish()
                 return
               } else if (data.type === 'error') {

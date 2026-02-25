@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { Markdown } from '@tiptap/markdown'
@@ -158,6 +158,58 @@ function ThinkingBlock({ content }: { content: OpenClawContentBlock }) {
         {thinkingContent.thinking}
       </div>
     </div>
+  )
+}
+
+// Typewriter animation component — simulates streaming when OpenClaw sends a single full snapshot
+function TypewriterText({ text }: { text: string }) {
+  const [displayed, setDisplayed] = useState('')
+  const rafRef = useRef<number | null>(null)
+  const posRef = useRef(0)
+  const prevTextRef = useRef('')
+
+  useEffect(() => {
+    const prevText = prevTextRef.current
+    prevTextRef.current = text
+
+    // Reset if text shrinks or changes completely (not just appended to)
+    if (text.length < prevText.length || !text.startsWith(prevText.slice(0, Math.min(prevText.length, 30)))) {
+      posRef.current = 0
+      setDisplayed('')
+    }
+
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+
+    if (posRef.current >= text.length) return
+
+    const CHARS_PER_FRAME = 3
+    const animate = () => {
+      posRef.current = Math.min(posRef.current + CHARS_PER_FRAME, text.length)
+      setDisplayed(text.slice(0, posRef.current))
+      if (posRef.current < text.length) {
+        rafRef.current = requestAnimationFrame(animate)
+      } else {
+        rafRef.current = null
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(animate)
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current)
+        rafRef.current = null
+      }
+    }
+  }, [text])
+
+  return (
+    <>
+      {displayed}
+      <span className="inline-block w-0.5 h-[1em] bg-current animate-pulse ml-0.5 translate-y-0.5 align-middle" />
+    </>
   )
 }
 
@@ -321,8 +373,7 @@ export function AIMessageViewer({
         )}
         {textContent && (
           <div className="text-sm leading-relaxed whitespace-pre-wrap">
-            {textContent}
-            <span className="inline-block w-0.5 h-[1em] bg-current animate-pulse ml-0.5 translate-y-0.5 align-middle" />
+            <TypewriterText text={textContent} />
           </div>
         )}
       </div>

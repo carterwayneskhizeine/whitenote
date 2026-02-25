@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { sessionKey = 'main', content } = body
+    const { sessionKey = 'main', content, log = false } = body
 
     if (!content) {
       return new Response(JSON.stringify({ error: 'content is required' }), {
@@ -90,7 +90,9 @@ export async function POST(request: NextRequest) {
 
         const eventHandler = (eventFrame: { event: string; payload?: unknown }) => {
           // 记录所有事件到文件
-          logEvent(eventFrame.event, eventFrame.payload)
+          if (log) {
+            logEvent(eventFrame.event, eventFrame.payload)
+          }
 
           if (eventFrame.event === 'chat') {
             const payload = eventFrame.payload as ChatEvent & {
