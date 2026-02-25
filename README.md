@@ -157,6 +157,9 @@ WhiteNote 深度集成 OpenClaw AI 助手：
   - 键盘弹出时自动调整布局
   - 适配移动端视口高度变化
   - 支持语音输入
+- **调试日志**：发送请求时传入 `log: true` 可将 AI 事件保存到 `logs/` 目录
+  - API 位置：`src/app/api/openclaw/chat/stream/route.ts:44`（参数定义）和 `route.ts:93-95`（日志写入逻辑）
+  - 日志格式：JSONL，每行包含时间戳、事件名和事件数据
 
 ### 🔐 分享功能 (Share)
 
