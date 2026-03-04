@@ -160,8 +160,66 @@ export default function SharePage() {
         )
     }
 
+    // ── JSON-LD structured data (schema.org/SocialMediaPosting) ──────────────
+    // 从 markdown 正文中提取纯文本，去掉代码块、图片、链接语法等噪音，
+    // 目的是让外部 AI / 搜索引擎能直接读取可读正文，无需解析 markdown。
+    const plainText = message.content
+        .replace(/```[\s\S]*?```/g, '')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/!\[.*?\]\(.*?\)/g, '')
+        .replace(/\[([^\]]+)\]\(.*?\)/g, '$1')
+        .replace(/^#{1,6}\s+/gm, '')
+        .replace(/[*_~]{1,2}([^*_~\n]+)[*_~]{1,2}/g, '$1')
+        .replace(/^\s*[-*+]\s+/gm, '')
+        .replace(/^\s*\d+\.\s+/gm, '')
+        .replace(/^\s*>\s*/gm, '')
+        .replace(/\n{2,}/g, ' ')
+        .trim()
+
+    // headline: 优先取正文第一行，截断到 110 字符
+    const headline = plainText.slice(0, 110)
+
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "SocialMediaPosting",
+        "@id": `https://whitenote.goldie-rill.top/share/${message.id}`,
+        "url": `https://whitenote.goldie-rill.top/share/${message.id}`,
+        "headline": headline,
+        "author": {
+            "@type": "Person",
+            "name": message.author?.name || "GoldieRill",
+            "identifier": `@${getHandle(message.author?.email || null, !!message.author)}`,
+        },
+        "datePublished": new Date(message.createdAt).toISOString(),
+        "dateModified": new Date(message.updatedAt).toISOString(),
+        "articleBody": plainText,
+        // keywords: 现有标签 → 逗号分隔，方便搜索引擎和 AI 提取主题
+        "keywords": message.tags.map(({ tag }) => tag.name).join(", ") || undefined,
+        "interactionStatistic": [
+            {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/CommentAction",
+                "userInteractionCount": message._count.comments,
+            },
+            {
+                "@type": "InteractionCounter",
+                "interactionType": "https://schema.org/ShareAction",
+                "userInteractionCount": message.retweetCount ?? 0,
+            },
+        ],
+    }
+
     return (
         <div className="min-h-screen bg-background">
+            {/*
+              JSON-LD 可以放在 <body> 任意位置，Google / AI 爬虫均支持。
+              dangerouslySetInnerHTML 内容由服务器可信数据构建，无 XSS 风险。
+            */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            />
+
             {/* Header */}
             <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border">
                 <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -176,7 +234,7 @@ export default function SharePage() {
                         </Button>
                         <div className="flex items-center gap-2">
                             <Share2 className="h-5 w-5 text-primary" />
-                            <h1 className="text-lg font-bold">分享帖子</h1>
+                            <span className="text-lg font-bold">分享帖子</span>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -204,146 +262,183 @@ export default function SharePage() {
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div className="max-w-3xl mx-auto">
-                {/* Message Card */}
-                <div className="p-6">
-                    {/* Author Info */}
-                    <div className="flex items-start gap-4 mb-6">
-                        <div className="shrink-0">
-                            <GoldieAvatar
-                                name={message.author?.name || null}
-                                avatar={message.author?.avatar || null}
-                                size="lg"
-                                isAI={!message.author}
-                            />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-baseline gap-2 flex-wrap">
-                                <span className="font-bold text-lg">
-                                    {message.author?.name || "GoldieRill"}
-                                </span>
-                                <span className="text-muted-foreground">
-                                    @{getHandle(message.author?.email || null, !!message.author)}
-                                </span>
+            {/* Main Content
+                <main> 让屏幕阅读器 / 爬虫明确识别页面主体区域 */}
+            <main className="max-w-3xl mx-auto">
+                {/*
+                  <article> 标记"一篇独立完整的内容单元"。
+                  data-post-id 便于爬虫脚本直接取到帖子 ID，
+                  无需解析 URL 或 DOM 层级。
+                */}
+                <article className="whitenote-post" data-post-id={id}>
+                    <div className="p-6">
+                        {/*
+                          <header> 包裹帖子元信息（作者、时间、标签）。
+                          爬虫 / AI 工具通常把 <header> 里的内容识别为
+                          "byline"（署名行），自动提取作者和发布时间。
+                        */}
+                        <header className="post-header">
+                            {/* Author Info */}
+                            <div className="flex items-start gap-4 mb-6">
+                                <div className="shrink-0">
+                                    <GoldieAvatar
+                                        name={message.author?.name || null}
+                                        avatar={message.author?.avatar || null}
+                                        size="lg"
+                                        isAI={!message.author}
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-baseline gap-2 flex-wrap">
+                                        {/* itemprop 属性让 schema.org 微数据也能识别作者姓名 */}
+                                        <span className="font-bold text-lg" itemProp="author">
+                                            {message.author?.name || "GoldieRill"}
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                            @{getHandle(message.author?.email || null, !!message.author)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                                        <Calendar className="h-3.5 w-3.5" />
+                                        {/*
+                                          <time dateTime="ISO"> 是机器可读的时间戳。
+                                          爬虫和 HTML→Markdown 工具会优先读取 dateTime 属性。
+                                        */}
+                                        <time dateTime={new Date(message.createdAt).toISOString()}>
+                                            {format(new Date(message.createdAt), "yyyy'年'M'月'd'日' HH:mm", { locale: zhCN })}
+                                        </time>
+                                        {message.updatedAt && new Date(message.updatedAt).getTime() > new Date(message.createdAt).getTime() + 1000 && (
+                                            <span>· 已编辑</span>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                                <Calendar className="h-3.5 w-3.5" />
-                                <time>
-                                    {format(new Date(message.createdAt), "yyyy'年'M'月'd'日' HH:mm", { locale: zhCN })}
-                                </time>
-                                {message.updatedAt && new Date(message.updatedAt).getTime() > new Date(message.createdAt).getTime() + 1000 && (
-                                    <span>· 已编辑</span>
+
+                            {/* Tags — rel="tag" 让爬虫识别这是主题标签 */}
+                            {message.tags.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-4" aria-label="标签">
+                                    {message.tags.map(({ tag }) => (
+                                        <Badge
+                                            key={tag.id}
+                                            variant="secondary"
+                                            className="text-sm font-normal px-2.5 py-0.5"
+                                        >
+                                            <span rel="tag">#{tag.name}</span>
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
+                        </header>
+
+                        {/*
+                          <section class="post-content"> 包裹正文区域。
+                          内部 TipTap 输出真实语义标签（h1-h6, p, ul/ol/li,
+                          blockquote, pre/code），已满足 HTML→Markdown 工具的需求。
+                        */}
+                        <section className="post-content">
+                            <div
+                                ref={contentRef}
+                                className={cn(
+                                    "text-base leading-relaxed wrap-break-word text-foreground mb-4 overflow-hidden",
+                                    !isExpanded && "line-clamp-12"
                                 )}
+                                style={!isExpanded ? {
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: 12,
+                                    WebkitBoxOrient: 'vertical',
+                                } : {}}
+                            >
+                                <TipTapViewer content={message.content} onImageClick={handleMarkdownImageClick} />
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Tags */}
-                    {message.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-4">
-                            {message.tags.map(({ tag }) => (
-                                <Badge
-                                    key={tag.id}
-                                    variant="secondary"
-                                    className="text-sm font-normal px-2.5 py-0.5"
+                            {hasMore && !isExpanded && (
+                                <button
+                                    ref={buttonRef}
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+
+                                        // Store viewport position before expansion
+                                        const currentScrollY = window.scrollY
+                                        const buttonRect = buttonRef.current?.getBoundingClientRect()
+                                        if (!buttonRect) {
+                                            setIsExpanded(true)
+                                            return
+                                        }
+
+                                        // The button's position relative to viewport
+                                        const buttonBottom = buttonRect.bottom
+
+                                        // Expand the content
+                                        setIsExpanded(true)
+
+                                        // After expansion, scroll to maintain the button's original position in viewport
+                                        requestAnimationFrame(() => {
+                                            const targetScrollY = Math.max(0, currentScrollY + buttonBottom - window.innerHeight * 0.7)
+                                            window.scrollTo({
+                                                top: targetScrollY,
+                                                behavior: 'instant'
+                                            })
+                                        })
+                                    }}
+                                    className="text-primary text-sm font-medium mb-4 hover:underline flex items-center gap-1"
                                 >
-                                    #{tag.name}
-                                </Badge>
-                            ))}
-                        </div>
-                    )}
+                                    显示更多
+                                </button>
+                            )}
 
-                    {/* Content */}
-                    <div
-                        ref={contentRef}
-                        className={cn(
-                            "text-base leading-relaxed wrap-break-word text-foreground mb-4 overflow-hidden",
-                            !isExpanded && "line-clamp-12"
-                        )}
-                        style={!isExpanded ? {
-                            display: '-webkit-box',
-                            WebkitLineClamp: 12,
-                            WebkitBoxOrient: 'vertical',
-                        } : {}}
-                    >
-                        <TipTapViewer content={message.content} onImageClick={handleMarkdownImageClick} />
+                            {/* Media */}
+                            <MediaGrid
+                                medias={message.medias || []}
+                                onImageClick={handleImageClick}
+                                className="mb-4"
+                            />
+
+                            {/* Quoted Message */}
+                            {(message.quotedMessage || message.quotedComment) && (
+                                <div className="mb-4">
+                                    <QuotedMessageCard message={message.quotedMessage || message.quotedComment!} />
+                                </div>
+                            )}
+                        </section>
+
+                        {/*
+                          <section class="post-actions"> 包裹社交互动统计。
+                          aria-label 让辅助技术和爬虫知道这是"社交操作区"而非正文，
+                          避免把"条评论""次转发"混入正文提取结果。
+                        */}
+                        <section className="post-actions" aria-label="social actions">
+                            <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="font-medium text-foreground">{message._count.comments}</span>
+                                        <span>条评论</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="font-medium text-foreground">{message.retweetCount ?? 0}</span>
+                                        <span>次转发</span>
+                                    </div>
+                                </div>
+                                <div className="text-xs">
+                                    WhiteNote
+                                </div>
+                            </div>
+                        </section>
                     </div>
+                </article>
 
-                    {hasMore && !isExpanded && (
-                        <button
-                            ref={buttonRef}
-                            onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-
-                                // Store viewport position before expansion
-                                const currentScrollY = window.scrollY
-                                const buttonRect = buttonRef.current?.getBoundingClientRect()
-                                if (!buttonRect) {
-                                    setIsExpanded(true)
-                                    return
-                                }
-
-                                // The button's position relative to viewport
-                                const buttonBottom = buttonRect.bottom
-
-                                // Expand the content
-                                setIsExpanded(true)
-
-                                // After expansion, scroll to maintain the button's original position in viewport
-                                requestAnimationFrame(() => {
-                                    const targetScrollY = Math.max(0, currentScrollY + buttonBottom - window.innerHeight * 0.7)
-                                    window.scrollTo({
-                                        top: targetScrollY,
-                                        behavior: 'instant'
-                                    })
-                                })
-                            }}
-                            className="text-primary text-sm font-medium mb-4 hover:underline flex items-center gap-1"
-                        >
-                            显示更多
-                        </button>
-                    )}
-
-                    {/* Media */}
-                    <MediaGrid
-                        medias={message.medias || []}
-                        onImageClick={handleImageClick}
-                        className="mb-4"
+                {/*
+                  <section class="comments"> 单独包裹评论区。
+                  aria-label="comments" 让爬虫把评论与主帖正文区分开，
+                  不会把评论内容混入帖子摘要。
+                */}
+                <section className="comments" aria-label="comments">
+                    <PublicCommentsList
+                        messageId={id}
+                        authorCommentSortOrder={message?.authorCommentSortOrder}
                     />
-
-                    {/* Quoted Message */}
-                    {(message.quotedMessage || message.quotedComment) && (
-                        <div className="mb-4">
-                            <QuotedMessageCard message={message.quotedMessage || message.quotedComment!} />
-                        </div>
-                    )}
-
-                    {/* Footer Info */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-1.5">
-                                <span className="font-medium text-foreground">{message._count.comments}</span>
-                                <span>条评论</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <span className="font-medium text-foreground">{message.retweetCount ?? 0}</span>
-                                <span>次转发</span>
-                            </div>
-                        </div>
-                        <div className="text-xs">
-                            WhiteNote
-                        </div>
-                    </div>
-                </div>
-
-                {/* Comments Section */}
-                <PublicCommentsList
-                    messageId={id}
-                    authorCommentSortOrder={message?.authorCommentSortOrder}
-                />
-            </div>
+                </section>
+            </main>
 
             {/* Image Lightbox */}
             <ImageLightbox
