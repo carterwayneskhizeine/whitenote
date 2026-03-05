@@ -89,31 +89,69 @@ export function TipTapViewer({
     },
   })
 
-  // Handle overflow detection
+  // Handle overflow detection using hidden measurement method
   useEffect(() => {
-    if (!maxLines || !onOverflow || !containerRef.current || isExpanded) return
+    if (!maxLines || !onOverflow || isExpanded) return
+
+    // Wait for containerRef to be ready
+    const container = containerRef.current
+    if (!container) return
+
+    const measureFullHeight = () => {
+      const el = containerRef.current
+      if (!el) return 0
+
+      // Get the ProseMirror DOM element
+      const proseMirror = el.querySelector('.ProseMirror')
+      if (!proseMirror) return 0
+
+      // Create a temporary hidden container for measurement
+      const measureContainer = document.createElement('div')
+      measureContainer.style.position = 'fixed'
+      measureContainer.style.left = '-9999px'
+      measureContainer.style.top = '-9999px'
+      measureContainer.style.visibility = 'hidden'
+      measureContainer.style.display = 'block'
+      measureContainer.style.zIndex = '-9999'
+
+      // Clone the ProseMirror content without CSS restrictions
+      const clonedContent = proseMirror.cloneNode(true) as HTMLElement
+      clonedContent.style.maxHeight = 'none'
+      clonedContent.style.overflow = 'visible'
+
+      measureContainer.appendChild(clonedContent)
+      document.body.appendChild(measureContainer)
+
+      // Measure the full height
+      const fullHeight = clonedContent.scrollHeight
+
+      // Clean up
+      document.body.removeChild(measureContainer)
+
+      return fullHeight
+    }
 
     const checkOverflow = () => {
-      const el = containerRef.current
-      if (el) {
-        // We compare scrollHeight with clientHeight. 
-        // If scrollHeight > clientHeight, it means content is being clamped.
-        const hasOverflow = el.scrollHeight > el.clientHeight
-        onOverflow(hasOverflow)
-      }
+      const fullHeight = measureFullHeight()
+
+      // Estimate max-height: 20em at 16px base = 320px (roughly 9-10 lines)
+      const estimatedMaxHeight = 320
+      const hasOverflow = fullHeight > estimatedMaxHeight
+
+      onOverflow(hasOverflow)
     }
 
     // Check after a short delay to allow TipTap to render
     const timer = setTimeout(checkOverflow, 100)
-    
+    const timer2 = setTimeout(checkOverflow, 300)
+
     // Also use ResizeObserver to catch layout changes
     const resizeObserver = new ResizeObserver(checkOverflow)
-    if (containerRef.current) {
-      resizeObserver.observe(containerRef.current)
-    }
+    resizeObserver.observe(container)
 
     return () => {
       clearTimeout(timer)
+      clearTimeout(timer2)
       resizeObserver.disconnect()
     }
   }, [maxLines, onOverflow, isExpanded, content, editor])
@@ -187,8 +225,6 @@ export function TipTapViewer({
       const images = editor.view.dom.querySelectorAll('img')
       let markdownIndex = 0
 
-      //console.log('TipTapViewer - adding handlers to', images.length, 'images')
-
       images.forEach((img: Element) => {
         const imageElement = img as HTMLImageElement
         const src = imageElement.src
@@ -206,7 +242,6 @@ export function TipTapViewer({
           const handleClick = (e: MouseEvent) => {
             e.preventDefault()
             e.stopPropagation()
-            console.log('TipTapViewer - markdown image clicked, index:', currentIndex, 'src:', src)
             onImageClick(currentIndex, src)
           }
 
@@ -247,13 +282,12 @@ export function TipTapViewer({
       ref={containerRef}
       className={cn(
         "tipTap-viewer max-w-full",
-        !isExpanded && maxLines && "overflow-hidden",
+        isExpanded ? "is-expanded" : "is-collapsed",
         className
       )}
       style={!isExpanded && maxLines ? {
-        display: '-webkit-box',
-        WebkitLineClamp: maxLines,
-        WebkitBoxOrient: 'vertical',
+        maxHeight: '20em',
+        overflow: 'hidden',
       } : {}}
     >
       <EditorContent editor={editor} />
@@ -263,6 +297,15 @@ export function TipTapViewer({
           max-width: 100%;
           overflow-wrap: break-word;
           word-break: break-word;
+        }
+
+        .tipTap-viewer.is-collapsed .ProseMirror {
+          max-height: 20em;
+          overflow: hidden;
+        }
+
+        .tipTap-viewer.is-expanded .ProseMirror {
+          max-height: none;
         }
 
         /* Headings */
