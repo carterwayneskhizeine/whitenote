@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Send, Bot, AlertCircle, Loader2, Maximize2, X } from 'lucide-react'
 import { openclawApi } from './api'
 import { AIMessageViewer } from './AIMessageViewer'
@@ -350,7 +349,7 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
         </div>
       )}
 
-      <ScrollArea className="flex-1 w-full min-h-0">
+      <div className="flex-1 w-full min-h-0 overflow-y-auto overflow-x-hidden">
         <div className="space-y-4 w-full px-2 min-w-0 pb-4">
           {isLoadingHistory ? (
             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
@@ -374,7 +373,6 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
             >
               <div
                 className="rounded-lg px-2 py-2 w-full min-w-0 wrap-break-word bg-transparent"
-                style={{ maxWidth: 'calc(100vw - 16px)' }}
               >
                 {message.role === 'user' && (
                   <div className="text-sm font-semibold text-muted-foreground mb-1">You</div>
@@ -403,7 +401,7 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
           })}
           <div ref={messagesEndRef} />
         </div>
-      </ScrollArea>
+      </div>
 
       <form
         onSubmit={handleSubmit}

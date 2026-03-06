@@ -494,7 +494,7 @@ export function AIMessageViewer({
           padding: 0.875rem 1rem;
           margin-top: 0.75rem;
           margin-bottom: 0.75rem;
-          overflow-x: visible;
+          overflow-x: auto;
           overflow-y: hidden;
           border: 1px solid #333333;
           position: relative;
