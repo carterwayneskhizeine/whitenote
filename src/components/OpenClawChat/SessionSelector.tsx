@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { MessageSquare, Plus, Trash2, Edit2, X, Check, Loader2 } from 'lucide-react'
 import { openclawApi } from './api'
 import type { OpenClawSession } from './types'
@@ -215,7 +214,7 @@ export function SessionSelector({
             </div>
           </div>
 
-          <ScrollArea className="max-h-[300px]">
+          <div className="max-h-75 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -344,7 +343,7 @@ export function SessionSelector({
                 })}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </div>
       )}
     </div>
