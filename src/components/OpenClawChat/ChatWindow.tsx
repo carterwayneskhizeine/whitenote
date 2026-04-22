@@ -4,14 +4,19 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Send, Bot, AlertCircle, Loader2, Maximize2, X } from 'lucide-react'
 import { openclawApi } from './api'
+import { hermesApi } from './hermes-api'
 import { AIMessageViewer } from './AIMessageViewer'
-import { SessionSelector } from './SessionSelector'
 import type { ChatMessage } from './types'
 import { cn } from '@/lib/utils'
 
+export type BackendType = 'openclaw' | 'hermes'
+
 const DEFAULT_SESSION_KEY = 'main'
 
-const STORAGE_KEY_PREFIX = 'openclaw-chat-messages-'
+function storagePrefix(backend: BackendType) {
+  return backend === 'hermes' ? 'hermes-chat-messages-' : 'openclaw-chat-messages-'
+}
+
 const SESSION_KEY_STORAGE = 'openclaw-current-session'
 
 function loadSessionFromStorage(): string {
@@ -19,58 +24,62 @@ function loadSessionFromStorage(): string {
   try {
     const stored = localStorage.getItem(SESSION_KEY_STORAGE)
     if (stored) return stored
-  } catch (e) {
-    console.error('[OpenClaw Chat] Failed to load session key:', e)
-  }
+  } catch {}
   return DEFAULT_SESSION_KEY
 }
 
 function saveSessionToStorage(sessionKey: string) {
   try {
     localStorage.setItem(SESSION_KEY_STORAGE, sessionKey)
-  } catch (e) {
-    console.error('[OpenClaw Chat] Failed to save session key:', e)
-  }
+  } catch {}
 }
 
-function loadMessagesFromStorage(sessionKey: string): ChatMessage[] {
+function loadMessagesFromStorage(backend: BackendType, sessionKey: string): ChatMessage[] {
   if (typeof window === 'undefined') return []
   try {
-    const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}${sessionKey}`)
-    if (stored) {
-      return JSON.parse(stored)
-    }
-  } catch (e) {
-    console.error('[OpenClaw Chat] Failed to load messages from storage:', e)
-  }
+    const stored = localStorage.getItem(`${storagePrefix(backend)}${sessionKey}`)
+    if (stored) return JSON.parse(stored)
+  } catch {}
   return []
 }
 
-function saveMessagesToStorage(sessionKey: string, messages: ChatMessage[]) {
+function saveMessagesToStorage(backend: BackendType, sessionKey: string, messages: ChatMessage[]) {
   try {
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}${sessionKey}`, JSON.stringify(messages))
-  } catch (e) {
-    console.error('[OpenClaw Chat] Failed to save messages to storage:', e)
-  }
+    localStorage.setItem(`${storagePrefix(backend)}${sessionKey}`, JSON.stringify(messages))
+  } catch {}
 }
 
 interface ChatWindowProps {
   isKeyboardOpen?: boolean
   currentSessionKey?: string
   onSessionChange?: (sessionKey: string, label?: string) => void
+  backend?: BackendType
+  hermesSessionId?: string | null
+  onHermesSessionUpdate?: (sessionId: string | null) => void
 }
 
-export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, onSessionChange: propOnSessionChange }: ChatWindowProps) {
+export function ChatWindow({
+  isKeyboardOpen,
+  currentSessionKey: propSessionKey,
+  onSessionChange: propOnSessionChange,
+  backend = 'openclaw',
+  hermesSessionId: propHermesSessionId,
+  onHermesSessionUpdate,
+}: ChatWindowProps) {
   const [internalSessionKey, setInternalSessionKey] = useState(() => loadSessionFromStorage())
   const [currentSessionLabel, setCurrentSessionLabel] = useState<string | undefined>()
+  const [localHermesSessionId, setLocalHermesSessionId] = useState<string | null>(null)
 
-  // Use prop session key if provided, otherwise use internal state
+  const hermesSessionId = propHermesSessionId ?? localHermesSessionId
+  const setHermesSessionId = onHermesSessionUpdate ?? setLocalHermesSessionId
+
   const currentSessionKey = propSessionKey ?? internalSessionKey
   const handleSessionChange = propOnSessionChange ?? ((key: string, label?: string) => {
     setInternalSessionKey(key)
     setCurrentSessionLabel(label)
     saveSessionToStorage(key)
   })
+
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -78,7 +87,7 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
   const [error, setError] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
-  const [streamingReasoning, setStreamingReasoning] = useState<string>('')
+  const [streamingReasoning, setStreamingReasoning] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const userMessageTimestampRef = useRef<number | null>(null)
@@ -86,9 +95,7 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
   const pendingAssistantIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    const checkDesktop = () => {
-      setIsDesktop(window.innerWidth >= 750)
-    }
+    const checkDesktop = () => setIsDesktop(window.innerWidth >= 750)
     checkDesktop()
     window.addEventListener('resize', checkDesktop)
     return () => window.removeEventListener('resize', checkDesktop)
@@ -101,7 +108,6 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
   const adjustTextareaHeight = useCallback(() => {
     const textarea = inputRef.current
     if (!textarea) return
-
     textarea.style.height = 'auto'
     const lineHeight = 22
     const maxHeight = lineHeight * 3 + 16
@@ -109,13 +115,8 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
     textarea.style.height = `${newHeight}px`
   }, [])
 
-  useEffect(() => {
-    adjustTextareaHeight()
-  }, [input, adjustTextareaHeight])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+  useEffect(() => { adjustTextareaHeight() }, [input, adjustTextareaHeight])
+  useEffect(() => { scrollToBottom() }, [messages])
 
   // Load messages for current session
   useEffect(() => {
@@ -124,60 +125,71 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
       setMessages([])
 
       try {
-        // First try to load from localStorage for instant display
-        const cached = loadMessagesFromStorage(currentSessionKey)
-        if (cached.length > 0) {
-          setMessages(cached)
-        }
+        const cached = loadMessagesFromStorage(backend, currentSessionKey)
+        if (cached.length > 0) setMessages(cached)
 
-        // Then fetch fresh data from OpenClaw
-        const history = await openclawApi.getHistory(currentSessionKey)
-        if (history.length > 0) {
-          const messagesWithIds = history.map((msg, idx) => ({
-            ...msg,
-            id: msg.timestamp ? `${msg.timestamp}-${idx}` : `msg-${idx}`,
-            content: msg.content,
-            timestamp: msg.timestamp ?? Date.now(),
-            thinkingBlocks: msg.thinkingBlocks,
-            contentBlocks: msg.contentBlocks,
-          })) as ChatMessage[]
-          setMessages(messagesWithIds)
-          saveMessagesToStorage(currentSessionKey, messagesWithIds)
-        } else if (cached.length === 0) {
-          setMessages([])
+        if (backend === 'hermes') {
+          if (hermesSessionId) {
+            const history = await hermesApi.getHistory(hermesSessionId)
+            if (history.length > 0) {
+              const msgs: ChatMessage[] = history.map((msg, idx) => ({
+                ...msg,
+                id: msg.timestamp ? `${msg.timestamp}-${idx}` : `msg-${idx}`,
+                timestamp: msg.timestamp ?? Date.now(),
+                contentBlocks: msg.contentBlocks as any,
+              }))
+              setMessages(msgs)
+              saveMessagesToStorage(backend, currentSessionKey, msgs)
+            } else if (cached.length === 0) {
+              setMessages([])
+            }
+          }
+        } else {
+          const history = await openclawApi.getHistory(currentSessionKey)
+          if (history.length > 0) {
+            const msgs = history.map((msg, idx) => ({
+              ...msg,
+              id: msg.timestamp ? `${msg.timestamp}-${idx}` : `msg-${idx}`,
+              content: msg.content,
+              timestamp: msg.timestamp ?? Date.now(),
+              thinkingBlocks: msg.thinkingBlocks,
+              contentBlocks: msg.contentBlocks,
+            })) as ChatMessage[]
+            setMessages(msgs)
+            saveMessagesToStorage(backend, currentSessionKey, msgs)
+          } else if (cached.length === 0) {
+            setMessages([])
+          }
         }
       } catch (err) {
-        console.error('[OpenClawChat] Failed to load history:', err)
-        // If fetch fails, use cached data if available
-        const cached = loadMessagesFromStorage(currentSessionKey)
-        if (cached.length > 0) {
-          setMessages(cached)
-        }
+        console.error('[ChatWindow] Failed to load history:', err)
+        const cached = loadMessagesFromStorage(backend, currentSessionKey)
+        if (cached.length > 0) setMessages(cached)
       } finally {
         setIsLoadingHistory(false)
       }
     }
     loadHistory()
-  }, [currentSessionKey])
+  }, [currentSessionKey, backend, hermesSessionId])
 
   useEffect(() => {
     if (!isLoadingHistory && messages.length > 0) {
-      saveMessagesToStorage(currentSessionKey, messages)
+      saveMessagesToStorage(backend, currentSessionKey, messages)
     }
-  }, [messages, isLoadingHistory, currentSessionKey])
+  }, [messages, isLoadingHistory, currentSessionKey, backend])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
     const userTimestamp = Date.now()
+    const content = input.trim()
     const userMessage: ChatMessage = {
       id: userTimestamp.toString(),
       role: 'user',
-      content: input.trim(),
+      content,
       timestamp: userTimestamp,
     }
-
     const pendingAssistantId = `pending-${userTimestamp}`
     const pendingAssistantMessage: ChatMessage = {
       id: pendingAssistantId,
@@ -196,68 +208,11 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
     pendingAssistantIdRef.current = pendingAssistantId
 
     try {
-      const content = typeof userMessage.content === 'string' ? userMessage.content : JSON.stringify(userMessage.content)
-
-      await openclawApi.sendMessageStream(
-        currentSessionKey,
-        content,
-        (_delta, fullContent) => {
-          if (!isLoadingRef.current) return
-
-          const pendingId = pendingAssistantIdRef.current
-          if (!pendingId) return
-
-          setMessages(prev =>
-            prev.map(msg => {
-              if (msg.id === pendingId && msg.role === 'assistant') {
-                return {
-                  ...msg,
-                  content: fullContent,
-                } as ChatMessage
-              }
-              return msg
-            })
-          )
-        },
-        (_delta, fullReasoning) => {
-          if (!isLoadingRef.current) return
-          setStreamingReasoning(fullReasoning)
-        },
-        async () => {
-          isLoadingRef.current = false
-          setIsLoading(false)
-          setStreamingReasoning('')
-          pendingAssistantIdRef.current = null
-
-          // 流结束后，获取完整的消息（包含 thinking/toolCall）
-          try {
-            const assistantMsgs = await openclawApi.getAssistantMessages(currentSessionKey, userTimestamp)
-            if (assistantMsgs.length > 0) {
-              setMessages(prev => {
-                const userIdx = prev.findIndex(m => m.timestamp === userTimestamp)
-                if (userIdx < 0) return prev
-                const beforePending = prev.slice(0, userIdx + 1).filter(m => !m.id.startsWith('pending-'))
-                const newMessages: ChatMessage[] = assistantMsgs.map((msg, idx) => ({
-                  ...msg,
-                  id: msg.timestamp ? `${msg.timestamp}-${idx}` : `assistant-${idx}`,
-                  timestamp: msg.timestamp ?? Date.now(),
-                }))
-                return [...beforePending, ...newMessages]
-              })
-            }
-          } catch (err) {
-            console.error('[OpenClawChat] Final fetch error:', err)
-          }
-        },
-        (error) => {
-          setError(error)
-          isLoadingRef.current = false
-          pendingAssistantIdRef.current = null
-          setStreamingReasoning('')
-          setMessages(prev => prev.filter(m => !m.id.startsWith('pending-')))
-          setIsLoading(false)
-        }
-      )
+      if (backend === 'hermes') {
+        await handleHermesSubmit(content, userTimestamp, pendingAssistantId)
+      } else {
+        await handleOpenClawSubmit(content, userTimestamp, pendingAssistantId)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
       isLoadingRef.current = false
@@ -268,6 +223,119 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
     }
   }
 
+  const handleOpenClawSubmit = async (
+    content: string,
+    userTimestamp: number,
+    pendingAssistantId: string,
+  ) => {
+    await openclawApi.sendMessageStream(
+      currentSessionKey,
+      content,
+      (_delta, fullContent) => {
+        if (!isLoadingRef.current) return
+        const pendingId = pendingAssistantIdRef.current
+        if (!pendingId) return
+        setMessages(prev =>
+          prev.map(msg => {
+            if (msg.id === pendingId && msg.role === 'assistant') {
+              return { ...msg, content: fullContent } as ChatMessage
+            }
+            return msg
+          })
+        )
+      },
+      (_delta, fullReasoning) => {
+        if (!isLoadingRef.current) return
+        setStreamingReasoning(fullReasoning)
+      },
+      async () => {
+        isLoadingRef.current = false
+        setIsLoading(false)
+        setStreamingReasoning('')
+        pendingAssistantIdRef.current = null
+        try {
+          const assistantMsgs = await openclawApi.getAssistantMessages(currentSessionKey, userTimestamp)
+          if (assistantMsgs.length > 0) {
+            setMessages(prev => {
+              const userIdx = prev.findIndex(m => m.timestamp === userTimestamp)
+              if (userIdx < 0) return prev
+              const beforePending = prev.slice(0, userIdx + 1).filter(m => !m.id.startsWith('pending-'))
+              const newMessages: ChatMessage[] = assistantMsgs.map((msg, idx) => ({
+                ...msg,
+                id: msg.timestamp ? `${msg.timestamp}-${idx}` : `assistant-${idx}`,
+                timestamp: msg.timestamp ?? Date.now(),
+              }))
+              return [...beforePending, ...newMessages]
+            })
+          }
+        } catch (err) {
+          console.error('[ChatWindow] Final fetch error:', err)
+        }
+      },
+      (error) => {
+        setError(error)
+        isLoadingRef.current = false
+        pendingAssistantIdRef.current = null
+        setStreamingReasoning('')
+        setMessages(prev => prev.filter(m => !m.id.startsWith('pending-')))
+        setIsLoading(false)
+      }
+    )
+  }
+
+  const handleHermesSubmit = async (
+    content: string,
+    _userTimestamp: number,
+    pendingAssistantId: string,
+  ) => {
+    const history = messages
+      .filter(m => !m.id.startsWith('pending-') && (m.role === 'user' || m.role === 'assistant'))
+      .map(m => ({
+        role: m.role as 'user' | 'assistant',
+        content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+      }))
+
+    await hermesApi.sendMessageStream(
+      hermesSessionId,
+      history,
+      content,
+      (_delta, fullContent) => {
+        if (!isLoadingRef.current) return
+        const pendingId = pendingAssistantIdRef.current
+        if (!pendingId) return
+        setMessages(prev =>
+          prev.map(msg => {
+            if (msg.id === pendingId && msg.role === 'assistant') {
+              return { ...msg, content: fullContent } as ChatMessage
+            }
+            return msg
+          })
+        )
+      },
+      (tool, label) => {
+        // Could show tool progress in the UI — for now just log
+        console.debug('[Hermes] Tool progress:', tool, label)
+      },
+      (newSessionId) => {
+        isLoadingRef.current = false
+        setIsLoading(false)
+        setStreamingReasoning('')
+        pendingAssistantIdRef.current = null
+        if (newSessionId && !hermesSessionId) {
+          setHermesSessionId(newSessionId)
+        }
+      },
+      (error) => {
+        setError(error)
+        isLoadingRef.current = false
+        pendingAssistantIdRef.current = null
+        setStreamingReasoning('')
+        setMessages(prev => prev.filter(m => !m.id.startsWith('pending-')))
+        setIsLoading(false)
+      }
+    )
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey && !isFullscreen) {
       e.preventDefault()
@@ -276,22 +344,15 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
   }
 
   const toggleFullscreen = () => {
-    if (isDesktop) {
-      setIsFullscreen(!isFullscreen)
-      if (!isFullscreen) {
-        setTimeout(() => inputRef.current?.focus(), 100)
-      }
-    } else {
-      setIsFullscreen(!isFullscreen)
-      if (!isFullscreen) {
-        setTimeout(() => inputRef.current?.focus(), 100)
-      }
+    setIsFullscreen(!isFullscreen)
+    if (!isFullscreen) {
+      setTimeout(() => inputRef.current?.focus(), 100)
     }
   }
 
-  const closeFullscreen = () => {
-    setIsFullscreen(false)
-  }
+  const closeFullscreen = () => setIsFullscreen(false)
+
+  const backendLabel = backend === 'hermes' ? 'Hermes Agent' : 'OpenClaw'
 
   if (isFullscreen && isDesktop) {
     return (
@@ -299,13 +360,7 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
         <div className="flex flex-col flex-1 min-h-0 w-full desktop:max-w-xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <h2 className="text-lg font-semibold">New Message</h2>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={closeFullscreen}
-              className="rounded-full"
-            >
+            <Button type="button" variant="ghost" size="icon" onClick={closeFullscreen} className="rounded-full">
               <X className="w-5 h-5" />
             </Button>
           </div>
@@ -323,15 +378,9 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
               <div className="text-xs text-muted-foreground">
                 {input.length > 0 && <span>{input.length} characters</span>}
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  type="submit"
-                  disabled={isLoading || !input.trim()}
-                  className="rounded-full px-5"
-                >
-                  {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
-                </Button>
-              </div>
+              <Button type="submit" disabled={isLoading || !input.trim()} className="rounded-full px-5">
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
+              </Button>
             </div>
           </form>
         </div>
@@ -360,20 +409,15 @@ export function ChatWindow({ isKeyboardOpen, currentSessionKey: propSessionKey, 
             <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
               <Bot className="w-12 h-12 mb-4" />
               <h3 className="text-lg font-semibold">Start a conversation</h3>
-              <p className="text-sm">Send a message to begin chatting with OpenClaw</p>
+              <p className="text-sm">Send a message to begin chatting with {backendLabel}</p>
             </div>
           )}
 
            {messages.map(message => {
             const isPending = message.id.startsWith('pending-') && isLoading
             return (
-            <div
-              key={message.id}
-              className="flex justify-start w-full min-w-0"
-            >
-              <div
-                className="rounded-lg px-2 py-2 w-full min-w-0 wrap-break-word bg-transparent"
-              >
+            <div key={message.id} className="flex justify-start w-full min-w-0">
+              <div className="rounded-lg px-2 py-2 w-full min-w-0 wrap-break-word bg-transparent">
                 {message.role === 'user' && (
                   <div className="text-sm font-semibold text-muted-foreground mb-1">You</div>
                 )}
