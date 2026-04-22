@@ -1,62 +1,21 @@
-import { Queue } from "bullmq"
-import redis from "@/lib/redis"
+import { enqueue } from "./simple"
 
-// 任务类型
 export type JobType =
   | "auto-tag"
   | "auto-tag-comment"
   | "sync-ragflow"
-  | "daily-briefing"
   | "sync-to-local"
   | "create-workspace-from-folder"
   | "create-message-from-file"
 
-// 队列名称
-const QUEUE_NAME = "whitenote-tasks"
-
-// 创建队列
-export const taskQueue = new Queue(QUEUE_NAME, {
-  connection: redis,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: "exponential",
-      delay: 1000,
-    },
-    removeOnComplete: 100,
-    removeOnFail: 50,
-  },
-})
-
-/**
- * 添加任务到队列
- */
 export async function addTask<T>(
   type: JobType,
   data: T,
-  options?: {
-    delay?: number
-    priority?: number
-    jobId?: string
-  }
+  options?: { delay?: number; priority?: number; jobId?: string }
 ) {
-  return taskQueue.add(type, data, {
-    ...options,
-    jobId: options?.jobId || `${type}-${Date.now()}`,
-  })
+  enqueue(type, data, { delay: options?.delay })
 }
 
-/**
- * 添加定时任务 (Cron)
- */
-export async function addCronTask<T>(
-  type: JobType,
-  data: T,
-  cronPattern: string
-) {
-  return taskQueue.add(type, data, {
-    repeat: {
-      pattern: cronPattern,
-    },
-  })
+export async function addCronTask<T>(_type: JobType, _data: T, _cronPattern: string) {
+  // cron tasks removed (daily-briefing was the only user)
 }

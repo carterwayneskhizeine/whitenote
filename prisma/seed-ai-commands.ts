@@ -1,14 +1,10 @@
 import { PrismaClient } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
-import { Pool } from 'pg'
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
 import { config } from 'dotenv'
 
-// Load environment variables
 config()
 
-const connectionString = process.env.DATABASE_URL!
-const pool = new Pool({ connectionString })
-const adapter = new PrismaPg(pool)
+const adapter = new PrismaBetterSqlite3({ url: process.env.DATABASE_URL ?? 'file:./data/whitenote.db' })
 const prisma = new PrismaClient({ adapter })
 
 const builtinCommands = [
@@ -43,7 +39,6 @@ const builtinTemplates = [
 async function main() {
   console.log('开始初始化数据...')
 
-  // 1. 初始化 AI 命令
   console.log('\n初始化 AI 命令...')
   for (const command of builtinCommands) {
     await prisma.aICommand.upsert({
@@ -59,7 +54,6 @@ async function main() {
     console.log(`✓ 已就绪命令: ${command.label}`)
   }
 
-  // 2. 初始化内置模板
   console.log('\n初始化内置模板...')
   await prisma.template.deleteMany({
     where: { isBuiltIn: true },

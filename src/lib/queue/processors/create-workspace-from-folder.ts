@@ -1,4 +1,4 @@
-import { Job } from "bullmq"
+import type { Job } from "@/lib/queue/types"
 import prisma from "@/lib/prisma"
 import { provisionRAGFlowForWorkspace } from "@/lib/ragflow/provision"
 import { getAiConfig } from "@/lib/ai/config"

@@ -1,4 +1,4 @@
-import { Job } from "bullmq"
+import type { Job } from "@/lib/queue/types"
 import prisma from "@/lib/prisma"
 import { parseMdFile } from "@/lib/sync-utils"
 import { batchUpsertTags } from "@/lib/tag-utils"

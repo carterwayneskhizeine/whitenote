@@ -1,9 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model User {
@@ -72,7 +73,6 @@ model Workspace {
 
   // AI 功能配置
   enableAutoTag     Boolean   @default(true)
-  enableBriefing    Boolean   @default(true)
 
   userId            String
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -252,8 +252,6 @@ model AiConfig {
   ragTimeFilterStart   DateTime?
   ragTimeFilterEnd     DateTime?
   autoTagModel         String    @default("gpt-3.5-turbo")
-  briefingModel        String    @default("gpt-3.5-turbo")
-  briefingTime         String    @default("08:00")
   aiPersonality        String    @default("friendly")
   aiExpertise          String?
   enableLinkSuggestion Boolean   @default(true)

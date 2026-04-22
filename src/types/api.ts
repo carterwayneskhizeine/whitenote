@@ -299,8 +299,6 @@ export interface AIConfig {
   ragflowBaseUrl: string
   ragflowApiKey: string
   autoTagModel: string
-  briefingModel: string
-  briefingTime: string
   aiPersonality: string
   aiExpertise: string | null
   enableLinkSuggestion: boolean
@@ -320,8 +318,6 @@ export interface UpdateAIConfigInput {
   ragTimeFilterStart?: string
   ragTimeFilterEnd?: string
   autoTagModel?: string
-  briefingModel?: string
-  briefingTime?: string
   aiPersonality?: string
   aiExpertise?: string
   enableLinkSuggestion?: boolean
@@ -419,7 +415,6 @@ export interface Workspace {
   ragflowDatasetId: string | null
   ragflowChatId: string | null
   enableAutoTag: boolean
-  enableBriefing: boolean
   userId: string
   createdAt: Date
   updatedAt: Date
@@ -434,7 +429,6 @@ export interface UpdateWorkspaceInput {
   name?: string
   description?: string
   enableAutoTag?: boolean
-  enableBriefing?: boolean
 }
 
 export interface WorkspacesResponse {

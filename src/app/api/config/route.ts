@@ -33,8 +33,11 @@ export async function GET() {
     },
   })
   } catch (error) {
-    if (error instanceof AuthError || error instanceof UserNotFoundError) {
+    if (error instanceof AuthError) {
       return Response.json({ error: error.message }, { status: 401 })
+    }
+    if (error instanceof UserNotFoundError) {
+      return Response.json({ error: error.message }, { status: 404 })
     }
     // 不要直接抛出错误，避免泄露内部实现细节
     console.error("Failed to get config:", error)
@@ -63,8 +66,6 @@ export async function PUT(request: NextRequest) {
       "ragTimeFilterStart",
       "ragTimeFilterEnd",
       "autoTagModel",
-      "briefingModel",
-      "briefingTime",
       "aiPersonality",
       "aiExpertise",
       "enableLinkSuggestion",
@@ -93,8 +94,11 @@ export async function PUT(request: NextRequest) {
       message: "Configuration updated successfully. Changes take effect immediately.",
     })
   } catch (error) {
-    if (error instanceof AuthError || error instanceof UserNotFoundError) {
+    if (error instanceof AuthError) {
       return Response.json({ error: error.message }, { status: 401 })
+    }
+    if (error instanceof UserNotFoundError) {
+      return Response.json({ error: error.message }, { status: 404 })
     }
     console.error("Failed to update config:", error)
 
@@ -139,8 +143,11 @@ export async function POST() {
       })
     }
   } catch (error) {
-    if (error instanceof AuthError || error instanceof UserNotFoundError) {
+    if (error instanceof AuthError) {
       return Response.json({ error: error.message }, { status: 401 })
+    }
+    if (error instanceof UserNotFoundError) {
+      return Response.json({ error: error.message }, { status: 404 })
     }
     console.error("RAGFlow connection test failed:", error)
     return Response.json({

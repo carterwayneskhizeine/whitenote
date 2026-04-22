@@ -2,7 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import prisma from "@/lib/prisma"
 import { addTask } from "@/lib/queue"
-import redis from "@/lib/redis"
+import { setPaused } from "@/lib/file-watcher/pause-flag"
 import {
   getWorkspaceDir,
   getWorkspaceMetadataPath,
@@ -523,7 +523,7 @@ export async function exportToLocal(type: "message" | "comment", id: string) {
     if (shouldWrite) {
       // Pause file watcher to prevent it from importing the file we just exported
       // This avoids the "too recent" skip issue and circular sync
-      await redis.set("file-watcher:paused", "1", "EX", 5) // Pause for 5 seconds
+      setPaused("file-watcher:paused", 5000) // Pause for 5 seconds
 
       // Write file
       fs.writeFileSync(filePath, fileContent)
@@ -656,7 +656,7 @@ export async function exportToLocal(type: "message" | "comment", id: string) {
     if (shouldWrite) {
       // Pause file watcher to prevent it from importing the file we just exported
       // This avoids the "too recent" skip issue and circular sync
-      await redis.set("file-watcher:paused", "1", "EX", 5) // Pause for 5 seconds
+      setPaused("file-watcher:paused", 5000) // Pause for 5 seconds
 
       // Write file
       fs.writeFileSync(filePath, fileContent)
@@ -698,7 +698,7 @@ export async function exportToLocal(type: "message" | "comment", id: string) {
  */
 export async function importFromLocal(workspaceId: string, filePath: string) {
   // Pause file watcher during import to prevent race conditions
-  await redis.set("file-watcher:paused", "1", "EX", 3)
+  setPaused("file-watcher:paused", 3000)
 
   const parsed = parseFilePath(filePath)
   if (!parsed) {

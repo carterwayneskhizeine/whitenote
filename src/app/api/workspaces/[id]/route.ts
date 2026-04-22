@@ -16,7 +16,7 @@ export async function PATCH(
       return Response.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { name, description, enableAutoTag, enableBriefing } = await request.json()
+    const { name, description, enableAutoTag } = await request.json()
 
     // 验证 Workspace 是否存在且属于当前用户
     const existingWorkspace = await prisma.workspace.findUnique({
@@ -37,7 +37,6 @@ export async function PATCH(
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
         ...(enableAutoTag !== undefined && { enableAutoTag }),
-        ...(enableBriefing !== undefined && { enableBriefing }),
       }
     })
 

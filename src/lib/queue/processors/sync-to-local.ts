@@ -1,4 +1,4 @@
-import { Job } from "bullmq"
+import type { Job } from "@/lib/queue/types"
 import { exportToLocal } from "@/lib/sync-utils"
 
 interface SyncToLocalJobData {

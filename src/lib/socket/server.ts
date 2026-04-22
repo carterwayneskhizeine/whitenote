@@ -4,7 +4,7 @@ import { parse } from "cookie"
 import { verifySessionToken } from "./auth"
 import chokidar from "chokidar"
 import { importFromLocal, parseFilePath } from "@/lib/sync-utils"
-import redis from "@/lib/redis"
+import { isPaused } from "@/lib/file-watcher/pause-flag"
 import * as path from "path"
 
 interface SocketData {
@@ -190,8 +190,8 @@ export function initSocketServer(httpServer: HTTPServer) {
       }
 
       // Check if watcher is paused via Redis (for distributed coordination)
-      const isPaused = await redis.get("file-watcher:paused")
-      if (isPaused) {
+      const paused = isPaused("file-watcher:paused")
+      if (paused) {
         console.log(`[FileWatcher] Watcher paused, ignoring change: ${filePath}`)
         return
       }

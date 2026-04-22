@@ -2,7 +2,7 @@ import * as fs from "fs"
 import * as path from "path"
 import { addTask } from "@/lib/queue"
 import { importFromLocal, parseFilePath } from "@/lib/sync-utils"
-import redis from "@/lib/redis"
+import { isPaused } from "@/lib/file-watcher/pause-flag"
 
 // 获取文件监听目录，支持 Docker 和本地开发环境
 function getWatchDir(): string {
@@ -114,8 +114,8 @@ export function startFileWatcher() {
     if (!filename) return
 
     // Check if watcher is paused via Redis (for distributed coordination)
-    const isPaused = await redis.get("file-watcher:paused")
-    if (isPaused) {
+    const paused = isPaused("file-watcher:paused")
+    if (paused) {
       console.log(`[FileWatcher] Watcher paused, ignoring change: ${filename}`)
       return
     }

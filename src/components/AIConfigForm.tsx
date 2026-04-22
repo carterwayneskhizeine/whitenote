@@ -61,8 +61,6 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
         openaiModel: config.openaiModel,
         ragflowBaseUrl: config.ragflowBaseUrl,
         autoTagModel: config.autoTagModel,
-        briefingModel: config.briefingModel,
-        briefingTime: config.briefingTime,
         aiPersonality: config.aiPersonality,
         aiExpertise: config.aiExpertise ?? undefined,
         enableLinkSuggestion: config.enableLinkSuggestion,
@@ -275,22 +273,6 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
             value={config.autoTagModel}
             onChange={(e) => setConfig({ ...config, autoTagModel: e.target.value })}
             placeholder={config.openaiModel}
-            className="border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1"
-          />
-        </InputRow>
-        <InputRow label="每日晨报模型" description="留空则使用默认模型">
-          <Input
-            value={config.briefingModel}
-            onChange={(e) => setConfig({ ...config, briefingModel: e.target.value })}
-            placeholder={config.openaiModel}
-            className="border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1"
-          />
-        </InputRow>
-        <InputRow label="每日晨报时间" description="格式：HH:MM（24小时制）">
-          <Input
-            value={config.briefingTime}
-            onChange={(e) => setConfig({ ...config, briefingTime: e.target.value })}
-            placeholder="08:00"
             className="border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1"
           />
         </InputRow>

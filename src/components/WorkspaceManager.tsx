@@ -38,7 +38,6 @@ export function WorkspaceManager() {
   const [editName, setEditName] = useState("")
   const [editDescription, setEditDescription] = useState("")
   const [editEnableAutoTag, setEditEnableAutoTag] = useState(true)
-  const [editEnableBriefing, setEditEnableBriefing] = useState(true)
   const [showCreateForm, setShowCreateForm] = useState(false)
 
   const fetchWorkspaces = async () => {
@@ -98,7 +97,6 @@ export function WorkspaceManager() {
     setEditName(workspace.name)
     setEditDescription(workspace.description || "")
     setEditEnableAutoTag(workspace.enableAutoTag)
-    setEditEnableBriefing(workspace.enableBriefing)
   }
 
   const handleCancelEdit = () => {
@@ -113,7 +111,6 @@ export function WorkspaceManager() {
         name: editName.trim(),
         description: editDescription.trim() || undefined,
         enableAutoTag: editEnableAutoTag,
-        enableBriefing: editEnableBriefing,
       }
       const result = await workspacesApi.updateWorkspace(id, updateData)
       if (result.data) {
@@ -317,10 +314,6 @@ export function WorkspaceManager() {
                     <Switch id={`tag-${ws.id}`} checked={editEnableAutoTag} onCheckedChange={setEditEnableAutoTag} />
                     <Label htmlFor={`tag-${ws.id}`} className="text-sm cursor-pointer">自动打标签</Label>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Switch id={`br-${ws.id}`} checked={editEnableBriefing} onCheckedChange={setEditEnableBriefing} />
-                    <Label htmlFor={`br-${ws.id}`} className="text-sm cursor-pointer">每日晨报</Label>
-                  </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="ghost" size="sm" className="rounded-full" onClick={handleCancelEdit}>
@@ -352,10 +345,6 @@ export function WorkspaceManager() {
                     <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                       <div className={cn("h-1.5 w-1.5 rounded-full", ws.enableAutoTag ? "bg-green-500" : "bg-muted-foreground/30")} />
                       自动标签
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <div className={cn("h-1.5 w-1.5 rounded-full", ws.enableBriefing ? "bg-green-500" : "bg-muted-foreground/30")} />
-                      每日晨报
                     </div>
                   </div>
                 </div>

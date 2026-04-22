@@ -1,4 +1,4 @@
-import { Job } from "bullmq"
+import type { Job } from "@/lib/queue/types"
 import prisma from "@/lib/prisma"
 import { applyAutoTags } from "@/lib/ai/auto-tag"
 import { addTask } from "@/lib/queue"
