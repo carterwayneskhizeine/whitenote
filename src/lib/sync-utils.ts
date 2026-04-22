@@ -7,7 +7,8 @@ import {
   getWorkspaceDir,
   getWorkspaceMetadataPath,
   readWorkspaceMetadata,
-  getWorkspaceIdByFolderName
+  getWorkspaceIdByFolderName,
+  clearWorkspaceCache
 } from "@/lib/workspace-discovery"
 
 // 获取同步目录，支持 Docker 和本地开发环境
@@ -991,7 +992,48 @@ export async function exportAllToLocal(userId: string) {
 /**
  * Import all modified files from local to DB
  */
-export async function importAllFromLocal() {
+/**
+ * Initialize a brand-new local folder as a workspace in DB + create workspace.json.
+ * Returns the populated WorkspaceData and the DB workspace ID, or null on failure.
+ */
+async function bootstrapNewWorkspaceFolder(
+  folderName: string,
+  folderPath: string,
+  userId: string
+): Promise<{ wsData: WorkspaceData; wsDbId: string } | null> {
+  let workspace
+  try {
+    workspace = await prisma.workspace.create({ data: { name: folderName, userId } })
+  } catch {
+    const existing = await prisma.workspace.findFirst({ where: { userId, name: folderName } })
+    if (!existing) return null
+    workspace = existing
+  }
+
+  const now = new Date().toISOString()
+  const wsData: WorkspaceData = {
+    version: 2,
+    workspace: {
+      id: workspace.id,
+      originalFolderName: folderName,
+      currentFolderName: folderName,
+      name: folderName,
+      lastSyncedAt: now,
+    },
+    messages: {},
+    comments: {},
+  }
+
+  const metaDir = path.join(folderPath, '.whitenote')
+  fs.mkdirSync(metaDir, { recursive: true })
+  fs.writeFileSync(path.join(metaDir, 'workspace.json'), JSON.stringify(wsData, null, 2))
+  clearWorkspaceCache()
+
+  console.log(`[SyncUtils] Bootstrapped new workspace '${folderName}' -> ${workspace.id}`)
+  return { wsData, wsDbId: workspace.id }
+}
+
+export async function importAllFromLocal(userId?: string) {
   const results = {
     workspacesProcessed: [] as string[],
     imported: 0,
@@ -1011,6 +1053,119 @@ export async function importAllFromLocal() {
     const workspaceFile = getWorkspaceFile(workspaceId)
 
     if (!fs.existsSync(workspaceFile)) {
+      // New folder without workspace.json — bootstrap it if we have a userId
+      if (!userId) continue
+      const folderPath = path.join(SYNC_DIR, workspaceDir.name)
+      const bootstrapped = await bootstrapNewWorkspaceFolder(workspaceDir.name, folderPath, userId).catch(() => null)
+      if (!bootstrapped) continue
+
+      const { wsData: ws, wsDbId } = bootstrapped
+      results.workspacesProcessed.push(workspaceDir.name)
+
+      // Process root .md files as new messages
+      try {
+        const mdFiles = fs.readdirSync(folderPath).filter(f => f.endsWith('.md'))
+        for (const mdFile of mdFiles) {
+          try {
+            const filePath = path.join(folderPath, mdFile)
+            const rawContent = fs.readFileSync(filePath, 'utf-8')
+            const { tags: tagNames, content } = parseMdFile(rawContent)
+            const stats = fs.statSync(filePath)
+
+            const msg = await prisma.message.create({
+              data: { content, authorId: userId, workspaceId: wsDbId, createdAt: stats.mtime, updatedAt: stats.mtime }
+            })
+            if (tagNames.length > 0) {
+              const { batchUpsertTags } = await import('@/lib/tag-utils')
+              const tagIds = await batchUpsertTags(tagNames)
+              for (const tagId of tagIds) {
+                await prisma.messageTag.create({ data: { messageId: msg.id, tagId } }).catch(() => {})
+              }
+            }
+            const origFile = `message_${msg.id}.md`
+            ws.messages[origFile] = {
+              id: msg.id, type: 'message', originalFilename: origFile, currentFilename: mdFile,
+              commentFolderName: `message_${msg.id}`,
+              created_at: stats.mtime.toISOString(), updated_at: stats.mtime.toISOString(),
+              author: 'local', authorName: 'local', tags: tagNames.map(t => '#' + t).join(' ')
+            }
+            results.imported++
+          } catch (e) {
+            console.error(`[SyncUtils] Error creating message from ${mdFile}:`, e)
+            results.errors++
+          }
+        }
+      } catch (e) {
+        console.error(`[SyncUtils] Error reading root md files for ${workspaceDir.name}:`, e)
+      }
+
+      // Process subfolders: each subfolder → one message (folder name as content) + comments from its .md files
+      try {
+        const subEntries = fs.readdirSync(folderPath, { withFileTypes: true })
+        const subDirs = subEntries.filter(d => d.isDirectory() && !d.name.startsWith('.'))
+        for (const subDir of subDirs) {
+          const subFolderPath = path.join(folderPath, subDir.name)
+          const subMdFiles = fs.readdirSync(subFolderPath).filter(f => f.endsWith('.md'))
+          if (subMdFiles.length === 0) continue
+
+          try {
+            // Create parent message from folder name
+            const parentMsg = await prisma.message.create({
+              data: { content: subDir.name, authorId: userId, workspaceId: wsDbId }
+            })
+            const origFile = `message_${parentMsg.id}.md`
+            ws.messages[origFile] = {
+              id: parentMsg.id, type: 'message', originalFilename: origFile,
+              currentFilename: `${subDir.name}.md`, commentFolderName: subDir.name,
+              created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+              author: 'local', authorName: 'local', tags: ''
+            }
+            results.imported++
+
+            // Create comments from .md files in subfolder
+            for (const mdFile of subMdFiles) {
+              try {
+                const filePath = path.join(subFolderPath, mdFile)
+                const rawContent = fs.readFileSync(filePath, 'utf-8')
+                const { tags: tagNames, content } = parseMdFile(rawContent)
+                const stats = fs.statSync(filePath)
+
+                const comment = await prisma.comment.create({
+                  data: { content, messageId: parentMsg.id, authorId: userId, createdAt: stats.mtime, updatedAt: stats.mtime }
+                })
+                if (tagNames.length > 0) {
+                  const { batchUpsertTags } = await import('@/lib/tag-utils')
+                  const tagIds = await batchUpsertTags(tagNames)
+                  for (const tagId of tagIds) {
+                    await prisma.commentTag.create({ data: { commentId: comment.id, tagId } }).catch(() => {})
+                  }
+                }
+                const cOrigFile = `comment_${comment.id}.md`
+                ws.comments[cOrigFile] = {
+                  id: comment.id, type: 'comment', messageId: parentMsg.id, parentId: null,
+                  originalFilename: cOrigFile, currentFilename: mdFile, folderName: subDir.name,
+                  created_at: stats.mtime.toISOString(), updated_at: stats.mtime.toISOString(),
+                  author: 'local', authorName: 'local', tags: tagNames.map(t => '#' + t).join(' ')
+                }
+                results.imported++
+              } catch (e) {
+                console.error(`[SyncUtils] Error creating comment from ${subDir.name}/${mdFile}:`, e)
+                results.errors++
+              }
+            }
+          } catch (e) {
+            console.error(`[SyncUtils] Error processing subfolder ${subDir.name}:`, e)
+            results.errors++
+          }
+        }
+      } catch (e) {
+        console.error(`[SyncUtils] Error reading subfolders for ${workspaceDir.name}:`, e)
+      }
+
+      // Persist updated workspace.json
+      const metaPath = path.join(SYNC_DIR, workspaceDir.name, '.whitenote', 'workspace.json')
+      fs.writeFileSync(metaPath, JSON.stringify(ws, null, 2))
+      clearWorkspaceCache()
       continue
     }
 
@@ -1043,8 +1198,54 @@ export async function importAllFromLocal() {
           }
 
           if (!messageEntry) {
-            // Unknown file, skip
-            results.skipped++
+            // New local file not tracked in workspace.json — create in DB
+            if (!userId) {
+              results.skipped++
+              continue
+            }
+            try {
+              const rawContent = fs.readFileSync(filePath, 'utf-8')
+              const { tags: tagNames, content } = parseMdFile(rawContent)
+              const stats = fs.statSync(filePath)
+
+              const msg = await prisma.message.create({
+                data: {
+                  content,
+                  authorId: userId,
+                  workspaceId: ws.workspace.id,
+                  createdAt: stats.mtime,
+                  updatedAt: stats.mtime,
+                }
+              })
+
+              if (tagNames.length > 0) {
+                const { batchUpsertTags } = await import('@/lib/tag-utils')
+                const tagIds = await batchUpsertTags(tagNames)
+                for (const tagId of tagIds) {
+                  await prisma.messageTag.create({ data: { messageId: msg.id, tagId } }).catch(() => {})
+                }
+              }
+
+              const originalFilename = `message_${msg.id}.md`
+              ws.messages[originalFilename] = {
+                id: msg.id,
+                type: 'message',
+                originalFilename,
+                currentFilename: mdFile,
+                commentFolderName: `message_${msg.id}`,
+                created_at: stats.mtime.toISOString(),
+                updated_at: stats.mtime.toISOString(),
+                author: 'local',
+                authorName: 'local',
+                tags: tagNames.map(t => '#' + t).join(' ')
+              }
+              saveWorkspaceData(workspaceId, ws)
+              console.log(`[SyncUtils] Created new message from local file: ${mdFile} -> ${msg.id}`)
+              results.imported++
+            } catch (error) {
+              console.error(`[SyncUtils] Error creating message from ${mdFile}:`, error)
+              results.errors++
+            }
             continue
           }
 

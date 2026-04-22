@@ -16,6 +16,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed-ai-commands.ts",
+    "db:restore": "tsx scripts/restore-from-local.ts",
     "setup": "mkdir -p data/uploads data/link_md && pnpm install && pnpm db:generate"
   },
   "pnpm": {

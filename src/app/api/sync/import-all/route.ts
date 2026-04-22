@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await requireAuth()
     setPaused(PAUSE_KEY, 5 * 60 * 1000)
-    const result = await importAllFromLocal()
+    const result = await importAllFromLocal(session.user.id)
     clearPaused(PAUSE_KEY)
     return Response.json({
       data: result,

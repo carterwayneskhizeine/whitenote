@@ -335,7 +335,7 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
           <div className="px-2 flex items-center justify-between">
             <div>
               <label className="text-sm font-bold block">启用实时同步</label>
-              <p className="text-xs text-muted-foreground">自动同步消息到指定目录</p>
+              <p className="text-xs text-muted-foreground">网页端修改自动同步到本地（单向：网页→本地）</p>
             </div>
             <Switch
               checked={config.enableMdSync}
@@ -367,8 +367,8 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
               >
                 {syncing === "import" ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileUp className="h-4 w-4 mr-2 text-primary" />}
                 <div className="text-left">
-                  <div className="text-sm font-bold leading-none">全量导入</div>
-                  <div className="text-[10px] text-muted-foreground mt-1">本地 MD → DB</div>
+                  <div className="text-sm font-bold leading-none">手动同步本地→DB</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">新增/修改同步，删除不同步</div>
                 </div>
               </Button>
               <Button
