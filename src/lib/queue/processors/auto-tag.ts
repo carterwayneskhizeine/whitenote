@@ -53,12 +53,12 @@ export async function processAutoTag(job: Job<AutoTagJobData>) {
 
   // 打完标签后，触发 RAGFlow 同步（确保标签被包含）
   try {
-    const job = await addTask("sync-ragflow", {
+    await addTask("sync-ragflow", {
       userId,
       workspaceId,
       messageId,
     })
-    console.log(`[AutoTag] Triggered sync-ragflow job:`, job?.id)
+    console.log(`[AutoTag] Triggered sync-ragflow job for message: ${messageId}`)
   } catch (error) {
     console.error(`[AutoTag] Failed to trigger sync-ragflow:`, error)
   }

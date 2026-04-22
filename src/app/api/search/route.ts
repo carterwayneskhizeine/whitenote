@@ -95,7 +95,6 @@ export async function GET(request: NextRequest) {
               authorId: session.user.id,
               content: {
                 contains: query.trim(),
-                mode: "insensitive",
               },
             },
             include: {
@@ -117,7 +116,6 @@ export async function GET(request: NextRequest) {
               authorId: session.user.id,
               content: {
                 contains: query.trim(),
-                mode: "insensitive",
               },
             },
             include: {
@@ -154,7 +152,7 @@ export async function GET(request: NextRequest) {
         ? prisma.message.count({
             where: {
               authorId: session.user.id,
-              content: { contains: query.trim(), mode: "insensitive" },
+              content: { contains: query.trim() },
             },
           })
         : 0,
@@ -163,7 +161,7 @@ export async function GET(request: NextRequest) {
         ? prisma.comment.count({
             where: {
               authorId: session.user.id,
-              content: { contains: query.trim(), mode: "insensitive" },
+              content: { contains: query.trim() },
             },
           })
         : 0,

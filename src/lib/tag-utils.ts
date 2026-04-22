@@ -35,10 +35,9 @@ export async function batchUpsertTags(tagNames: string[]): Promise<string[]> {
   // Step 3: Batch create new tags if any (1 query)
   let createdTags: Array<{ id: string; name: string }> = []
   if (newNames.length > 0) {
-    // Use createMany with skipDuplicates for better performance
+    // Use createMany for better performance
     await prisma.tag.createMany({
       data: newNames.map((name) => ({ name })),
-      skipDuplicates: true,
     })
 
     // Query the newly created tags to get their IDs
@@ -81,7 +80,6 @@ export async function connectTagsToMessage(
       messageId,
       tagId,
     })),
-    skipDuplicates: true,
   })
 }
 

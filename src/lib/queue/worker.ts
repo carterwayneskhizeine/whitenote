@@ -11,7 +11,11 @@ export function startWorker() {
   registerHandler("auto-tag-comment", (data) => processAutoTagExtended({ data } as any))
   registerHandler("sync-ragflow", (data) => processSyncRAGFlow({ data } as any))
   registerHandler("sync-to-local", (data) => processSyncToLocal({ data } as any))
-  registerHandler("create-workspace-from-folder", (data) => processCreateWorkspaceFromFolder({ data } as any))
-  registerHandler("create-message-from-file", (data) => processCreateMessageFromFile({ data } as any))
+  registerHandler("create-workspace-from-folder", async (data) => {
+    await processCreateWorkspaceFromFolder({ data } as any)
+  })
+  registerHandler("create-message-from-file", async (data) => {
+    await processCreateMessageFromFile({ data } as any)
+  })
   console.log("[Worker] In-process queue worker started")
 }

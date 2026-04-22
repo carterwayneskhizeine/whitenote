@@ -98,13 +98,13 @@ export async function processAutoTagExtended(job: Job<AutoTagJobData>) {
 
     // 打完标签后，触发 RAGFlow 同步（确保标签被包含）
     try {
-      const syncJob = await addTask("sync-ragflow", {
+      await addTask("sync-ragflow", {
         userId: targetUserId,
         workspaceId,
         messageId: contentId,
         contentType,
       })
-      console.log(`[AutoTagExtended] Triggered sync-ragflow job:`, syncJob?.id)
+      console.log(`[AutoTagExtended] Triggered sync-ragflow job for ${contentType}: ${contentId}`)
     } catch (error) {
       console.error(`[AutoTagExtended] Failed to trigger sync-ragflow:`, error)
     }
@@ -216,7 +216,6 @@ ${comment.content}
         commentId,
         tagId,
       })),
-      skipDuplicates: true,
     })
 
     console.log(`[AutoTagExtended] Successfully applied tags to comment: ${commentId}`)
