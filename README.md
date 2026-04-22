@@ -144,22 +144,32 @@ WhiteNote 内置交互式知识图谱可视化：
 
 ### 🤖 AI 聊天 (AI Chat)
 
-WhiteNote 深度集成 OpenClaw AI 助手：
+WhiteNote 支持两个 AI 对话后端，可在页面顶部切换：
+
+#### OpenClaw 后端
+
+基于 WebSocket 协议与 OpenClaw Gateway 通信，支持设备认证、多会话、流式响应。
+
+- **流式响应**：AI 回复采用流式输出，体验更自然
+- **多会话管理**：支持创建、切换、命名、删除多个聊天会话
+- **内容块渲染**：支持 text、thinking（推理过程）、tool_call（工具调用）等多种内容类型
+- **上下文感知**：AI 可以访问用户的知识库（RAG 模式）
+
+#### Hermes Agent 后端
+
+通过 Hermes API Server（OpenAI 兼容协议）通信，支持 tool calling、会话持久化。
+
+- **Tool Calling**：Hermes Agent 拥有丰富的工具集（文件操作、终端、浏览器等）
+- **会话历史**：从 Hermes Dashboard 加载历史对话，可选择继续已有会话
+- **OpenAI 兼容**：标准 `/v1/chat/completions` SSE 流式接口
+
+#### 通用特性
 
 - **独立聊天页面**：专门的 AI 聊天界面 (`/aichat`)
-- **会话管理**：支持多个聊天会话
-  - 创建新会话
-  - 切换不同会话
-  - 命名会话
-- **流式响应**：AI 回复采用流式输出，体验更自然
-- **上下文感知**：AI 可以访问用户的知识库（RAG 模式）
+- **后端切换**：页面顶部一键切换 OpenClaw / Hermes 后端
 - **移动端适配**：
   - 键盘弹出时自动调整布局
   - 适配移动端视口高度变化
-  - 支持语音输入
-- **调试日志**：发送请求时传入 `log: true` 可将 AI 事件保存到 `logs/` 目录
-  - API 位置：`src/app/api/openclaw/chat/stream/route.ts:44`（参数定义）和 `route.ts:93-95`（日志写入逻辑）
-  - 日志格式：JSONL，每行包含时间戳、事件名和事件数据
 
 ### 🔐 分享功能 (Share)
 
@@ -400,6 +410,15 @@ OPENAI_MODEL="gpt-4"
 RAGFLOW_BASE_URL="https://your-ragflow-instance.com"
 RAGFLOW_API_KEY="your-ragflow-api-key"
 
+# OpenClaw Gateway（AI Chat 后端一）
+OPENCLAW_GATEWAY_URL="ws://localhost:18789"
+OPENCLAW_TOKEN="your-openclaw-token"
+
+# Hermes Agent（AI Chat 后端二）
+HERMES_API_URL="http://localhost:8642"
+HERMES_DASHBOARD_URL="http://localhost:9119"
+HERMES_API_KEY="your-hermes-api-key"
+
 # 文件上传
 UPLOAD_DIR="/app/data/uploads"
 FILE_WATCHER_DIR="/app/data/link_md"
@@ -411,9 +430,22 @@ FILE_WATCHER_ENABLED="true"
 ```
 src/
 ├── app/                    # Next.js App Router 页面
+│   ├── api/               # API 路由
+│   │   ├── openclaw/      # OpenClaw 代理（chat/stream, sessions）
+│   │   └── hermes/        # Hermes 代理（chat/stream, sessions, health）
+│   └── aichat/            # AI Chat 页面（OpenClaw / Hermes 双后端）
 ├── components/             # React 组件
+│   └── OpenClawChat/      # AI Chat 组件（双后端共享）
+│       ├── ChatWindow.tsx            # 对话窗口（支持 OpenClaw/Hermes）
+│       ├── AIMessageViewer.tsx       # AI 消息渲染
+│       ├── SessionSelector.tsx       # OpenClaw 会话选择器
+│       ├── HermesSessionSelector.tsx # Hermes 会话选择器
+│       ├── api.ts                    # OpenClaw API 客户端
+│       ├── hermes-api.ts             # Hermes API 客户端
+│       └── types.ts                  # 前端类型定义
 ├── lib/                    # 工具库和配置
 │   ├── ai/                # AI 集成
+│   ├── openclaw/          # OpenClaw Gateway 客户端
 │   ├── queue/             # 任务队列
 │   └── socket/            # Socket.IO 配置
 ├── store/                  # Zustand 状态管理

@@ -102,7 +102,6 @@ export default function AIChatPage() {
       <div className="shrink-0 sticky top-0 border-b px-4 py-3 bg-background z-50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold">AI Chat</h1>
             <div className="flex bg-muted/50 rounded-lg p-0.5">
               <button
                 onClick={() => handleBackendChange('openclaw')}

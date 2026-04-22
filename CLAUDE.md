@@ -108,6 +108,9 @@ BullMQ with Redis (`src/lib/queue/`) for:
 src/
 ├── app/                    # Next.js App Router
 │   ├── api/               # API routes (auth, messages, media)
+│   │   ├── openclaw/      # OpenClaw API 代理（chat/stream, chat/history, sessions）
+│   │   └── hermes/        # Hermes API 代理（chat/stream, chat/history, sessions, health）
+│   ├── aichat/            # AI Chat 页面（OpenClaw / Hermes 双后端）
 │   ├── page.tsx           # 首页 (Home page)
 │   ├── status/[id]/       # 帖子详情页面 (Message detail page)
 │   │   ├── page.tsx       # 帖子详情页
@@ -140,10 +143,12 @@ src/
 │   ├── InputMachine/      # TipTap editor with AI integration
 │   └── MessagesList/      # Message display with real-time updates
 │   └── OpenClawChat/      # AI Chat components
-│       ├── ChatWindow.tsx      # 对话主窗口组件
+│       ├── ChatWindow.tsx      # 对话主窗口组件（支持 OpenClaw/Hermes 双后端）
 │       ├── AIMessageViewer.tsx # AI 消息渲染组件（支持 thinking、tool call 等内容块）
-│       ├── SessionSelector.tsx # 会话选择器组件
-│       ├── api.ts              # API 客户端（流式、历史消息）
+│       ├── SessionSelector.tsx # OpenClaw 会话选择器组件
+│       ├── HermesSessionSelector.tsx # Hermes 会话选择器组件
+│       ├── api.ts              # OpenClaw API 客户端（流式、历史消息）
+│       ├── hermes-api.ts       # Hermes API 客户端（流式、会话列表）
 │       └── types.ts            # 前端类型定义
 ├── lib/
 │   ├── socket/           # Socket.IO server configuration
@@ -167,100 +172,111 @@ scripts/
 HttpAPIRAGFlow/           # RAGFlow API automation scripts and documentation
 ```
 
-## OpenClaw AI Chat 集成
+## AI Chat 集成
 
-WhiteNote 集成了 OpenClaw Gateway 作为 AI 对话后端，提供类似 ChatGPT 的 Web UI 对话界面。
+AI Chat 页面（`/aichat`）支持两个后端，用户可在页面上方切换：
 
-### 架构概述
+### 后端一：OpenClaw Gateway
 
-OpenClaw 聊天系统采用 WebSocket 协议与 OpenClaw Gateway 通信，支持：
-- **设备认证**：基于 ECDSA 公私钥的设备身份认证
-- **会话管理**：多会话支持，会话持久化
-- **流式响应**：SSE 格式实时推送 AI 生成内容
-- **内容块**：支持 text、thinking、tool_call、tool_result 等多种内容类型
+WebSocket 协议与 OpenClaw Gateway 通信，支持设备认证、多会话、流式响应。
 
-### 关键文件
+**配置**（`.env.local`）：
+```env
+OPENCLAW_GATEWAY_URL=ws://localhost:18789
+OPENCLAW_TOKEN=your-openclaw-token
+```
 
-| 文件路径 | 说明 |
-|----------|------|
-| `src/app/aichat/page.tsx` | AI Chat 页面入口 |
-| `src/components/OpenClawChat/ChatWindow.tsx` | 对话主窗口组件，包含输入框、消息列表 |
-| `src/components/OpenClawChat/AIMessageViewer.tsx` | AI 消息渲染组件，支持 thinking 展示和 tool call 渲染 |
-| `src/components/OpenClawChat/SessionSelector.tsx` | 会话选择器组件 |
-| `src/components/OpenClawChat/api.ts` | 前端 API 客户端，包含流式聊天和历史消息获取 |
-| `src/components/OpenClawChat/types.ts` | 前端类型定义（ChatMessage、OpenClawContentBlock 等） |
-| `src/lib/openclaw/gateway.ts` | WebSocket 客户端核心实现（OpenClawGateway 类） |
-| `src/lib/openclaw/types.ts` | 协议类型定义（RequestFrame、ResponseFrame、EventFrame、ChatEvent 等） |
-| `src/lib/openclaw/deviceIdentity.ts` | 设备身份生成与签名（ECDSA 公私钥） |
-| `src/lib/openclaw/deviceAuthStore.ts` | 设备认证 Token 存储（持久化到文件系统） |
-| `src/app/api/openclaw/chat/stream/route.ts` | 流式聊天 API（POST /api/openclaw/chat/stream） |
-| `src/app/api/openclaw/chat/history/route.ts` | 获取聊天历史 API（GET /api/openclaw/chat/history） |
-| `src/app/api/openclaw/sessions/route.ts` | 会话管理 API（列表、创建） |
-| `src/app/api/openclaw/sessions/[key]/route.ts` | 会话管理 API（更新、删除） |
+**前提**：需要运行 OpenClaw Gateway（端口 18789）。
 
-### API 端点
+**关键文件**：
+- `src/lib/openclaw/gateway.ts` — WebSocket 客户端（EventEmitter、v3 签名、backend 模式）
+- `src/lib/openclaw/deviceIdentity.ts` — ECDSA 设备身份与 v3 签名载荷
+- `src/lib/openclaw/types.ts` — 协议类型（RequestFrame、ResponseFrame、EventFrame）
+- `src/components/OpenClawChat/api.ts` — 前端 API 客户端
+- `src/components/OpenClawChat/SessionSelector.tsx` — 会话选择器
+
+**API 端点**：
 
 | 端点 | 方法 | 说明 |
 |------|------|------|
-| `/api/openclaw/chat/stream` | POST | 流式聊天，接收 `{ sessionKey, content, log? }`，返回 SSE 流 |
-| `/api/openclaw/chat/history` | GET | 获取历史消息，参数 `sessionKey`, `limit`, `before` |
-| `/api/openclaw/sessions` | GET | 列出所有会话 |
-| `/api/openclaw/sessions` | POST | 创建新会话 |
-| `/api/openclaw/sessions/[key]` | PATCH | 更新会话（如设置 label） |
-| `/api/openclaw/sessions/[key]` | DELETE | 删除会话 |
+| `/api/openclaw/chat/stream` | POST | 流式聊天，返回 SSE 流 |
+| `/api/openclaw/chat/history` | GET | 获取历史消息 |
+| `/api/openclaw/sessions` | GET/POST | 列出/创建会话 |
+| `/api/openclaw/sessions/[key]` | PATCH/DELETE | 更新/删除会话 |
 
-### 前端组件结构
+**数据流**：
+1. `ChatWindow` 调用 `/api/openclaw/chat/stream`
+2. API 内部通过 `createGlobalGateway(token)` 建立 WebSocket 连接
+3. Gateway 完成 v3 设备认证后发送 `chat.send`
+4. AI 响应通过 `chat` 事件流推送，API 转换为 SSE 格式
 
-```
-ChatWindow
-├── SessionSelector          # 会话选择器（下拉菜单）
-├── MessagesList            # 消息列表
-│   └── AIMessageViewer     # 单条 AI 消息渲染
-│       ├── TextBlock       # 文本内容块
-│       ├── ThinkingBlock  # thinking/推理过程展示
-│       └── ToolCallBlock  # tool_call 工具调用展示
-└── InputArea              # 输入区域
-```
+**内容块类型**：text（文本）、thinking（推理过程）、tool_call（工具调用）、tool_result（工具结果）
 
-### 数据流
+### 后端二：Hermes Agent
 
-1. **连接建立**：`ChatWindow` 加载时通过 `api.sendMessage()` 调用 `/api/openclaw/chat/stream`
-2. **认证流程**：API 内部调用 `createGlobalGateway(token)` 建立 WebSocket 连接，完成设备认证
-3. **消息发送**：用户输入内容后，通过 `gateway.sendMessage(sessionKey, content)` 发送
-4. **事件接收**：Gateway 监听 WebSocket 事件，触发 `onEvent` 回调
-5. **流式渲染**：API 将事件转换为 SSE 格式推送，前端逐步渲染
+通过 Hermes API Server（OpenAI 兼容协议）通信，支持 tool calling、会话持久化、流式响应。
 
-### 内容块类型
+**配置**：
 
-`OpenClawContentBlock` 支持以下类型：
-
-- **text**：普通文本内容
-- **thinking**：AI 推理过程（紫色高亮显示）
-- **tool_call**：AI 发起工具调用（显示工具名和参数）
-- **tool_result**：工具调用结果
-
-### 配置
-
-在 `.env.local` 中添加：
+1. 在 Hermes 侧（`~/.hermes/.env`）启用 API Server：
 ```env
-OPENCLAW_GATEWAY_URL=ws://localhost:18789
-OPENCLAW_TOKEN=your-token-here
+API_SERVER_ENABLED=true
+API_SERVER_KEY=your-secret-key
 ```
 
-### 调试日志
+2. 在 WhiteNote 侧（`.env.local`）添加：
+```env
+HERMES_API_URL=http://localhost:8642
+HERMES_DASHBOARD_URL=http://localhost:9119
+HERMES_API_KEY=your-secret-key
+```
 
-发送请求时传入 `log: true` 可将 AI 事件保存到 `logs/` 目录：
-- API 位置：`src/app/api/openclaw/chat/stream/route.ts:44`（参数定义）
-- 日志逻辑：`route.ts:93-95`（条件判断）
-- 日志格式：JSONL，每行包含时间戳、事件名和事件数据
-- 日志文件：`logs/openclaw-{timestamp}.jsonl`
+**前提**：需要运行 Hermes Gateway（`hermes gateway run`），API Server 会自动在端口 8642 启动，Dashboard 在端口 9119。
+
+**架构**：
+
+```
+WhiteNote Frontend
+  → /api/hermes/*（Next.js API 路由代理）
+    → Hermes API Server (localhost:8642)
+      → POST /v1/chat/completions（SSE 流式）
+    → Hermes Dashboard (localhost:9119)
+      → GET /api/sessions（会话列表）
+      → GET /api/sessions/{id}/messages（历史消息）
+```
+
+**关键文件**：
+
+| 文件路径 | 说明 |
+|----------|------|
+| `src/app/api/hermes/chat/stream/route.ts` | SSE 代理：将 OpenAI chat/completions 格式转为内部格式 |
+| `src/app/api/hermes/chat/history/route.ts` | 历史消息代理（自动提取 Dashboard session token） |
+| `src/app/api/hermes/sessions/route.ts` | 会话列表代理（自动提取 Dashboard session token） |
+| `src/app/api/hermes/health/route.ts` | 健康检查 |
+| `src/components/OpenClawChat/hermes-api.ts` | 前端 Hermes API 客户端 |
+| `src/components/OpenClawChat/HermesSessionSelector.tsx` | Hermes 会话选择器 |
+
+**Dashboard 认证**：Hermes Dashboard 的 session token 是每次启动随机生成的，注入到 SPA 的 HTML 中。WhiteNote 代理路由会自动从 Dashboard 首页提取 token，缓存 5 分钟，401 时自动刷新。
+
+**API Server 认证**：如果 Hermes 配置了 `API_SERVER_KEY`，WhiteNote 需要在 `.env.local` 设置相同的 `HERMES_API_KEY`。本地开发（127.0.0.1）可以不设 key，但 session continuity 功能要求必须设置。
+
+### 共享组件
+
+两个后端共用以下组件：
+
+| 文件路径 | 说明 |
+|----------|------|
+| `src/components/OpenClawChat/ChatWindow.tsx` | 对话主窗口，通过 `backend` prop 切换 OpenClaw/Hermes |
+| `src/components/OpenClawChat/AIMessageViewer.tsx` | AI 消息渲染（支持 thinking、tool call 展示） |
+| `src/components/OpenClawChat/types.ts` | 前端类型定义 |
+| `src/app/aichat/page.tsx` | 页面入口，包含后端切换按钮和会话选择器 |
 
 ### 使用
 
 - 访问 `http://localhost:3005/aichat` 进入 AI 对话页面
-- 使用固定的 `main` 会话，聊天记录会在刷新后自动从 OpenClaw Gateway 恢复
-- 支持流式响应
-- 支持创建多个会话，会话间数据隔离
+- 页面上方有 **OpenClaw** / **Hermes** 切换按钮
+- 选择后端后可切换会话（OpenClaw 用 SessionSelector，Hermes 用 HermesSessionSelector）
+- 支持流式响应，消息自动保存到 localStorage
 
 ## Database Schema Patterns
 
