@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils"
 import type { ChatMessage, OpenClawContentBlock, OpenClawTextContent, OpenClawThinkingContent } from './types'
 import { Terminal, FileText, Brain, ChevronRight, Clock } from 'lucide-react'
 
+const lowlight = createLowlight(common)
+
 // Format timestamp to human-readable string
 function formatTimestamp(timestamp: number): string {
   const date = new Date(timestamp)
@@ -221,8 +223,6 @@ export function AIMessageViewer({
   streamingReasoning,
   isStreaming,
 }: AIMessageViewerProps) {
-  const lowlight = createLowlight(common)
-
   const getTextContent = () => {
     // First, try to get text from propContentBlocks
     if (propContentBlocks && propContentBlocks.length > 0) {

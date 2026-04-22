@@ -1,15 +1,4 @@
-// ========== DEBUG FLAGS - 取消注释以下行来启用调试日志 ==========
-//const DEBUG_WS = true;  // 启用 WebSocket 调试日志
-// ========== END DEBUG FLAGS ==========
-
-// 调试日志辅助函数
-function debugLog(flag: string, ...args: unknown[]) {
-  // @ts-ignore - DEBUG_WS 在调试时会被定义
-  if (typeof DEBUG_WS !== 'undefined' && DEBUG_WS) {
-    console.log(`[OpenClawGateway ${flag}]`, ...args);
-  }
-}
-
+import { EventEmitter } from 'events';
 import WebSocket from 'ws';
 import { randomUUID } from 'crypto';
 import type {
@@ -17,21 +6,22 @@ import type {
   EventFrame,
   HelloOk,
   RequestFrame,
-  ResponseFrame,
-  SessionsResolveParams,
   ChatSendParams,
-  ChatEvent,
-  ChatStreamResponse,
-  OpenClawMessage,
 } from './types';
 import { OPENCLAW_PROTOCOL_VERSION } from './types';
-import { loadOrCreateDeviceIdentity, buildDeviceAuthPayload, publicKeyRawBase64UrlFromPem, signDevicePayload, type DeviceIdentity } from './deviceIdentity';
+import {
+  loadOrCreateDeviceIdentity,
+  buildDeviceAuthPayloadV3,
+  publicKeyRawBase64UrlFromPem,
+  signDevicePayload,
+  type DeviceIdentity,
+} from './deviceIdentity';
 import { loadDeviceAuthToken, storeDeviceAuthToken, clearDeviceAuthToken } from './deviceAuthStore';
 
 interface PendingRequest {
   resolve: (value: unknown) => void;
   reject: (err: Error) => void;
-  expectFinal: boolean;
+  timeout: ReturnType<typeof setTimeout> | null;
 }
 
 export interface OpenClawGatewayOptions {
@@ -41,19 +31,17 @@ export interface OpenClawGatewayOptions {
   clientName?: string;
   clientVersion?: string;
   platform?: string;
+  deviceFamily?: string;
   role?: string;
   scopes?: string[];
-  onEvent?: (event: EventFrame) => void;
+  caps?: string[];
 }
 
-export class OpenClawGateway {
+export class OpenClawGateway extends EventEmitter {
   private ws: WebSocket | null = null;
   private opts: OpenClawGatewayOptions;
   private pending = new Map<string, PendingRequest>();
   private backoffMs = 1000;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10;
-  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private closed = false;
   private lastSeq: number | null = null;
   private connectNonce: string | null = null;
@@ -62,36 +50,28 @@ export class OpenClawGateway {
   private lastTick: number | null = null;
   private tickIntervalMs = 30_000;
   private tickTimer: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   private _isConnected = false;
   private _helloOk: HelloOk | null = null;
-  private _sessionKey: string | null = null;
-  private _onEvent: ((event: EventFrame) => void) | null = null;
 
   private deviceIdentity: DeviceIdentity;
 
   constructor(opts: OpenClawGatewayOptions) {
+    super();
     this.deviceIdentity = loadOrCreateDeviceIdentity();
 
     this.opts = {
       url: opts.url ?? 'ws://localhost:18789',
       token: opts.token,
-      clientName: opts.clientName ?? 'webchat-ui',
+      clientName: opts.clientName ?? 'gateway-client',
       clientVersion: opts.clientVersion ?? '1.0.0',
-      platform: opts.platform ?? 'web',
+      platform: opts.platform ?? process.platform,
+      deviceFamily: opts.deviceFamily,
       role: opts.role ?? 'operator',
       scopes: opts.scopes ?? ['operator.admin', 'operator.read', 'operator.write'],
-      onEvent: opts.onEvent,
+      caps: opts.caps ?? ['tool-events'],
     };
-    this._onEvent = opts.onEvent ?? null;
-  }
-
-  set onEvent(callback: (event: EventFrame) => void) {
-    this._onEvent = callback;
-  }
-
-  get onEvent(): (event: EventFrame) => void {
-    return this._onEvent ?? (() => {});
   }
 
   start(): void {
@@ -100,28 +80,26 @@ export class OpenClawGateway {
     }
 
     const url = this.opts.url!;
-    debugLog('CONNECT', 'Connecting to', url);
+    const gatewayUrl = new URL(url);
     this.ws = new WebSocket(url, {
       maxPayload: 25 * 1024 * 1024,
-      headers: {
-        Origin: 'http://localhost:3005',
-      },
     });
 
     this.ws.on('open', () => {
-      console.log('[OpenClawGateway] WebSocket connected, waiting for challenge...');
-      this.queueConnect();
+      this.beginPreauthHandshake();
     });
 
     this.ws.on('message', (data) => {
-      // DEBUG: 原始接收数据
-      debugLog('RAW', data.toString());
       this.handleMessage(this.rawDataToString(data));
     });
 
     this.ws.on('close', (code, reason) => {
       const reasonText = this.rawDataToString(reason);
-      console.log(`[OpenClawGateway] WebSocket closed: ${code} ${reasonText}`);
+      if (this.ws === null) {
+        // already cleaned up
+      } else {
+        console.log(`[OpenClawGateway] WebSocket closed: ${code} ${reasonText}`);
+      }
       this.ws = null;
       this._isConnected = false;
       this.flushPendingErrors(new Error(`Gateway closed (${code}): ${reasonText}`));
@@ -129,7 +107,7 @@ export class OpenClawGateway {
     });
 
     this.ws.on('error', (err) => {
-      console.error('[OpenClawGateway] WebSocket error:', err);
+      console.error('[OpenClawGateway] WebSocket error:', err.message);
     });
   }
 
@@ -150,37 +128,35 @@ export class OpenClawGateway {
     this.ws?.close();
     this.ws = null;
     this._isConnected = false;
-    this._sessionKey = null;
     this.flushPendingErrors(new Error('Gateway client stopped'));
+    this.removeAllListeners();
   }
 
-  async request<T = unknown>(method: string, params?: unknown, opts?: { expectFinal?: boolean }): Promise<T> {
+  async request<T = unknown>(method: string, params?: unknown, opts?: { timeoutMs?: number }): Promise<T> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('Gateway not connected');
     }
 
     const id = randomUUID();
     const frame: RequestFrame = { type: 'req', id, method, params };
-    const expectFinal = opts?.expectFinal === true;
+    const timeoutMs = opts?.timeoutMs ?? 30_000;
 
     const promise = new Promise<T>((resolve, reject) => {
+      const timeout = timeoutMs > 0
+        ? setTimeout(() => {
+            this.pending.delete(id);
+            reject(new Error(`Gateway request timeout for ${method}`));
+          }, timeoutMs)
+        : null;
       this.pending.set(id, {
         resolve: (value) => resolve(value as T),
         reject,
-        expectFinal,
+        timeout,
       });
     });
 
-    const frameStr = JSON.stringify(frame);
-    debugLog('SEND', frameStr);
-    this.ws.send(frameStr);
+    this.ws.send(JSON.stringify(frame));
     return promise;
-  }
-
-  async sessionsResolve(params: SessionsResolveParams): Promise<{ key: string; sessionId: string }> {
-    const result = await this.request<{ key: string; sessionId: string }>('sessions.resolve', params);
-    this._sessionKey = result.key;
-    return result;
   }
 
   async sendMessage(sessionKey: string, message: string): Promise<unknown> {
@@ -190,7 +166,7 @@ export class OpenClawGateway {
       deliver: false,
       idempotencyKey: randomUUID(),
     };
-    return this.request('chat.send', params, { expectFinal: true });
+    return this.request('chat.send', params, { timeoutMs: 30_000 });
   }
 
   async chatAbort(sessionKey: string, runId?: string): Promise<unknown> {
@@ -209,8 +185,31 @@ export class OpenClawGateway {
     return this._isConnected;
   }
 
-  get sessionKey(): string | null {
-    return this._sessionKey;
+  waitForConnection(timeoutMs: number = 15_000): Promise<void> {
+    if (this._isConnected) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.off('connected', onConnected);
+        reject(new Error('Connection timeout'));
+      }, timeoutMs);
+      const onConnected = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      this.once('connected', onConnected);
+    });
+  }
+
+  private beginPreauthHandshake(): void {
+    if (this.connectSent) {
+      return;
+    }
+    if (this.connectNonce && !this.connectSent) {
+      this.armConnectChallengeTimeout();
+      this.sendConnect();
+      return;
+    }
+    this.armConnectChallengeTimeout();
   }
 
   private sendConnect(): void {
@@ -227,34 +226,35 @@ export class OpenClawGateway {
     const role = this.opts.role ?? 'operator';
     const scopes = this.opts.scopes ?? ['operator.admin'];
     const signedAtMs = Date.now();
-    const nonce = this.connectNonce ?? undefined;
+    const nonce = this.connectNonce ?? '';
 
-    const storedToken = loadDeviceAuthToken({ deviceId: this.deviceIdentity.deviceId, role })?.token;
-    const authToken = storedToken ?? this.opts.token ?? undefined;
-    const canFallbackToShared = Boolean(storedToken && this.opts.token);
-    
-    console.log('[OpenClawGateway] Connect params:', {
-      role,
-      scopes,
-      hasStoredToken: !!storedToken,
-      hasSharedToken: !!this.opts.token,
-      authToken: authToken ? `${authToken.substring(0, 8)}...` : undefined,
-      deviceId: this.deviceIdentity.deviceId?.substring(0, 16) + '...',
-    });
+    const storedAuth = loadDeviceAuthToken({ deviceId: this.deviceIdentity.deviceId, role });
+    const storedToken = storedAuth?.token;
+    const authToken = this.opts.token ?? storedToken ?? undefined;
 
     const hasAuth = authToken || this.opts.password;
-    const auth = hasAuth ? { token: authToken, password: this.opts.password } : undefined;
+    const auth = hasAuth
+      ? {
+          token: authToken,
+          deviceToken: storedToken && authToken === this.opts.token ? storedToken : undefined,
+          password: this.opts.password,
+        }
+      : undefined;
+
+    const platform = this.opts.platform ?? process.platform;
 
     const device = (() => {
-      const payload = buildDeviceAuthPayload({
+      const payload = buildDeviceAuthPayloadV3({
         deviceId: this.deviceIdentity.deviceId,
-        clientId: 'webchat-ui',
-        clientMode: 'webchat',
+        clientId: this.opts.clientName ?? 'gateway-client',
+        clientMode: 'backend',
         role,
         scopes,
         signedAtMs,
         token: authToken ?? null,
         nonce,
+        platform,
+        deviceFamily: this.opts.deviceFamily,
       });
       const signature = signDevicePayload(this.deviceIdentity.privateKeyPem, payload);
       return {
@@ -270,23 +270,22 @@ export class OpenClawGateway {
       minProtocol: OPENCLAW_PROTOCOL_VERSION,
       maxProtocol: OPENCLAW_PROTOCOL_VERSION,
       client: {
-        id: 'webchat-ui',
+        id: this.opts.clientName ?? 'gateway-client',
         displayName: 'WhiteNote',
         version: this.opts.clientVersion ?? '1.0.0',
-        platform: this.opts.platform ?? 'web',
-        mode: 'webchat',
+        platform,
+        deviceFamily: this.opts.deviceFamily,
+        mode: 'backend',
       },
+      caps: this.opts.caps ?? [],
       role,
       scopes,
       auth,
       device,
     };
 
-    this.request<HelloOk>('connect', params)
+    this.request<HelloOk>('connect', params, { timeoutMs: 10_000 })
       .then((helloOk) => {
-        console.log('[OpenClawGateway] Connected successfully:', helloOk.server.version);
-        console.log('[OpenClawGateway] Auth info:', helloOk.auth);
-
         const authInfo = helloOk?.auth;
         if (authInfo?.deviceToken) {
           storeDeviceAuthToken({
@@ -295,26 +294,24 @@ export class OpenClawGateway {
             token: authInfo.deviceToken,
             scopes: authInfo.scopes ?? [],
           });
-          console.log('[OpenClawGateway] Device token stored for role:', authInfo.role ?? role);
         }
 
         this._isConnected = true;
         this._helloOk = helloOk;
         this.backoffMs = 1000;
-        this.reconnectAttempts = 0;
         this.tickIntervalMs = typeof helloOk.policy?.tickIntervalMs === 'number' ? helloOk.policy.tickIntervalMs : 30_000;
         this.lastTick = Date.now();
         this.startTickWatch();
+        this.emit('connected');
       })
       .catch((err) => {
-        console.error('[OpenClawGateway] Connect failed:', err);
+        console.error('[OpenClawGateway] Connect failed:', err.message);
 
-        if (canFallbackToShared) {
+        if (storedToken && this.opts.token) {
           clearDeviceAuthToken({
             deviceId: this.deviceIdentity.deviceId,
             role,
           });
-          console.log('[OpenClawGateway] Cleared invalid device token');
         }
 
         this.ws?.close(1008, 'connect failed');
@@ -324,16 +321,15 @@ export class OpenClawGateway {
   private handleMessage(raw: string): void {
     try {
       const parsed = JSON.parse(raw);
-      debugLog('RECV', JSON.stringify(parsed));
-      
+
       if (parsed.type === 'event') {
         const evt = parsed as EventFrame;
 
         if (evt.event === 'connect.challenge') {
           const payload = evt.payload as { nonce?: string } | undefined;
           const nonce = payload?.nonce;
-          if (nonce) {
-            this.connectNonce = nonce;
+          if (nonce && nonce.trim().length > 0) {
+            this.connectNonce = nonce.trim();
             this.sendConnect();
           }
           return;
@@ -342,7 +338,7 @@ export class OpenClawGateway {
         const seq = typeof evt.seq === 'number' ? evt.seq : null;
         if (seq !== null) {
           if (this.lastSeq !== null && seq > this.lastSeq + 1) {
-            console.warn(`[OpenClawGateway] Event gap: expected ${this.lastSeq + 1}, got ${seq}`);
+            // gap detected
           }
           this.lastSeq = seq;
         }
@@ -351,52 +347,49 @@ export class OpenClawGateway {
           this.lastTick = Date.now();
         }
 
-        this._onEvent?.(evt);
+        this.emit('event', evt);
         return;
       }
 
       if (parsed.type === 'res') {
-        const res = parsed as ResponseFrame;
+        const res = parsed as { id: string; ok: boolean; payload?: unknown; error?: { code?: string; message?: string; details?: unknown; retryable?: boolean; retryAfterMs?: number } };
         const pending = this.pending.get(res.id);
         if (!pending) {
           return;
         }
 
-        const payload = res.payload as { status?: string } | undefined;
-        if (pending.expectFinal && payload?.status === 'accepted') {
-          return;
-        }
-
         this.pending.delete(res.id);
+        if (pending.timeout) {
+          clearTimeout(pending.timeout);
+        }
         if (res.ok) {
           pending.resolve(res.payload);
         } else {
-          pending.reject(new Error(res.error?.message ?? 'Unknown error'));
+          const err = new Error(res.error?.message ?? 'Unknown error');
+          (err as Error & { code?: string }).code = res.error?.code;
+          (err as Error & { details?: unknown }).details = res.error?.details;
+          pending.reject(err);
         }
       }
-    } catch (err) {
-      console.error('[OpenClawGateway] Parse error:', err);
+    } catch {
+      // ignore parse errors
     }
   }
 
-  private queueConnect(): void {
-    this.connectNonce = null;
-    this.connectSent = false;
+  private armConnectChallengeTimeout(): void {
     if (this.connectTimer) {
       clearTimeout(this.connectTimer);
     }
     this.connectTimer = setTimeout(() => {
-      this.sendConnect();
-    }, 750);
+      if (this.connectSent || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+      this.ws.close(1008, 'connect challenge timeout');
+    }, 10_000);
   }
 
   private scheduleReconnect(): void {
     if (this.closed) {
-      return;
-    }
-    this.reconnectAttempts++;
-    if (this.reconnectAttempts > this.maxReconnectAttempts) {
-      console.error(`[OpenClawGateway] Max reconnect attempts reached, giving up`);
       return;
     }
     if (this.tickTimer) {
@@ -413,6 +406,9 @@ export class OpenClawGateway {
 
   private flushPendingErrors(err: Error): void {
     for (const [, p] of this.pending) {
+      if (p.timeout) {
+        clearTimeout(p.timeout);
+      }
       p.reject(err);
     }
     this.pending.clear();
@@ -432,7 +428,6 @@ export class OpenClawGateway {
       }
       const gap = Date.now() - this.lastTick;
       if (gap > this.tickIntervalMs * 2) {
-        console.warn('[OpenClawGateway] Tick timeout, closing connection');
         this.ws?.close(4000, 'tick timeout');
       }
     }, interval);
@@ -460,18 +455,10 @@ export function getGlobalGateway(): OpenClawGateway | null {
 }
 
 export function createGlobalGateway(token: string, url?: string, forceRecreate?: boolean): OpenClawGateway {
-  // If we have an existing gateway with the same token, try to reuse it
   if (!forceRecreate && globalGateway && globalGatewayToken === token) {
-    // If connected, return it
-    if (globalGateway.isConnected) {
-      return globalGateway;
-    }
-    // If not connected but not fully closed (maybe reconnecting), just return it
-    // The start() call will handle reconnection
     return globalGateway;
   }
-  
-  // Stop old gateway if exists and has different token
+
   if (globalGateway) {
     try {
       globalGateway.stop();
@@ -479,9 +466,9 @@ export function createGlobalGateway(token: string, url?: string, forceRecreate?:
       // Ignore errors when stopping
     }
   }
-  
+
   globalGatewayToken = token;
-  
+
   globalGateway = new OpenClawGateway({
     url: url ?? process.env.OPENCLAW_GATEWAY_URL ?? 'ws://localhost:18789',
     token,

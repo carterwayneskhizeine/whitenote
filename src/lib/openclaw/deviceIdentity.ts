@@ -124,16 +124,53 @@ export interface DeviceAuthPayloadParams {
   signedAtMs: number;
   token?: string | null;
   nonce?: string | null;
-  version?: 'v1' | 'v2';
+}
+
+export interface DeviceAuthPayloadV3Params extends DeviceAuthPayloadParams {
+  platform?: string | null;
+  deviceFamily?: string | null;
+}
+
+function normalizeDeviceMetadata(value: string | null | undefined): string {
+  if (!value || typeof value !== 'string') return '';
+  const trimmed = value.trim();
+  return trimmed.length > 64 ? trimmed.slice(0, 64) : trimmed;
 }
 
 export function buildDeviceAuthPayload(params: DeviceAuthPayloadParams): string {
-  const version = params.version ?? (params.nonce ? 'v2' : 'v1');
   const scopes = params.scopes.join(',');
   const token = params.token ?? '';
-  const base = [version, params.deviceId, params.clientId, params.clientMode, params.role, scopes, String(params.signedAtMs), token];
-  if (version === 'v2') {
-    base.push(params.nonce ?? '');
-  }
-  return base.join('|');
+  const nonce = params.nonce ?? '';
+  return [
+    'v2',
+    params.deviceId,
+    params.clientId,
+    params.clientMode,
+    params.role,
+    scopes,
+    String(params.signedAtMs),
+    token,
+    nonce,
+  ].join('|');
+}
+
+export function buildDeviceAuthPayloadV3(params: DeviceAuthPayloadV3Params): string {
+  const scopes = params.scopes.join(',');
+  const token = params.token ?? '';
+  const nonce = params.nonce ?? '';
+  const platform = normalizeDeviceMetadata(params.platform);
+  const deviceFamily = normalizeDeviceMetadata(params.deviceFamily);
+  return [
+    'v3',
+    params.deviceId,
+    params.clientId,
+    params.clientMode,
+    params.role,
+    scopes,
+    String(params.signedAtMs),
+    token,
+    nonce,
+    platform,
+    deviceFamily,
+  ].join('|');
 }

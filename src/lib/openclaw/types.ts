@@ -44,9 +44,11 @@ export interface ConnectParams {
     displayName?: string;
     version: string;
     platform: string;
+    deviceFamily?: string;
     mode: string;
     instanceId?: string;
   };
+  caps?: string[];
   role?: string;
   scopes?: string[];
   device?: {
@@ -58,6 +60,8 @@ export interface ConnectParams {
   };
   auth?: {
     token?: string;
+    bootstrapToken?: string;
+    deviceToken?: string;
     password?: string;
   };
 }
@@ -175,5 +179,5 @@ export interface ChatStreamResponse {
   usage?: unknown;
   stopReason?: string;
   error?: string;
-  incremental?: boolean; // 标记是否为增量数据（thinking/toolCall），需要前端累积
+  incremental?: boolean;
 }

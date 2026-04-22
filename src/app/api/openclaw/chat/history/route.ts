@@ -12,8 +12,6 @@ function getOpenClawToken(): string {
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
-  let gateway: ReturnType<typeof createGlobalGateway> | null = null
-
   try {
     const { searchParams } = new URL(request.url)
     const sessionKey = searchParams.get('sessionKey') || 'main'
@@ -21,34 +19,14 @@ export async function GET(request: NextRequest) {
     const limit = limitParam ? parseInt(limitParam, 10) : undefined
 
     const token = getOpenClawToken()
-    //console.log('[OpenClaw Chat History] Token:', token?.substring(0, 8) + '...')
-    gateway = createGlobalGateway(token)
-    //console.log('[OpenClaw Chat History] Gateway connected:', gateway.isConnected)
-    
-    // Only start if not already connected
+    const gateway = createGlobalGateway(token)
+
     if (!gateway.isConnected) {
       gateway.start()
-      
-      // Wait for connection with proper timeout
-      const maxWaitMs = 15000
-      const startTime = Date.now()
-      
-      await new Promise<void>((resolve, reject) => {
-        const checkConnection = setInterval(() => {
-          if (gateway && gateway.isConnected) {
-            clearInterval(checkConnection)
-            resolve()
-          } else if (Date.now() - startTime > maxWaitMs) {
-            clearInterval(checkConnection)
-            reject(new Error('Connection timeout'))
-          }
-        }, 100)
-      })
+      await gateway.waitForConnection(15_000)
     }
 
-    //console.log('[OpenClaw Chat History] Calling chatHistory:', sessionKey, limit)
     const result = await gateway.chatHistory(sessionKey, limit)
-    //console.log('[OpenClaw Chat History] Result:', result)
 
     return NextResponse.json({
       sessionKey: result.sessionKey,
