@@ -23,10 +23,8 @@ export async function PATCH(
     const gateway = createGlobalGateway(token)
 
     if (!gateway.isConnected) {
-      return NextResponse.json(
-        { error: 'Gateway not connected' },
-        { status: 503 }
-      )
+      gateway.start()
+      await gateway.waitForConnection(15_000)
     }
 
     // Decode the session key (URL encoded)
@@ -68,10 +66,8 @@ export async function DELETE(
     const gateway = createGlobalGateway(token)
 
     if (!gateway.isConnected) {
-      return NextResponse.json(
-        { error: 'Gateway not connected' },
-        { status: 503 }
-      )
+      gateway.start()
+      await gateway.waitForConnection(15_000)
     }
 
     const decodedKey = decodeURIComponent(key)

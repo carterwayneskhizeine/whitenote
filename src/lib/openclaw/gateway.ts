@@ -79,8 +79,14 @@ export class OpenClawGateway extends EventEmitter {
       return;
     }
 
+    this.connectNonce = null;
+    this.connectSent = false;
+    if (this.connectTimer) {
+      clearTimeout(this.connectTimer);
+      this.connectTimer = null;
+    }
+
     const url = this.opts.url!;
-    const gatewayUrl = new URL(url);
     this.ws = new WebSocket(url, {
       maxPayload: 25 * 1024 * 1024,
     });
@@ -95,11 +101,7 @@ export class OpenClawGateway extends EventEmitter {
 
     this.ws.on('close', (code, reason) => {
       const reasonText = this.rawDataToString(reason);
-      if (this.ws === null) {
-        // already cleaned up
-      } else {
-        console.log(`[OpenClawGateway] WebSocket closed: ${code} ${reasonText}`);
-      }
+      console.log(`[OpenClawGateway] WebSocket closed: ${code} ${reasonText}`);
       this.ws = null;
       this._isConnected = false;
       this.flushPendingErrors(new Error(`Gateway closed (${code}): ${reasonText}`));

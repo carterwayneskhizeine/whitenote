@@ -16,10 +16,8 @@ export async function GET(request: NextRequest) {
     const gateway = createGlobalGateway(token)
 
     if (!gateway.isConnected) {
-      return NextResponse.json(
-        { error: 'Gateway not connected' },
-        { status: 503 }
-      )
+      gateway.start()
+      await gateway.waitForConnection(15_000)
     }
 
     const searchParams = request.nextUrl.searchParams
@@ -65,10 +63,8 @@ export async function POST(request: NextRequest) {
     const gateway = createGlobalGateway(token)
 
     if (!gateway.isConnected) {
-      return NextResponse.json(
-        { error: 'Gateway not connected' },
-        { status: 503 }
-      )
+      gateway.start()
+      await gateway.waitForConnection(15_000)
     }
 
     // If creating a new session, generate a unique session key
