@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { Send, Bot, AlertCircle, Loader2, Maximize2, X } from 'lucide-react'
+import { Send, Bot, AlertCircle, Loader2, Maximize2, X, ImagePlus } from 'lucide-react'
 import { openclawApi } from './api'
 import { hermesApi } from './hermes-api'
 import { AIMessageViewer } from './AIMessageViewer'
-import type { ChatMessage } from './types'
+import type { ChatMessage, ChatAttachment } from './types'
 import { cn } from '@/lib/utils'
 
 export type BackendType = 'openclaw' | 'hermes'
@@ -88,8 +88,10 @@ export function ChatWindow({
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
   const [streamingReasoning, setStreamingReasoning] = useState('')
+  const [pendingAttachments, setPendingAttachments] = useState<ChatAttachment[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const userMessageTimestampRef = useRef<number | null>(null)
   const isLoadingRef = useRef(false)
   const pendingAssistantIdRef = useRef<string | null>(null)
@@ -178,17 +180,48 @@ export function ChatWindow({
     }
   }, [messages, isLoadingHistory, currentSessionKey, backend])
 
+  const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
+
+  const addImageFiles = useCallback((files: FileList | File[]) => {
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) continue
+      if (file.size > MAX_ATTACHMENT_SIZE) continue
+      const reader = new FileReader()
+      reader.onload = () => {
+        const dataUrl = reader.result as string
+        setPendingAttachments(prev => [...prev, {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          dataUrl,
+          mimeType: file.type,
+          name: file.name,
+        }])
+      }
+      reader.readAsDataURL(file)
+    }
+  }, [])
+
+  const removeAttachment = useCallback((id: string) => {
+    setPendingAttachments(prev => prev.filter(a => a.id !== id))
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!input.trim() || isLoading) return
+    if ((!input.trim() && pendingAttachments.length === 0) || isLoading) return
 
     const userTimestamp = Date.now()
     const content = input.trim()
+    const attachments = [...pendingAttachments]
     const userMessage: ChatMessage = {
       id: userTimestamp.toString(),
       role: 'user',
       content,
       timestamp: userTimestamp,
+    }
+    if (attachments.length > 0) {
+      ;(userMessage as any).contentBlocks = [
+        ...(content.trim() ? [{ type: 'text' as const, text: content }] : []),
+        ...attachments.map(a => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: a.mimeType, data: a.dataUrl.split(',')[1] } })),
+      ]
     }
     const pendingAssistantId = `pending-${userTimestamp}`
     const pendingAssistantMessage: ChatMessage = {
@@ -200,6 +233,7 @@ export function ChatWindow({
 
     setMessages(prev => [...prev, userMessage, pendingAssistantMessage])
     setInput('')
+    setPendingAttachments([])
     setIsLoading(true)
     isLoadingRef.current = true
     setError(null)
@@ -211,7 +245,7 @@ export function ChatWindow({
       if (backend === 'hermes') {
         await handleHermesSubmit(content, userTimestamp, pendingAssistantId)
       } else {
-        await handleOpenClawSubmit(content, userTimestamp, pendingAssistantId)
+        await handleOpenClawSubmit(content, userTimestamp, pendingAssistantId, attachments)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message')
@@ -227,6 +261,7 @@ export function ChatWindow({
     content: string,
     userTimestamp: number,
     pendingAssistantId: string,
+    attachments?: ChatAttachment[],
   ) => {
     await openclawApi.sendMessageStream(
       currentSessionKey,
@@ -279,7 +314,8 @@ export function ChatWindow({
         setStreamingReasoning('')
         setMessages(prev => prev.filter(m => !m.id.startsWith('pending-')))
         setIsLoading(false)
-      }
+      },
+      attachments,
     )
   }
 
@@ -343,6 +379,15 @@ export function ChatWindow({
     }
   }
 
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    if (backend !== 'openclaw') return
+    const files = e.clipboardData?.files
+    if (files && files.length > 0) {
+      e.preventDefault()
+      addImageFiles(files)
+    }
+  }, [backend, addImageFiles])
+
   const toggleFullscreen = () => {
     setIsFullscreen(!isFullscreen)
     if (!isFullscreen) {
@@ -365,20 +410,61 @@ export function ChatWindow({
             </Button>
           </div>
           <form onSubmit={handleSubmit} className="flex-1 flex flex-col">
+            {pendingAttachments.length > 0 && (
+              <div className="flex gap-2 px-4 pt-3 overflow-x-auto">
+                {pendingAttachments.map(att => (
+                  <div key={att.id} className="relative group shrink-0">
+                    <img
+                      src={att.dataUrl}
+                      alt={att.name || 'attachment'}
+                      className="w-20 h-20 object-cover rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeAttachment(att.id)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-muted rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             <textarea
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
+              onPaste={handlePaste}
               placeholder="What's happening?"
               className="flex-1 w-full resize-none bg-transparent px-4 py-3 text-base placeholder:text-muted-foreground/60 focus:outline-none"
               disabled={isLoading}
               autoFocus
             />
             <div className="flex items-center justify-between px-4 py-3 border-t">
-              <div className="text-xs text-muted-foreground">
-                {input.length > 0 && <span>{input.length} characters</span>}
+              <div className="flex items-center gap-2">
+                {backend === 'openclaw' && (
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={e => {
+                        if (e.target.files) addImageFiles(e.target.files)
+                        e.target.value = ''
+                      }}
+                    />
+                    <Button type="button" variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} className="rounded-full w-8 h-8">
+                      <ImagePlus className="w-4 h-4" />
+                    </Button>
+                  </>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {input.length > 0 && `${input.length} characters`}
+                </span>
               </div>
-              <Button type="submit" disabled={isLoading || !input.trim()} className="rounded-full px-5">
+              <Button type="submit" disabled={isLoading || (!input.trim() && pendingAttachments.length === 0)} className="rounded-full px-5">
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send'}
               </Button>
             </div>
@@ -454,15 +540,61 @@ export function ChatWindow({
           !isKeyboardOpen && "mb-[53px] desktop:mb-0"
         )}
       >
+        {pendingAttachments.length > 0 && (
+          <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
+            {pendingAttachments.map(att => (
+              <div key={att.id} className="relative group shrink-0">
+                <img
+                  src={att.dataUrl}
+                  alt={att.name || 'attachment'}
+                  className="w-16 h-16 object-cover rounded-lg border"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(att.id)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-muted rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="flex items-end gap-2">
           <div className="flex-1 relative flex items-end bg-muted/30 rounded-2xl border border-transparent focus-within:border-primary/20 focus-within:bg-muted/50 transition-colors">
+            {backend === 'openclaw' && (
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={e => {
+                    if (e.target.files) addImageFiles(e.target.files)
+                    e.target.value = ''
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="shrink-0 rounded-full w-8 h-8 ml-1 mb-1 text-muted-foreground hover:text-foreground"
+                  disabled={isLoading}
+                >
+                  <ImagePlus className="w-4 h-4" />
+                </Button>
+              </>
+            )}
             <textarea
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               placeholder="Message..."
-              className="flex-1 w-full min-h-10 max-h-20.5 resize-none bg-transparent px-4 py-2.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none"
+              className="flex-1 w-full min-h-10 max-h-20.5 resize-none bg-transparent px-2 py-2.5 text-sm placeholder:text-muted-foreground/60 focus:outline-none"
               disabled={isLoading}
               rows={1}
             />
@@ -479,7 +611,7 @@ export function ChatWindow({
           <Button
             type="submit"
             size="icon"
-            disabled={isLoading || !input.trim()}
+            disabled={isLoading || (!input.trim() && pendingAttachments.length === 0)}
             className="rounded-full w-10 h-10 shrink-0"
           >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

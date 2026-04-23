@@ -15,7 +15,7 @@ export const runtime = 'nodejs'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { sessionKey = 'main', content, log = false } = body
+    const { sessionKey = 'main', content, attachments, log = false } = body
 
     if (!content) {
       return new Response(JSON.stringify({ error: 'content is required' }), {
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
         }, 600_000)
         finishTimeout.unref()
 
-        gateway.sendMessage(sessionKey, content)
+        gateway.sendMessage(sessionKey, content, attachments)
           .then(() => {
             // chat.send ack received — events will flow via the event handler
           })

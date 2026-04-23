@@ -12,8 +12,8 @@ import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import { cn } from "@/lib/utils"
-import type { ChatMessage, OpenClawContentBlock, OpenClawTextContent, OpenClawThinkingContent } from './types'
-import { Terminal, FileText, Brain, ChevronRight, Clock } from 'lucide-react'
+import type { ChatMessage, OpenClawContentBlock, OpenClawTextContent, OpenClawThinkingContent, OpenClawImageContent, OpenClawImageUrlContent, OpenClawAttachmentContent, OpenClawAudioContent } from './types'
+import { Terminal, FileText, Brain, ChevronRight, Clock, Download, Play, Music, Paperclip, X } from 'lucide-react'
 
 const lowlight = createLowlight(common)
 
@@ -159,6 +159,114 @@ function ThinkingBlock({ content }: { content: OpenClawContentBlock }) {
       <div className="p-3 text-sm text-purple-900 dark:text-purple-100 whitespace-pre-wrap">
         {thinkingContent.thinking}
       </div>
+    </div>
+  )
+}
+
+function ImageContentBlock({ block }: { block: OpenClawImageContent }) {
+  const [lightbox, setLightbox] = useState(false)
+  let src = ''
+  if (block.source?.type === 'base64' && block.source.data) {
+    const mime = block.source.media_type || 'image/png'
+    src = `data:${mime};base64,${block.source.data}`
+  } else if (block.url) {
+    src = block.url
+  }
+  if (!src) return null
+  return (
+    <>
+      <img
+        src={src}
+        alt="AI generated image"
+        className="rounded-lg max-w-full h-auto cursor-pointer my-2 max-h-80 object-contain"
+        onClick={() => setLightbox(true)}
+      />
+      {lightbox && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightbox(false)}>
+          <img src={src} alt="AI generated image" className="max-w-full max-h-full object-contain" />
+          <button className="absolute top-4 right-4 text-white" onClick={() => setLightbox(false)}>
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+    </>
+  )
+}
+
+function ImageUrlContentBlock({ block }: { block: OpenClawImageUrlContent }) {
+  const [lightbox, setLightbox] = useState(false)
+  const src = block.image_url?.url || block.url || ''
+  if (!src) return null
+  return (
+    <>
+      <img
+        src={src}
+        alt="AI image"
+        className="rounded-lg max-w-full h-auto cursor-pointer my-2 max-h-80 object-contain"
+        onClick={() => setLightbox(true)}
+      />
+      {lightbox && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setLightbox(false)}>
+          <img src={src} alt="AI image" className="max-w-full max-h-full object-contain" />
+          <button className="absolute top-4 right-4 text-white" onClick={() => setLightbox(false)}>
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+      )}
+    </>
+  )
+}
+
+function AttachmentContentBlock({ block }: { block: OpenClawAttachmentContent }) {
+  const { url, kind, label, mimeType } = block.attachment
+  if (kind === 'video') {
+    return (
+      <div className="my-2">
+        <video controls className="rounded-lg max-w-full max-h-80">
+          <source src={url} type={mimeType || 'video/mp4'} />
+        </video>
+        {label && <p className="text-xs text-muted-foreground mt-1">{label}</p>}
+      </div>
+    )
+  }
+  if (kind === 'image') {
+    return <ImageContentBlock block={{ type: 'image', url }} />
+  }
+  if (kind === 'audio') {
+    return (
+      <div className="my-2 flex items-center gap-2 p-3 rounded-lg border bg-muted/30">
+        <Music className="w-4 h-4 shrink-0 text-muted-foreground" />
+        <audio controls className="flex-1 min-w-0 h-8">
+          <source src={url} type={mimeType || 'audio/mpeg'} />
+        </audio>
+        {label && <span className="text-xs text-muted-foreground truncate">{label}</span>}
+      </div>
+    )
+  }
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-2 my-2 p-3 rounded-lg border bg-muted/30 hover:bg-muted/50 transition-colors"
+    >
+      <Paperclip className="w-4 h-4 shrink-0 text-muted-foreground" />
+      <span className="text-sm truncate flex-1">{label || 'Attachment'}</span>
+      <Download className="w-4 h-4 shrink-0 text-muted-foreground" />
+    </a>
+  )
+}
+
+function AudioContentBlock({ block }: { block: OpenClawAudioContent }) {
+  const { media_type, data } = block.source
+  const mime = media_type || 'audio/mpeg'
+  const src = `data:${mime};base64,${data}`
+  return (
+    <div className="my-2 flex items-center gap-2 p-3 rounded-lg border bg-muted/30">
+      <Music className="w-4 h-4 shrink-0 text-muted-foreground" />
+      <audio controls className="flex-1 min-w-0 h-8">
+        <source src={src} type={mime} />
+      </audio>
     </div>
   )
 }
@@ -426,6 +534,18 @@ export function AIMessageViewer({
               </div>
             </div>
           )
+        }
+        if (block.type === 'image') {
+          return <ImageContentBlock key={`image-${idx}`} block={block as OpenClawImageContent} />
+        }
+        if (block.type === 'image_url' || block.type === 'input_image') {
+          return <ImageUrlContentBlock key={`imageurl-${idx}`} block={block as OpenClawImageUrlContent} />
+        }
+        if (block.type === 'attachment') {
+          return <AttachmentContentBlock key={`attachment-${idx}`} block={block as OpenClawAttachmentContent} />
+        }
+        if (block.type === 'audio') {
+          return <AudioContentBlock key={`audio-${idx}`} block={block as OpenClawAudioContent} />
         }
         return null
       })}

@@ -10,6 +10,7 @@ import type {
   CreateSessionResponse,
   UpdateSessionResponse,
   DeleteSessionResponse,
+  ChatAttachment,
 } from './types'
 
 export interface ChatHistoryMessage {
@@ -17,7 +18,7 @@ export interface ChatHistoryMessage {
   content: string
   timestamp?: number
   thinkingBlocks?: { type: 'thinking'; thinking: string; thinkingSignature?: string }[]
-  contentBlocks?: { type: 'thinking' | 'toolCall' | 'text' | 'toolResult'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[]
+  contentBlocks?: { type: string; [key: string]: unknown }[]
 }
 
 function isSystemMessage(content: unknown): boolean {
@@ -77,7 +78,7 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
   }
 
   const thinkingBlocks: { type: 'thinking'; thinking: string; thinkingSignature?: string }[] = []
-  const contentBlocks: { type: 'thinking' | 'toolCall' | 'text'; thinking?: string; thinkingSignature?: string; name?: string; arguments?: Record<string, unknown>; text?: string; id?: string }[] = []
+  const contentBlocks: { type: string; [key: string]: unknown }[] = []
 
   let content: string
   const isUserMessage = m.role === 'user'
@@ -108,10 +109,14 @@ function convertMessage(msg: unknown): ChatHistoryMessage | null {
             thinkingSignature: obj.thinkingSignature,
           })
         }
+      } else if (obj.type === 'image' || obj.type === 'image_url' || obj.type === 'input_image') {
+        contentBlocks.push(obj as any)
+      } else if (obj.type === 'attachment') {
+        contentBlocks.push(obj as any)
+      } else if (obj.type === 'audio') {
+        contentBlocks.push(obj as any)
       } else if (obj.text) {
-        // Clean user message text before adding to contentBlocks
         const cleanedText = isUserMessage ? cleanUserMessage(obj.text) : obj.text
-        // Only add if there's content after cleaning
         if (cleanedText.trim()) {
           contentBlocks.push({
             type: 'text',
@@ -304,12 +309,13 @@ export const openclawApi = {
     onChunk: (delta: string, fullContent: string) => void,
     onReasoning: (delta: string, fullReasoning: string) => void,
     onFinish: () => void,
-    onError: (error: string) => void
+    onError: (error: string) => void,
+    attachments?: ChatAttachment[],
   ): Promise<void> {
     const response = await fetch(`${API_BASE}/chat/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionKey, content }),
+      body: JSON.stringify({ sessionKey, content, attachments }),
     })
 
     if (!response.ok) {

@@ -35,7 +35,45 @@ export type OpenClawContentBlock =
   | OpenClawTextContent
   | OpenClawThinkingContent
   | OpenClawToolCallContent
-  | OpenClawToolResultContent;
+  | OpenClawToolResultContent
+  | OpenClawImageContent
+  | OpenClawImageUrlContent
+  | OpenClawAttachmentContent
+  | OpenClawAudioContent;
+
+export interface OpenClawImageContent {
+  type: 'image';
+  source?: { type: 'base64'; media_type?: string; data: string };
+  url?: string;
+}
+
+export interface OpenClawImageUrlContent {
+  type: 'image_url' | 'input_image';
+  image_url?: { url: string };
+  url?: string;
+}
+
+export interface OpenClawAttachmentContent {
+  type: 'attachment';
+  attachment: {
+    url: string;
+    kind: 'image' | 'audio' | 'video' | 'document';
+    label?: string;
+    mimeType?: string;
+  };
+}
+
+export interface OpenClawAudioContent {
+  type: 'audio';
+  source: { type: 'base64'; media_type?: string; data: string };
+}
+
+export interface ChatAttachment {
+  id: string;
+  dataUrl: string;
+  mimeType: string;
+  name?: string;
+}
 
 // Tool result message
 export interface OpenClawToolResultMessage {

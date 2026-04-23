@@ -161,12 +161,13 @@ export class OpenClawGateway extends EventEmitter {
     return promise;
   }
 
-  async sendMessage(sessionKey: string, message: string): Promise<unknown> {
+  async sendMessage(sessionKey: string, message: string, attachments?: Array<{ type: string; mimeType?: string; content?: string }>): Promise<unknown> {
     const params: ChatSendParams = {
       sessionKey,
       message,
       deliver: false,
       idempotencyKey: randomUUID(),
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     };
     return this.request('chat.send', params, { timeoutMs: 30_000 });
   }
