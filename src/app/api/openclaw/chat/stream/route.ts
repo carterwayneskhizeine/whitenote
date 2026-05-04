@@ -17,12 +17,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { sessionKey = 'main', content, attachments, log = false } = body
 
-    if (!content) {
+    if (!content && (!attachments || attachments.length === 0)) {
       return new Response(JSON.stringify({ error: 'content is required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' },
       })
     }
+
+    const normalizedAttachments = Array.isArray(attachments) && attachments.length > 0
+      ? attachments.map((att: { dataUrl?: string; mimeType?: string; type?: string; content?: string }) => {
+          if (att.content) {
+            return { type: att.type || 'image', mimeType: att.mimeType, content: att.content }
+          }
+          if (att.dataUrl) {
+            const base64 = att.dataUrl.includes(',') ? att.dataUrl.split(',')[1] : att.dataUrl
+            return { type: 'image', mimeType: att.mimeType || 'image/png', content: base64 }
+          }
+          return null
+        }).filter((a: unknown): a is { type: string; mimeType: string; content: string } => a !== null)
+      : undefined
 
     const token = getOpenClawToken()
     const gateway = createGlobalGateway(token)
@@ -128,7 +141,7 @@ export async function POST(request: NextRequest) {
         }, 600_000)
         finishTimeout.unref()
 
-        gateway.sendMessage(sessionKey, content, attachments)
+        gateway.sendMessage(sessionKey, content || ' ', normalizedAttachments)
           .then(() => {
             // chat.send ack received — events will flow via the event handler
           })
