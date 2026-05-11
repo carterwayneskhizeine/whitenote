@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-WhiteNote is a collaborative social media platform with AI-enhanced features, combining Twitter/X-style microblogging with workspace organization and real-time collaboration. The application uses a multi-service architecture with Next.js (App Router), PostgreSQL with Prisma, Socket.IO for real-time updates, and RAGFlow integration for AI capabilities.
+WhiteNote is a collaborative social media platform with AI-enhanced features, combining Twitter/X-style microblogging with workspace organization and real-time collaboration. The application uses a multi-service architecture with Next.js (App Router), SQLite with Prisma, Socket.IO for real-time updates, and RAGFlow integration for AI capabilities.
 
 ## Development Commands
 
-### Starting Development (requires 3 terminals)
+### Starting Development (requires 2 terminals)
 
 ```bash
 # Terminal 1 - Build Next.js (required first)
@@ -19,10 +19,8 @@ pnpm prisma generate
 pnpm build
 
 # Terminal 2 - Start development server on http://localhost:3005
+# Worker is automatically started via instrumentation.ts
 pnpm dev
-
-# Terminal 3 - Start background worker for scheduled tasks
-pnpm worker
 ```
 
 ### Production
@@ -40,8 +38,7 @@ pnpm prisma studio          # Open Prisma Studio database UI
 pnpm prisma generate        # Generate Prisma client (usually automatic)
 
 # Reset database completely (deletes all data)
-docker exec pg16 psql -U myuser -d postgres -c "DROP DATABASE IF EXISTS whitenote;"
-docker exec pg16 psql -U myuser -d postgres -c "CREATE DATABASE whitenote;"
+rm -f prisma/dev.db
 pnpm prisma db push
 pnpm prisma db seed
 ```
@@ -57,18 +54,19 @@ pnpm lint                  # Run ESLint
 
 ### Multi-Service Structure
 
-The application consists of three main services:
+The application consists of two main services:
 
 1. **Next.js App** (`server.ts`): Main web server with App Router architecture
-2. **Background Worker** (`scripts/worker.ts`): Handles scheduled tasks and background jobs
-3. **Socket.IO Server**: Integrated into the main server for real-time messaging
+2. **Socket.IO Server**: Integrated into the main server for real-time messaging
+
+Note: Background worker is automatically started via `instrumentation.ts` when the app boots, handling scheduled tasks and background jobs.
 
 ### Workspace-Centric Design
 
 - Users can create multiple workspaces
 - Each workspace has independent RAGFlow AI configurations
 - Messages are scoped to workspaces
-- AI features (auto-tagging, daily briefings) are configured per workspace
+- AI features (auto-tagging) are configured per workspace
 - Default workspace is automatically created for new users
 
 ### AI Integration Layers
@@ -78,7 +76,7 @@ The platform has four AI integration layers:
 1. **Detection Layer**: AI mention detection (`@goldierill` or `@ragflow`) in messages triggers automated responses
 2. **RAG Layer**: Knowledge base chat integration with RAGFlow
 3. **Command Layer**: Pre-defined AI commands stored in database (seeded via `prisma/seed-ai-commands.ts`)
-4. **Automated Layer**: Scheduled tasks for auto-tagging and daily briefings
+4. **Automated Layer**: Background tasks for auto-tagging
 
 ### Real-Time Features
 
@@ -89,7 +87,7 @@ Socket.IO integration (`src/lib/socket/`) handles:
 
 ### Content Management
 
-- **TipTap Editor**: Rich text editing with markdown support (`src/components/InputMachine/`)
+- **TipTap Editor**: Rich text editing with markdown support (`src/components/InputMachine.tsx`)
 - **Media Handling**: Custom upload API supports images (jpg, png, webp) and videos (mp4, mov) with 100MB limit
 - **Message Versioning**: Edit history tracking in database
 - **Tag System**: Auto-tagging via AI, manual tags
@@ -97,10 +95,13 @@ Socket.IO integration (`src/lib/socket/`) handles:
 
 ### Background Job Processing
 
-BullMQ with Redis (`src/lib/queue/`) for:
-- Scheduled daily briefings
+Simple in-process queue (`src/lib/queue/`) for:
 - AI-powered auto-tagging
 - Async media processing
+- RAGFlow sync tasks
+- Workspace and message creation from files
+
+Note: Cron tasks (like daily briefings) have been removed. FileWatcher is disabled by default - use manual sync via `/api/sync/import-all` instead.
 
 ## Key Directories
 
@@ -140,8 +141,7 @@ src/
 │   │   ├── LeftSidebar.tsx # 左侧边栏 (Desktop left sidebar)
 │   │   ├── RightSidebar.tsx # 右侧边栏 (Desktop right sidebar with search)
 │   │   └── MobileNav.tsx   # 移动端导航 (Mobile navigation)
-│   ├── InputMachine/      # TipTap editor with AI integration
-│   └── MessagesList/      # Message display with real-time updates
+│   ├── MessagesList.tsx   # 消息列表组件 (Message display with real-time updates)
 │   └── OpenClawChat/      # AI Chat components
 │       ├── ChatWindow.tsx      # 对话主窗口组件（支持 OpenClaw/Hermes 双后端）
 │       ├── AIMessageViewer.tsx # AI 消息渲染组件（支持 thinking、tool call 等内容块）
@@ -152,7 +152,7 @@ src/
 │       └── types.ts            # 前端类型定义
 ├── lib/
 │   ├── socket/           # Socket.IO server configuration
-│   ├── queue/            # BullMQ job queue setup
+│   ├── queue/            # Simple in-process queue setup
 │   ├── ai/               # RAGFlow and AI service integrations
 │   └── openclaw/         # OpenClaw Gateway 核心库
 │       ├── gateway.ts        # WebSocket 客户端实现
@@ -161,8 +161,8 @@ src/
 │       └── deviceAuthStore.ts # 设备认证 Token 存储
 ├── store/                # Zustand state management
 ├── hooks/                # Custom React hooks
-│   ├── use-share.ts      # 分享功能 Hook (Share functionality hook)
-│   └── use-mobile.ts     # 移动端检测 Hook (Mobile detection hook)
+│   ├── useShare.ts       # 分享功能 Hook (Share functionality hook)
+│   └── use-mobile.tsx    # 移动端检测 Hook (Mobile detection hook)
 └── types/                # TypeScript type definitions
 prisma/
 ├── schema.prisma         # Database schema
@@ -289,7 +289,7 @@ WhiteNote Frontend
 
 ## Important Constraints
 
-- All three services (dev server, worker, database) must be running for full functionality
 - Build step required before running dev server (`pnpm build && pnpm dev`)
 - Database must be seeded for AI commands to work
 - RAGFlow integration requires external service configuration per workspace
+- Background worker is automatically started via instrumentation.ts when the app boots
