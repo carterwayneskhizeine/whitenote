@@ -4,6 +4,7 @@ export type JobType =
   | "auto-tag"
   | "auto-tag-comment"
   | "sync-ragflow"
+  | "sync-rag"
   | "sync-to-local"
   | "create-workspace-from-folder"
   | "create-message-from-file"

@@ -136,7 +136,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // 同步到 RAGFlow（如果 Workspace 配置了知识库）
     if (messageWithWorkspace?.workspace?.ragflowDatasetId) {
-      await addTask("sync-ragflow", {
+      await addTask("sync-rag", {
         userId: session.user.id,
         workspaceId: message.workspaceId,
         messageId: comment.id,

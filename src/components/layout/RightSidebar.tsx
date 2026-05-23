@@ -146,8 +146,9 @@ export function RightSidebar() {
       // 评论结果 - 导航到评论详情页
       router.push(`/status/${item.messageId}/comment/${item.id}`)
     } else {
-      // 消息结果 - 导航到消息详情页
-      router.push(`/status/${item.id}`)
+      // 消息结果 - 导航到消息详情页，携带 workspace 来源以便返回时定位
+      const fromParam = item.workspaceId ? `?from=${item.workspaceId}` : ""
+      router.push(`/status/${item.id}${fromParam}`)
     }
 
     setShowResults(false)

@@ -247,9 +247,9 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
 
         if (aiDetection.hasMention && aiDetection.mode) {
           try {
-            // @ragflow: 使用非流式 API，立即发帖
+            // @rag: 使用非流式 API，立即发帖
             // @goldierill: 使用流式 API
-            if (aiDetection.mode === 'ragflow') {
+            if (aiDetection.mode === 'rag') {
               // RAGFlow 模式：立即发帖，不等 AI 回复
               await aiApi.chat({
                 messageId,

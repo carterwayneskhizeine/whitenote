@@ -8,9 +8,18 @@ interface QueueJob {
   delay: number
 }
 
-const handlers = new Map<string, { fn: JobHandler; maxAttempts: number }>()
-const queue: QueueJob[] = []
-let running = false
+// Use globalThis so state is shared across Next.js bundled API routes and instrumentation context
+const g = globalThis as {
+  __queueHandlers?: Map<string, { fn: JobHandler; maxAttempts: number }>
+  __queueJobs?: QueueJob[]
+  __queueRunning?: boolean
+}
+if (!g.__queueHandlers) g.__queueHandlers = new Map()
+if (!g.__queueJobs) g.__queueJobs = []
+if (g.__queueRunning === undefined) g.__queueRunning = false
+
+const handlers = g.__queueHandlers
+const queue = g.__queueJobs
 
 async function processJob(job: QueueJob): Promise<void> {
   const entry = handlers.get(job.name)
@@ -33,15 +42,15 @@ async function processJob(job: QueueJob): Promise<void> {
 }
 
 async function drain() {
-  if (running) return
-  running = true
+  if (g.__queueRunning) return
+  g.__queueRunning = true
   while (true) {
     const job = queue.shift()
     if (!job) break
     if (job.delay > 0) await new Promise((r) => setTimeout(r, job.delay))
     await processJob(job)
   }
-  running = false
+  g.__queueRunning = false
 }
 
 export function registerHandler<T>(name: string, handler: JobHandler<T>, options?: { maxAttempts?: number }) {
@@ -64,5 +73,5 @@ export function enqueue(name: string, data: unknown, options?: { delay?: number;
 export function _resetQueue() {
   handlers.clear()
   queue.length = 0
-  running = false
+  g.__queueRunning = false
 }

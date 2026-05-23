@@ -213,7 +213,7 @@ data: {"type":"finish","runId":"...","usage":{...},"stopReason":"..."}
 
 ## 配置
 
-在 `.env.local` 中添加：
+在 `.env` 中添加：
 
 ```env
 # OpenClaw Gateway 配置

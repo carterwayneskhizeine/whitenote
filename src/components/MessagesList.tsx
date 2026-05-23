@@ -80,8 +80,8 @@ export function MessagesList({ filters, onMessagesLoaded }: MessagesListProps) {
         setHasMore(newMessages.length === PAGE_SIZE && 
           (!meta || pageNum < meta.totalPages))
         
-        // Notify parent that messages are loaded
-        if (onMessagesLoaded && !showLoading && !isLoadMore) {
+        // Notify parent that messages are loaded (including initial load and workspace switches)
+        if (onMessagesLoaded && !isLoadMore) {
           setTimeout(() => onMessagesLoaded(), 50)
         }
       }

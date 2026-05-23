@@ -180,7 +180,7 @@ AI Chat 页面（`/aichat`）支持两个后端，用户可在页面上方切换
 
 WebSocket 协议与 OpenClaw Gateway 通信，支持设备认证、多会话、流式响应。
 
-**配置**（`.env.local`）：
+**配置**（`.env`）：
 ```env
 OPENCLAW_GATEWAY_URL=ws://localhost:18789
 OPENCLAW_TOKEN=your-openclaw-token
@@ -224,7 +224,7 @@ API_SERVER_ENABLED=true
 API_SERVER_KEY=your-secret-key
 ```
 
-2. 在 WhiteNote 侧（`.env.local`）添加：
+2. 在 WhiteNote 侧（`.env`）添加：
 ```env
 HERMES_API_URL=http://localhost:8642
 HERMES_DASHBOARD_URL=http://localhost:9119
@@ -258,7 +258,7 @@ WhiteNote Frontend
 
 **Dashboard 认证**：Hermes Dashboard 的 session token 是每次启动随机生成的，注入到 SPA 的 HTML 中。WhiteNote 代理路由会自动从 Dashboard 首页提取 token，缓存 5 分钟，401 时自动刷新。
 
-**API Server 认证**：如果 Hermes 配置了 `API_SERVER_KEY`，WhiteNote 需要在 `.env.local` 设置相同的 `HERMES_API_KEY`。本地开发（127.0.0.1）可以不设 key，但 session continuity 功能要求必须设置。
+**API Server 认证**：如果 Hermes 配置了 `API_SERVER_KEY`，WhiteNote 需要在 `.env` 设置相同的 `HERMES_API_KEY`。本地开发（127.0.0.1）可以不设 key，但 session continuity 功能要求必须设置。
 
 ### 共享组件
 

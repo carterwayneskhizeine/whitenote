@@ -126,7 +126,7 @@ OpenClaw Gateway → SSE 事件 (assistant 文本流) → ChatWindow.tsx → 实
 
 ## 配置
 
-在 `.env.local` 中添加：
+在 `.env` 中添加：
 
 ```env
 OPENCLAW_GATEWAY_URL=ws://localhost:18789

@@ -845,7 +845,7 @@ export async function importFromLocal(workspaceId: string, filePath: string) {
   }
 
   if (actualWorkspaceId) {
-    await addTask("sync-ragflow", {
+    await addTask("sync-rag", {
       userId: record.author?.id || "",
       workspaceId: actualWorkspaceId,
       messageId: meta.id,

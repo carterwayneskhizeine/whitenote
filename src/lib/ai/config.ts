@@ -16,6 +16,7 @@ const ENCRYPTED_FIELDS = [
   'openaiApiKey',
   'ragflowApiKey',
   'asrApiKey',
+  'embeddingApiKey',
 ] as const
 
 // 用户级别配置缓存 (key = userId)
@@ -122,6 +123,9 @@ export async function updateAiConfig(userId: string, data: Partial<{
   mdSyncDir: string | null
   asrApiKey: string
   asrApiUrl: string
+  embeddingBaseUrl: string
+  embeddingApiKey: string
+  embeddingModel: string
 }>) {
   // 加密敏感字段
   const dataToStore = { ...data }

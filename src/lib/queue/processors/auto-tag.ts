@@ -53,7 +53,7 @@ export async function processAutoTag(job: Job<AutoTagJobData>) {
 
   // 打完标签后，触发 RAGFlow 同步（确保标签被包含）
   try {
-    await addTask("sync-ragflow", {
+    await addTask("sync-rag", {
       userId,
       workspaceId,
       messageId,

@@ -31,7 +31,7 @@ import { Template } from "@/types/api"
 import { SlashCommand } from "@/lib/editor/extensions/slash-command"
 import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
 import { useWorkspaceStore } from "@/store/useWorkspaceStore"
-import { getAvatarUrl } from "@/lib/utils"
+import { cn, getAvatarUrl, isDefaultAvatar } from "@/lib/utils"
 
 interface InputMachineProps {
   onSuccess?: () => void
@@ -518,22 +518,22 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
       if (result.data) {
         // Detect AI mode from @mentions
         // @goldierill = direct OpenAI mode (current post context only)
-        // @ragflow = RAGFlow mode (knowledge base retrieval)
+        // @rag = RAG mode (knowledge base retrieval, sqlite-vec primary)
         const hasGoldierillMention = /@goldierill/i.test(textContent)
-        const hasRagflowMention = /@ragflow/i.test(textContent)
+        const hasRagMention = /@rag\b/i.test(textContent)
 
-        // Only trigger AI if exactly one mention is present (or prioritize @ragflow if both)
-        if (hasRagflowMention || hasGoldierillMention) {
+        // Only trigger AI if exactly one mention is present (or prioritize @rag if both)
+        if (hasRagMention || hasGoldierillMention) {
           try {
-            const mode = hasRagflowMention ? 'ragflow' : 'goldierill'
+            const mode = hasRagMention ? 'rag' : 'goldierill'
             // Remove the @mention from the question
-            const mentionToRemove = hasRagflowMention ? /@ragflow/gi : /@goldierill/gi
+            const mentionToRemove = hasRagMention ? /@rag\b/gi : /@goldierill/gi
             const question = textContent.replace(mentionToRemove, '').trim()
 
-            // @ragflow: 使用非流式 API，立即发帖
+            // @rag: 使用非流式 API，立即发帖
             // @goldierill: 使用流式 API
-            if (mode === 'ragflow') {
-              // RAGFlow 模式：立即发帖，不等 AI 回复
+            if (mode === 'rag') {
+              // RAG 模式：立即发帖，不等 AI 回复
               await aiApi.chat({
                 messageId: result.data.id,
                 content: question || '请回复这条消息',
@@ -637,7 +637,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
       <div className="flex gap-4">
         {/* User avatar */}
         <Avatar className="h-10 w-10 shrink-0">
-          <AvatarImage src={getAvatarUrl(session?.user?.name || null, session?.user?.image || null) || undefined} />
+          <AvatarImage src={getAvatarUrl(session?.user?.name || null, session?.user?.image || null) || undefined} className={cn(isDefaultAvatar(getAvatarUrl(session?.user?.name || null, session?.user?.image || null)) && "invert dark:invert-0")} />
           <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
             {getInitials(session?.user?.name)}
           </AvatarFallback>

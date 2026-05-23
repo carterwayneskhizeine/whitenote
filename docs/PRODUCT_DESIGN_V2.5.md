@@ -30,7 +30,7 @@
 
 1. **极速捕获**: 像发推特一样毫无压力地记录碎片想法，同时支持 Notion 风格的 **Slash Command (`/`)** 快捷指令。
 2. **结构化沉淀**: 引入 **Thread (串)** 和 **Auto-Tagging (自动标签)**，将碎片化内容编织成知识网络，避免"写后即忘"。
-3. **主动式智能**: AI 不再是被动的问答机器，它会**主动整理**（后台打标）并**每日汇报**（生成晨报），成为真正的第二大脑。
+3. **主动式智能**: AI 不再是被动的问答机器，它会**主动整理**（后台打标），成为真正的第二大脑。
 4. **双模思考**: 区分"快思考"（直接调用 LLM）与"慢思考"（RAGFlow 记忆检索）。
 5. **知识可视化**: 通过知识图谱将标签和笔记的关系网络可视化，帮助用户发现隐藏的知识连接。
 
@@ -44,12 +44,12 @@
 | **UI 系统** | **Tailwind + Shadcn/ui** | 极简主义设计，黑白灰主色调 |
 | **富文本引擎** | **Tiptap** | 支持 Slash Command 菜单 (`/`)，支持 Markdown，支持双向链接 |
 | **图谱可视化** | **D3.js / Force Graph** | 知识图谱交互式可视化 |
-| **数据库** | **PostgreSQL 16** | 核心数据存储，支持复杂查询与全文搜索 |
+| **数据库** | **SQLite** | 核心数据存储，轻量级嵌入数据库 |
 | **ORM** | **Prisma** | 类型安全的数据操作 |
 | **RAG 引擎** | **RAGFlow** (Docker) | 知识库向量化与检索，支持配置热更新 |
-| **任务队列** | **BullMQ + Redis** | 处理 AI 自动打标、晨报生成等后台异步任务 |
-| **实时同步** | **Socket.io + Redis Pub/Sub** | 多端实时同步编辑 🆕 |
-| **通知服务** | **Web Push API** | 提醒系统的浏览器推送 |
+| **任务队列** | **In-process Queue** | 处理 AI 自动打标等后台异步任务 |
+| **实时同步** | **Socket.io** | 多端实时同步编辑 |
+
 
 ---
 
@@ -104,18 +104,9 @@
 - **调用方式**: 
   - Slash Command `/template [模板名]`
 
-### 4.5 提醒系统 (Reminders) 🆕
+### 4.5 全局搜索增强 (Advanced Search) 🆕
 
-- **设置提醒**: 为任意笔记设置提醒时间（日期 + 时间）。
-- **提醒方式**:
-  - 浏览器 Push 通知
-  - 时间线内提醒消息
-- **重复提醒**: 支持每日/每周/每月循环提醒。
-- **今日待办视图**: 专门的页面展示今日所有待办提醒。
-
-### 4.6 全局搜索增强 (Advanced Search) 🆕
-
-- **全文搜索**: 基于 PostgreSQL 全文索引，毫秒级响应。
+- **全文搜索**: 基于 SQLite 全文索引，毫秒级响应。
 - **高级过滤器**:
   - 按标签过滤: `tag:#React`
   - 按时间范围: `date:2025-12..2026-01`
@@ -149,7 +140,6 @@
 - **被动响应**: 在评论区或者发帖的时候 `@goldierill`，AI 会根据当前模式（标准/RAG）进行回复。
 - **主动行为**:
   - **隐形助手**: 用户发布笔记后，AI 会在后台默默工作，分析内容并打上合适的 `#标签`。
-  - **每日晨报**: 每天早上 08:00，AI 会在时间线置顶发布一条"昨日回顾与今日建议"，帮助用户唤醒记忆。
 - **AI 增强功能** 🆕:
   - **一键摘要**: 选中长文后调用 `/ai summarize` 生成摘要。
   - **翻译助手**: `/ai translate [目标语言]` 翻译选中文本。
@@ -212,7 +202,7 @@
 
 ## 6. 数据库设计 (Prisma Schema)
 
-这是系统的核心数据结构，包含了标签系统、双向链接、模板和提醒等功能。
+这是系统的核心数据结构，包含了标签系统、双向链接、模板等功能。
 
 ```prisma
 // --------------------------------------
@@ -261,9 +251,6 @@ model Message {
 
   // 版本历史
   versions  MessageVersion[]
-
-  // 提醒
-  reminders Reminder[]
 
   // 媒体与评论
   medias    Media[]
@@ -318,20 +305,6 @@ model Template {
 
   author      User?    @relation(fields: [authorId], references: [id])
   authorId    String?
-}
-
-// --------------------------------------
-// 6. 提醒系统
-// --------------------------------------
-model Reminder {
-  id          String   @id @default(cuid())
-  remindAt    DateTime
-  isCompleted Boolean  @default(false)
-  repeatType  String?  // DAILY, WEEKLY, MONTHLY, null 表示不重复
-  createdAt   DateTime @default(now())
-
-  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  messageId   String
 }
 
 // --------------------------------------
@@ -391,9 +364,6 @@ model AiConfig {
   // --- 自动化配置 ---
   enableAutoTag  Boolean  @default(true)
   autoTagModel   String   @default("gpt-3.5-turbo") // 🆕 自动打标专用模型
-  enableBriefing Boolean  @default(true)
-  briefingModel  String   @default("gpt-3.5-turbo") // 🆕 晨报专用模型
-  briefingTime   String   @default("08:00")
 
   // --- AI 人设 ---
   aiPersonality  String   @default("friendly") // friendly, professional, casual
@@ -447,28 +417,13 @@ model SearchHistory {
 2. **分析**：Worker 进程调用轻量级 LLM 模型，Prompt 要求其"分析文本内容，提取 1-3 个核心英文或中文 Hashtag，并以 JSON 数组格式返回"。
 3. **写入**：解析返回的 JSON，遍历标签数组。系统使用 `upsert` 逻辑：如果标签已存在 `Tag` 表中，则直接关联；如果不存在，则先创建标签再关联。
 
-### 7.4 每日晨报生成流程 (Daily Briefing Job)
-
-这是一个定时任务 (Cron Job)：
-
-1. **调度**：系统根据配置的 `briefingTime`（默认 08:00）唤醒任务。
-2. **数据抓取**：查询数据库中 `createdAt` 位于昨日 00:00 至 23:59 之间的所有笔记，排除掉 AI 机器人自己生成的发言。
-3. **摘要生成**：如果笔记数量大于 0，将这些笔记的内容拼接，发送给 LLM 进行总结。Prompt 指令为："作为用户的第二大脑，总结昨天的关键想法、学习内容和情绪，并给出今天的简短建议。"
-4. **发布**：将生成的总结作为一条新的 `Message` 插入数据库，作者 ID 设为 AI 助手的 ID，并自动打上 `#DailyReview` 标签，使其出现在用户的时间线顶部。
-
-### 7.5 版本历史保存流程 (Version Control) 🆕
+### 7.4 版本历史保存流程 (Version Control) 🆕
 
 1. **触发条件**：笔记内容发生变化且距离上次保存超过 30 秒。
 2. **增量存储**：计算内容差异 (diff)，仅存储变化部分以节省空间。
 3. **版本清理**：当版本数超过 50 时，自动删除最旧的版本（保留创建时的第一个版本）。
 
-### 7.6 提醒处理流程 (Reminder Scheduler) 🆕
-
-1. **定时轮询**：每分钟检查 `Reminder` 表中 `remindAt <= NOW()` 且 `isCompleted = false` 的记录。
-2. **触发通知**：通过 Web Push API 发送浏览器通知，包含笔记标题和提醒内容。
-3. **重复处理**：如果 `repeatType` 不为空，更新 `remindAt` 为下一个周期时间；否则标记 `isCompleted = true`。
-
-### 7.7 知识图谱数据构建 (Graph Builder) 🆕
+### 7.5 知识图谱数据构建 (Graph Builder) 🆕
 
 1. **节点收集**：查询所有 Message、Comment 和 Tag 作为图节点。
 2. **边构建**：

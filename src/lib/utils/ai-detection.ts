@@ -2,7 +2,7 @@
  * AI mention detection and mode extraction utility
  */
 
-export type AIMode = 'goldierill' | 'ragflow' | null
+export type AIMode = 'goldierill' | 'rag' | null
 
 export interface AIMentionResult {
   hasMention: boolean
@@ -12,19 +12,17 @@ export interface AIMentionResult {
 
 /**
  * Detect AI mentions in content and extract mode
- * @param content - Text content to check for AI mentions
- * @returns Object with mention detection result and cleaned content
  */
 export function detectAIMention(content: string): AIMentionResult {
   const hasGoldierillMention = /@goldierill/i.test(content)
-  const hasRagflowMention = /@ragflow/i.test(content)
+  const hasRagMention = /@rag\b/i.test(content)
 
-  // If both mentions present, prioritize @ragflow
-  if (hasRagflowMention) {
+  // If both mentions present, prioritize @rag
+  if (hasRagMention) {
     return {
       hasMention: true,
-      mode: 'ragflow',
-      cleanedContent: content.replace(/@ragflow/gi, '').trim()
+      mode: 'rag',
+      cleanedContent: content.replace(/@rag\b/gi, '').trim()
     }
   }
 
@@ -47,7 +45,7 @@ export function detectAIMention(content: string): AIMentionResult {
  * Check if content contains any AI mention (for UI hints)
  */
 export function hasAIMention(content: string): boolean {
-  return /@goldierill|@ragflow/i.test(content)
+  return /@goldierill|@rag\b/i.test(content)
 }
 
 /**

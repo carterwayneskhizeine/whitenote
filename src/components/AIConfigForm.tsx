@@ -21,7 +21,7 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
   const [syncing, setSyncing] = useState<"export" | "import" | "ragflow" | null>(null)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
-  const [sessionApiKeys, setSessionApiKeys] = useState<{ openai?: string; ragflow?: string; asr?: string }>({})
+  const [sessionApiKeys, setSessionApiKeys] = useState<{ openai?: string; ragflow?: string; asr?: string; embedding?: string }>({})
 
   const fetchConfig = async () => {
     setLoading(true)
@@ -32,11 +32,13 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
         const sessionOpenAIKey = sessionStorage.getItem('openai_api_key')
         const sessionRagflowKey = sessionStorage.getItem('ragflow_api_key')
         const sessionAsrKey = sessionStorage.getItem('asr_api_key')
+        const sessionEmbeddingKey = sessionStorage.getItem('embedding_api_key')
 
         setSessionApiKeys({
           openai: sessionOpenAIKey || "",
           ragflow: sessionRagflowKey || "",
           asr: sessionAsrKey || "",
+          embedding: sessionEmbeddingKey || "",
         })
       }
     } catch (error) {
@@ -67,6 +69,8 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
         enableMdSync: config.enableMdSync,
         mdSyncDir: config.mdSyncDir || null,
         asrApiUrl: config.asrApiUrl,
+        embeddingBaseUrl: config.embeddingBaseUrl,
+        embeddingModel: config.embeddingModel,
       }
 
       if (config.openaiApiKey && config.openaiApiKey !== "***") {
@@ -78,6 +82,9 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
       if (config.asrApiKey && config.asrApiKey !== "***") {
         updateData.asrApiKey = config.asrApiKey
       }
+      if (config.embeddingApiKey && config.embeddingApiKey !== "***") {
+        updateData.embeddingApiKey = config.embeddingApiKey
+      }
 
       const result = await configApi.updateConfig(updateData)
 
@@ -86,18 +93,21 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
           openai: config.openaiApiKey && config.openaiApiKey !== "***" ? config.openaiApiKey : sessionApiKeys.openai,
           ragflow: config.ragflowApiKey && config.ragflowApiKey !== "***" ? config.ragflowApiKey : sessionApiKeys.ragflow,
           asr: config.asrApiKey && config.asrApiKey !== "***" ? config.asrApiKey : sessionApiKeys.asr,
+          embedding: config.embeddingApiKey && config.embeddingApiKey !== "***" ? config.embeddingApiKey : sessionApiKeys.embedding,
         }
         setSessionApiKeys(updatedSessionKeys)
 
         if (updatedSessionKeys.openai) sessionStorage.setItem('openai_api_key', updatedSessionKeys.openai)
         if (updatedSessionKeys.ragflow) sessionStorage.setItem('ragflow_api_key', updatedSessionKeys.ragflow)
         if (updatedSessionKeys.asr) sessionStorage.setItem('asr_api_key', updatedSessionKeys.asr)
+        if (updatedSessionKeys.embedding) sessionStorage.setItem('embedding_api_key', updatedSessionKeys.embedding)
 
         setConfig({
           ...result.data,
           openaiApiKey: config.openaiApiKey,
           ragflowApiKey: config.ragflowApiKey,
           asrApiKey: config.asrApiKey,
+          embeddingApiKey: config.embeddingApiKey,
         })
         showMessage("success", "配置保存成功")
         onSuccess?.()
@@ -260,6 +270,39 @@ export function AIConfigForm({ onSuccess }: AIConfigFormProps) {
               setSessionApiKeys({ ...sessionApiKeys, ragflow: e.target.value })
             }}
             placeholder="ragflow-..."
+            className="border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1 font-mono"
+          />
+        </InputRow>
+      </section>
+
+      {/* Embedding Section */}
+      <section>
+        <SectionHeader icon={Database} title="Embedding 配置" description="向量检索（@rag）使用的嵌入模型，配置后启用 sqlite-vec RAG" />
+        <InputRow label="Base URL" description="OpenAI 兼容的 Embedding API 地址（请勿包含 /embeddings 路径）">
+          <Input
+            value={config.embeddingBaseUrl}
+            onChange={(e) => setConfig({ ...config, embeddingBaseUrl: e.target.value })}
+            placeholder="https://api.siliconflow.cn/v1"
+            className="border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1 font-mono"
+          />
+        </InputRow>
+        <InputRow label="API Key">
+          <Input
+            type="password"
+            value={sessionApiKeys.embedding || (config.embeddingApiKey === "***" ? "******" : "")}
+            onChange={(e) => {
+              setConfig({ ...config, embeddingApiKey: e.target.value })
+              setSessionApiKeys({ ...sessionApiKeys, embedding: e.target.value })
+            }}
+            placeholder="sk-..."
+            className="border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1 font-mono"
+          />
+        </InputRow>
+        <InputRow label="模型名称" description="推荐：Qwen/Qwen3-Embedding-4B（2560 维）">
+          <Input
+            value={config.embeddingModel}
+            onChange={(e) => setConfig({ ...config, embeddingModel: e.target.value })}
+            placeholder="Qwen/Qwen3-Embedding-4B"
             className="border-transparent bg-transparent px-0 text-base focus-visible:ring-0 rounded-none border-b focus-visible:border-primary transition-all h-auto py-1 font-mono"
           />
         </InputRow>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Hash, MessageSquare, Bookmark, Settings, PenLine, LogOut, Loader2, Search } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { cn, getAvatarUrl } from "@/lib/utils"
+import { cn, getAvatarUrl, isDefaultAvatar } from "@/lib/utils"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   Sheet,
@@ -119,7 +119,7 @@ export function MobileNav({ disableAutoHide = false }: { disableAutoHide?: boole
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full p-0 h-8 w-8">
                   <Avatar className="h-8 w-8">
-                    {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
+                    {userAvatar && <AvatarImage src={userAvatar} className={cn("object-cover", isDefaultAvatar(userAvatar) && "invert dark:invert-0")} />}
                     <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
                   </Avatar>
                 </Button>
@@ -132,7 +132,7 @@ export function MobileNav({ disableAutoHide = false }: { disableAutoHide?: boole
                 {/* Drawer Header */}
                 <div className="p-4 flex flex-col gap-3">
                   <Avatar className="h-10 w-10">
-                    {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
+                    {userAvatar && <AvatarImage src={userAvatar} className={cn("object-cover", isDefaultAvatar(userAvatar) && "invert dark:invert-0")} />}
                     <AvatarFallback>{userInitials}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col">

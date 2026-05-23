@@ -30,6 +30,7 @@ export async function GET() {
       openaiApiKey: maskApiKey(config.openaiApiKey),
       ragflowApiKey: maskApiKey(config.ragflowApiKey),
       asrApiKey: maskApiKey(config.asrApiKey),
+      embeddingApiKey: maskApiKey(config.embeddingApiKey),
     },
   })
   } catch (error) {
@@ -73,6 +74,9 @@ export async function PUT(request: NextRequest) {
       "mdSyncDir",
       "asrApiKey",
       "asrApiUrl",
+      "embeddingBaseUrl",
+      "embeddingApiKey",
+      "embeddingModel",
     ]
 
     const updateData: Record<string, unknown> = {}
@@ -90,6 +94,7 @@ export async function PUT(request: NextRequest) {
         openaiApiKey: maskApiKey(config.openaiApiKey),
         ragflowApiKey: maskApiKey(config.ragflowApiKey),
         asrApiKey: maskApiKey(config.asrApiKey),
+        embeddingApiKey: maskApiKey(config.embeddingApiKey),
       },
       message: "Configuration updated successfully. Changes take effect immediately.",
     })

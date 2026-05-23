@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { messagesApi, aiApi } from "@/lib/api"
 import { X } from "lucide-react"
 import { useSession } from "next-auth/react"
-import { getAvatarUrl } from "@/lib/utils"
+import { cn, getAvatarUrl, isDefaultAvatar } from "@/lib/utils"
 import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
 import { ActionButtons } from "@/components/ActionButtons"
 import { SimpleTipTapEditor } from "@/components/SimpleTipTapEditor"
@@ -174,7 +174,7 @@ export function PostDialog({
                 <div className="flex-1 overflow-y-auto p-4">
                     <div className="flex gap-3">
                         <Avatar className="h-10 w-10 shrink-0">
-                            {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
+                            {userAvatar && <AvatarImage src={userAvatar} className={cn("object-cover", isDefaultAvatar(userAvatar) && "invert dark:invert-0")} />}
                             <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
                                 {userInitials}
                             </AvatarFallback>

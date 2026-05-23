@@ -9,7 +9,7 @@ import {
   MoreHorizontal, PenLine, LogOut, UserCircle
 } from "lucide-react"
 
-import { cn, getAvatarUrl } from "@/lib/utils"
+import { cn, getAvatarUrl, isDefaultAvatar } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { PostDialog } from "@/components/PostDialog"
@@ -187,7 +187,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
           >
             <div className="flex items-center gap-3 truncate">
               <Avatar className="h-10 w-10 shrink-0">
-                {userAvatar && <AvatarImage src={userAvatar} className="object-cover" />}
+                {userAvatar && <AvatarImage src={userAvatar} className={cn("object-cover", isDefaultAvatar(userAvatar) && "invert dark:invert-0")} />}
                 <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">{userInitials}</AvatarFallback>
               </Avatar>
               {!collapsed && (

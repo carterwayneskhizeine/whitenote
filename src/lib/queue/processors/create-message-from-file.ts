@@ -184,7 +184,7 @@ export async function processCreateMessageFromFile(
     })
   } else {
     // Sync to RAGFlow
-    await addTask("sync-ragflow", {
+    await addTask("sync-rag", {
       userId: workspace.user.id,
       workspaceId,
       messageId: message.id,

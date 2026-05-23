@@ -14,7 +14,7 @@ import {
 import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
 import { SimpleTipTapEditor } from "@/components/SimpleTipTapEditor"
 import { Template } from "@/types/api"
-import { cn, getAvatarUrl } from "@/lib/utils"
+import { cn, getAvatarUrl, isDefaultAvatar } from "@/lib/utils"
 
 export interface CompactReplyInputProps {
   // 输入内容
@@ -102,7 +102,7 @@ export function CompactReplyInput({
     <div className={cn("px-4 pb-4 border-b", className)}>
       <div className="flex gap-3">
         <Avatar className="h-9 w-9 shrink-0">
-          <AvatarImage src={getAvatarUrl(session?.user?.name || null, session?.user?.image || null) || undefined} />
+          <AvatarImage src={getAvatarUrl(session?.user?.name || null, session?.user?.image || null) || undefined} className={cn(isDefaultAvatar(getAvatarUrl(session?.user?.name || null, session?.user?.image || null)) && "invert dark:invert-0")} />
           <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
             {session?.user?.name?.slice(0, 2) || "U"}
           </AvatarFallback>

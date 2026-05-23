@@ -4,6 +4,7 @@ import { buildSystemPrompt, callOpenAIStream } from "@/lib/ai/openai"
 import { callRAGFlowWithChatIdStream } from "@/lib/ai/ragflow"
 import { getAiConfig } from "@/lib/ai/config"
 import { getCommentThreadContext } from "@/lib/ai/thread-context"
+import { searchRAG } from "@/lib/ai/rag"
 import { NextRequest } from "next/server"
 import { addTask } from "@/lib/queue"
 
@@ -117,68 +118,66 @@ export async function POST(request: NextRequest) {
           let references: Array<{ content: string; source: string }> | undefined
           let quotedMessageId: string | undefined
 
-          if (mode === 'ragflow') {
-            // RAGFlow 流式模式
+          if (mode === 'rag') {
+            // RAG mode: try sqlite-vec first, fallback to RAGFlow
             const config = await getAiConfig(session.user.id)
+            const hasEmbedding = !!config.embeddingApiKey
 
-            if (!message.workspace?.ragflowChatId) {
-              controller.enqueue(
-                encoder.encode(
-                  encodeSSELine(
-                    "error",
-                    JSON.stringify({
-                      message: "Workspace RAGFlow not configured. 请先在设置中配置 RAGFlow API Key，然后创建新 Workspace。"
-                    })
-                  )
-                )
-              )
-              controller.close()
-              return
-            }
+            if (hasEmbedding && message.workspaceId) {
+              // sqlite-vec path (primary)
+              console.log('[AI Chat Stream] Using sqlite-vec RAG')
 
-            if (!config.ragflowBaseUrl || !config.ragflowApiKey) {
-              controller.enqueue(
-                encoder.encode(
-                  encodeSSELine(
-                    "error",
-                    JSON.stringify({
-                      message: "请先在 AI 配置中设置 RAGFlow Base URL 和 API Key"
-                    })
-                  )
-                )
-              )
-              controller.close()
-              return
-            }
+              const results = await searchRAG(session.user.id, message.workspaceId, content, { limit: 5 })
+              const ragContext = results.map(r => `[Source: ${r.sourceId}]\n${r.content}`).join('\n---\n')
+              const systemPrompt = await buildSystemPrompt(session.user.id)
+              const ragSystemPrompt = `${systemPrompt}\n\n以下是从历史消息中检索到的相关内容（如果为空则没有找到相关内容）：\n${ragContext || '无'}\n\n请根据以上上下文回答用户问题。如果上下文中没有相关信息，请诚实说明。`
 
-            const messages = [{ role: "user" as const, content }]
+              const chatMessages = [
+                { role: "system" as const, content: ragSystemPrompt },
+                { role: "user" as const, content },
+              ]
 
-            // 流式获取 RAGFlow 响应
-            for await (const chunk of callRAGFlowWithChatIdStream(
-              config.ragflowBaseUrl,
-              config.ragflowApiKey,
-              message.workspace.ragflowChatId,
-              messages
-            )) {
-              if (chunk.content) {
-                fullContent += chunk.content
-                controller.enqueue(
-                  encoder.encode(
-                    encodeSSELine(
-                      "content",
-                      JSON.stringify({ text: chunk.content })
-                    )
-                  )
-                )
+              for await (const chunk of callOpenAIStream({ userId: session.user.id, messages: chatMessages })) {
+                fullContent += chunk
+                controller.enqueue(encoder.encode(encodeSSELine("content", JSON.stringify({ text: chunk }))))
               }
-              if (chunk.references) {
-                references = chunk.references
-              }
-            }
 
-            // 从 references 中提取第一个（最相关）的 messageId
-            if (references && references.length > 0) {
-              quotedMessageId = extractMessageIdFromDocument(references[0].source) || undefined
+              references = results.map(r => ({ content: r.content, source: r.sourceId }))
+              if (results.length > 0) quotedMessageId = results[0].sourceId
+            } else {
+              // RAGFlow fallback
+              if (!message.workspace?.ragflowChatId) {
+                controller.enqueue(encoder.encode(encodeSSELine("error", JSON.stringify({ message: "Workspace RAGFlow not configured. 请先配置 RAGFlow 或设置 Embedding API Key。" }))))
+                controller.close()
+                return
+              }
+
+              if (!config.ragflowBaseUrl || !config.ragflowApiKey) {
+                controller.enqueue(encoder.encode(encodeSSELine("error", JSON.stringify({ message: "请先在 AI 配置中设置 RAGFlow Base URL 和 API Key" }))))
+                controller.close()
+                return
+              }
+
+              const chatMessages = [{ role: "user" as const, content }]
+
+              for await (const chunk of callRAGFlowWithChatIdStream(
+                config.ragflowBaseUrl,
+                config.ragflowApiKey,
+                message.workspace.ragflowChatId,
+                chatMessages
+              )) {
+                if (chunk.content) {
+                  fullContent += chunk.content
+                  controller.enqueue(encoder.encode(encodeSSELine("content", JSON.stringify({ text: chunk.content }))))
+                }
+                if (chunk.references) {
+                  references = chunk.references
+                }
+              }
+
+              if (references && references.length > 0) {
+                quotedMessageId = extractMessageIdFromDocument(references[0].source) || undefined
+              }
             }
           } else {
             // OpenAI 流式模式（上下文包含完整评论线程）
@@ -246,7 +245,7 @@ export async function POST(request: NextRequest) {
             )
           )
 
-          // AI 评论也需要自动打标签并推送到知识库
+          // Auto-tag AI comments if enabled (but NEVER sync AI comments to RAG)
           const workspace = message.workspace
             ? await prisma.workspace.findUnique({
                 where: { id: message.workspace.id },
@@ -261,14 +260,8 @@ export async function POST(request: NextRequest) {
               commentId: commentId,
               contentType: 'comment',
             })
-          } else if (message.workspaceId) {
-            await addTask("sync-ragflow", {
-              userId: session.user.id,
-              workspaceId: message.workspaceId,
-              messageId: commentId,
-              contentType: 'comment',
-            })
           }
+          // NOTE: AI comments are NOT synced to RAG (isAIBot filter in sync-rag processor)
 
           controller.close()
         } catch (error) {

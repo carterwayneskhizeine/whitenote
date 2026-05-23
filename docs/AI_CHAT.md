@@ -631,7 +631,7 @@ WebSocket 请求历史
 
 ### 环境变量配置
 
-在项目根目录的 `.env.local` 文件中配置：
+在项目根目录的 `.env` 文件中配置：
 
 ```env
 # OpenClaw Gateway 配置
@@ -816,7 +816,7 @@ openclaw gateway start
 
 ### 配置环境变量
 
-创建 `.env.local` 文件：
+创建 `.env` 文件：
 
 ```env
 # OpenClaw Gateway 配置
@@ -863,7 +863,7 @@ http://localhost:3005/aichat
    ```bash
    openclaw gateway status
    ```
-2. 检查 `.env.local` 中的 `OPENCLAW_GATEWAY_URL` 是否正确
+2. 检查 `.env` 中的 `OPENCLAW_GATEWAY_URL` 是否正确
 3. 检查 `OPENCLAW_TOKEN` 是否有效
 
 ---

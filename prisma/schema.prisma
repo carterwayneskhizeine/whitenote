@@ -107,7 +107,6 @@ model Message {
   workspace        Workspace?       @relation(fields: [workspaceId], references: [id])
   tags             MessageTag[]
   versions         MessageVersion[]
-  reminders        Reminder[]
   retweets         Retweet[]
 
   @@index([authorId])
@@ -171,18 +170,6 @@ model Template {
   author      User?    @relation(fields: [authorId], references: [id])
 
   @@index([isBuiltIn])
-}
-
-model Reminder {
-  id          String   @id @default(cuid())
-  remindAt    DateTime
-  isCompleted Boolean  @default(false)
-  repeatType  String?
-  createdAt   DateTime @default(now())
-  messageId   String
-  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
-
-  @@index([remindAt, isCompleted])
 }
 
 model Comment {
@@ -259,6 +246,9 @@ model AiConfig {
   mdSyncDir            String?   @default("D:\\Code\\whitenote-data\\link_md")
   asrApiKey            String    @default("")
   asrApiUrl            String    @default("https://api.siliconflow.cn/v1/audio/transcriptions")
+  embeddingBaseUrl     String    @default("https://api.siliconflow.cn/v1")
+  embeddingApiKey      String    @default("")
+  embeddingModel       String    @default("Qwen/Qwen3-Embedding-4B")
   updatedAt            DateTime  @updatedAt
   user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

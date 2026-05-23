@@ -35,6 +35,13 @@ export function isGoldieRill(name: string | null): boolean {
 }
 
 /**
+ * 判断头像 URL 是否为默认 logo（白色 SVG，浅色模式下需要反转）
+ */
+export function isDefaultAvatar(url: string | null | undefined): boolean {
+  return !url || url === "/goldielogoL.svg"
+}
+
+/**
  * 获取用户 handle (@username)
  * @param email 用户邮箱
  * @param hasAuthor 是否有作者

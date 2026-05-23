@@ -306,6 +306,9 @@ export interface AIConfig {
   mdSyncDir: string | null
   asrApiKey: string
   asrApiUrl: string
+  embeddingBaseUrl: string
+  embeddingApiKey: string
+  embeddingModel: string
   updatedAt: string
 }
 
@@ -325,6 +328,9 @@ export interface UpdateAIConfigInput {
   mdSyncDir?: string
   asrApiKey?: string
   asrApiUrl?: string
+  embeddingBaseUrl?: string
+  embeddingApiKey?: string
+  embeddingModel?: string
 }
 
 export interface AIConfigResponse {
@@ -337,7 +343,7 @@ export interface AIConfigResponse {
 export interface AIChatInput {
   messageId: string
   content: string
-  mode?: 'goldierill' | 'ragflow'  // 新增：AI 调用模式
+  mode?: 'goldierill' | 'rag'
 }
 
 export interface AIChatResponse {

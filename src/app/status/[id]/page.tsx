@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useState, useEffect, useRef, Suspense } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Message, messagesApi } from "@/lib/api/messages"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, MoreVertical, Loader2, Edit2, Pin, PinOff, Trash2 } from "lucide-react"
@@ -37,9 +37,11 @@ import { useShare } from "@/hooks/useShare"
 import { ActionRow } from "@/components/ActionRow"
 import { useMobile } from "@/hooks/use-mobile"
 
-export default function StatusPage() {
+function StatusPageContent() {
     const { id } = useParams() as { id: string }
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const fromWorkspaceId = searchParams.get('from')
     const isMobile = useMobile()
     const [message, setMessage] = useState<Message | null>(null)
     const [isLoading, setIsLoading] = useState(true)
@@ -175,7 +177,10 @@ export default function StatusPage() {
                     variant="ghost"
                     size="icon"
                     className="mr-4 rounded-full"
-                    onClick={() => router.push(`/?scrollto=${id}`)}
+                    onClick={() => {
+                        const workspaceParam = fromWorkspaceId ? `&workspace=${fromWorkspaceId}` : ""
+                        router.push(`/?scrollto=${id}${workspaceParam}`)
+                    }}
                 >
                     <ArrowLeft className="h-5 w-5" />
                 </Button>
@@ -429,5 +434,17 @@ export default function StatusPage() {
                 onClose={() => setLightboxOpen(false)}
             />
         </div>
+    )
+}
+
+export default function StatusPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        }>
+            <StatusPageContent />
+        </Suspense>
     )
 }

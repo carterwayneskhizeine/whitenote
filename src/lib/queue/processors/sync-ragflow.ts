@@ -14,6 +14,18 @@ export async function processSyncRAGFlow(job: Job<SyncRAGFlowJobData>) {
 
   console.log(`[SyncRAGFlow] Processing ${contentType}: ${messageId} (workspace: ${workspaceId})`)
 
+  // Never index AI bot comments
+  if (contentType === 'comment') {
+    const comment = await prisma.comment.findUnique({
+      where: { id: messageId },
+      select: { isAIBot: true },
+    })
+    if (comment?.isAIBot) {
+      console.log(`[SyncRAGFlow] Skipping AI bot comment: ${messageId}`)
+      return
+    }
+  }
+
   // 获取 Workspace 的 datasetId
   const workspace = await prisma.workspace.findUnique({
     where: { id: workspaceId },

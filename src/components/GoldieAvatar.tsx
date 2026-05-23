@@ -1,7 +1,7 @@
 "use client"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { cn, getAvatarUrl, isGoldieRill } from "@/lib/utils"
+import { cn, getAvatarUrl, isGoldieRill, isDefaultAvatar } from "@/lib/utils"
 
 interface GoldieAvatarProps {
   /** 用户名称 */
@@ -78,7 +78,7 @@ export function GoldieAvatar({
       {avatarUrl && (
         <AvatarImage
           src={avatarUrl}
-          className={isGoldieRill(name) ? "invert dark:invert-0" : undefined}
+          className={isDefaultAvatar(avatarUrl) ? "invert dark:invert-0" : undefined}
         />
       )}
       <AvatarFallback className={cn("bg-primary/10 text-primary", fallbackSizeClasses[size])}>

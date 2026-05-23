@@ -24,13 +24,13 @@ export async function callOpenAI(options: ChatOptions): Promise<string> {
     throw new Error("OpenAI API key not configured")
   }
 
-  // 确保 baseUrl 格式正确（移除末尾斜杠）
-  const baseUrl = config.openaiBaseUrl.replace(/\/$/, '')
+  // 确保 baseUrl 格式正确（移除末尾 /v1 或 /v1/ 及斜杠，统一由代码拼接）
+  const baseUrl = config.openaiBaseUrl.replace(/\/v1\/?$/, '').replace(/\/$/, '')
   const url = `${baseUrl}/v1/chat/completions`
 
-  // 设置 60 秒超时
+  // 设置 120 秒超时
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 60000)
+  const timeoutId = setTimeout(() => controller.abort(), 120000)
 
   try {
     const response = await fetch(url, {
@@ -56,7 +56,7 @@ export async function callOpenAI(options: ChatOptions): Promise<string> {
     return data.choices[0]?.message?.content || ""
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      throw new Error('OpenAI API request timeout (60s)')
+      throw new Error('OpenAI API request timeout (120s)')
     }
     console.error('[OpenAI] Request failed:', error)
     throw error
@@ -99,8 +99,8 @@ export async function* callOpenAIStream(options: ChatOptions): AsyncGenerator<st
     throw new Error("OpenAI API key not configured")
   }
 
-  // 确保 baseUrl 格式正确（移除末尾斜杠）
-  const baseUrl = config.openaiBaseUrl.replace(/\/$/, '')
+  // 确保 baseUrl 格式正确（移除末尾 /v1 或 /v1/ 及斜杠，统一由代码拼接）
+  const baseUrl = config.openaiBaseUrl.replace(/\/v1\/?$/, '').replace(/\/$/, '')
   const url = `${baseUrl}/v1/chat/completions`
 
   // 设置 120 秒超时（流式响应可能需要更长时间）

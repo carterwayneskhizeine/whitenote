@@ -31,7 +31,7 @@ export async function syncToKnowledgeBase(
       })
     } else {
       // 如果未启用自动打标签，直接同步到 RAGFlow
-      await addTask("sync-ragflow", {
+      await addTask("sync-rag", {
         userId,
         messageId: contentId,
         contentType: type,

@@ -331,7 +331,7 @@ export async function POST(request: NextRequest) {
       })
     } else if (targetWorkspaceId) {
       // 如果未启用自动打标签，直接同步到 RAGFlow
-      await addTask("sync-ragflow", {
+      await addTask("sync-rag", {
         userId: session.user.id,
         workspaceId: targetWorkspaceId,
         messageId: message.id,

@@ -15,7 +15,7 @@ import { zhCN } from "date-fns/locale"
 import { useSession } from "next-auth/react"
 import { TipTapViewer } from "@/components/TipTapViewer"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
-import { getHandle, getAvatarUrl } from "@/lib/utils"
+import { cn, getHandle, getAvatarUrl, isDefaultAvatar } from "@/lib/utils"
 import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
 import { ActionButtons } from "@/components/ActionButtons"
 import { SimpleTipTapEditor } from "@/components/SimpleTipTapEditor"
@@ -197,9 +197,9 @@ export function ReplyDialog({
 
                 if (aiDetection.hasMention && aiDetection.mode) {
                     try {
-                        // @ragflow: 使用非流式 API，立即发帖
+                        // @rag: 使用非流式 API，立即发帖
                         // @goldierill: 使用流式 API
-                        if (aiDetection.mode === 'ragflow') {
+                        if (aiDetection.mode === 'rag') {
                             // RAGFlow 模式：立即发帖，不等 AI 回复
                             await aiApi.chat({
                                 messageId: messageId,
@@ -336,7 +336,7 @@ export function ReplyDialog({
 
                     <div className="flex gap-3 mt-4">
                         <Avatar className="h-8 w-8 shrink-0">
-                            <AvatarImage src={getAvatarUrl(session?.user?.name || null, session?.user?.image || null) || undefined} />
+                            <AvatarImage src={getAvatarUrl(session?.user?.name || null, session?.user?.image || null) || undefined} className={cn(isDefaultAvatar(getAvatarUrl(session?.user?.name || null, session?.user?.image || null)) && "invert dark:invert-0")} />
                             <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
                                 {session?.user?.name?.slice(0, 2) || "U"}
                             </AvatarFallback>

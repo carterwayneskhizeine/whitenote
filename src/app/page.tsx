@@ -15,8 +15,17 @@ import { Loader2 } from "lucide-react"
 function HomeContent() {
   const [refreshKey, setRefreshKey] = useState(0)
   const { setHasNewMessages } = useAppStore()
+  const { setCurrentWorkspaceId } = useWorkspaceStore()
   const searchParams = useSearchParams()
   const scrollAttemptedRef = useRef(false)
+
+  // 从搜索结果返回时，若携带 workspace 参数则切换 workspace
+  useEffect(() => {
+    const workspaceParam = searchParams.get('workspace')
+    if (workspaceParam) {
+      setCurrentWorkspaceId(workspaceParam)
+    }
+  }, [searchParams, setCurrentWorkspaceId])
 
   const handleMessageCreated = () => {
     // Trigger refresh of messages list
