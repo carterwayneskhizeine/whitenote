@@ -7,6 +7,7 @@ import { existsSync } from "fs"
 import { batchUpsertTags } from "@/lib/tag-utils"
 import { deleteFromRAGFlow } from "@/lib/ai/ragflow"
 import { exportToLocal, deleteLocalFile } from "@/lib/sync-utils"
+import { addTask } from "@/lib/queue"
 
 // Upload directory outside the codebase
 // 获取上传目录，支持 Docker 和本地开发环境
@@ -312,6 +313,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         author: { select: { id: true, name: true, avatar: true, email: true } },
         message: {
           select: {
+            workspaceId: true,
             workspace: { select: { ragflowDatasetId: true } }
           }
         },
@@ -356,6 +358,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (updatedComment.message?.workspace?.ragflowDatasetId) {
         updateInKnowledgeBase(session.user.id, updatedComment.message.workspace.ragflowDatasetId, 'comment', id).catch((error) => {
           console.error("Failed to update comment in RAGFlow:", error)
+        })
+      }
+
+      // 重新 embedding 到 sqlite-vec
+      if (updatedComment.message?.workspaceId) {
+        addTask("sync-rag", {
+          userId: session.user.id,
+          workspaceId: updatedComment.message.workspaceId,
+          messageId: id,
+          contentType: 'comment',
+        }).catch((error) => {
+          console.error("Failed to enqueue sync-rag on comment edit:", error)
         })
       }
     }

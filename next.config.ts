@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // native addons 必须排除在 bundle 外，否则 standalone 模式下 require.resolve 被破坏
+  serverExternalPackages: [
+    'better-sqlite3',
+    'sqlite-vec',
+    'sqlite-vec-windows-x64',
+  ],
   // 配置 Turbopack
   turbopack: {
     // 不需要特殊配置

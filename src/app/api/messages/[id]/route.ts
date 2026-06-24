@@ -293,6 +293,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
           console.error("Failed to update RAGFlow document:", error)
         })
       }
+
+      // 重新 embedding 到 sqlite-vec
+      addTask("sync-rag", {
+        userId: session.user.id,
+        workspaceId: existing.workspaceId!,
+        messageId: id,
+      }).catch((error) => {
+        console.error("Failed to enqueue sync-rag on edit:", error)
+      })
     }
 
     // 检查是否启用 MD 同步，更新本地 MD 文件

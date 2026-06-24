@@ -1,5 +1,14 @@
 packages:
   - .
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
+# pnpm 11.0+ uses `allowBuilds` (a package -> boolean map), which replaced the
+# old `onlyBuiltDependencies` array. pnpm no longer reads `pnpm.*` from
+# package.json either — everything lives here now.
+allowBuilds:
+  '@prisma/engines': true
+  better-sqlite3: true
+  bufferutil: true
+  esbuild: true
+  prisma: true
+  utf-8-validate: true
+  sharp: false
+  unrs-resolver: false

@@ -160,8 +160,10 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
               size="lg"
               onClick={() => setShowPostDialog(true)}
               className={cn(
-                "rounded-full font-bold text-[17px] shadow-lg bg-white hover:bg-gray-100 text-black transition-all duration-200 border border-border",
-                collapsed ? "w-[52px] h-[52px] p-0" : "w-[225px] h-[52px]"
+                "rounded-full font-bold text-[17px] shadow-lg text-black transition-all duration-200 border border-border",
+                collapsed
+                  ? "w-[52px] h-[52px] p-0 bg-[rgb(231,233,234)] hover:bg-[rgb(220,222,223)]"
+                  : "w-[225px] h-[52px] bg-[rgb(239,243,244)] hover:bg-[rgb(228,232,233)]"
               )}
             >
               {collapsed ? (
