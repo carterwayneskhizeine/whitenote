@@ -11,6 +11,7 @@ import { TableHeader } from '@tiptap/extension-table-header'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
+import { createPlainMarked } from '@/lib/plain-marked'
 import { cn } from "@/lib/utils"
 import type { ChatMessage, OpenClawContentBlock, OpenClawTextContent, OpenClawThinkingContent, OpenClawImageContent, OpenClawImageUrlContent, OpenClawAttachmentContent, OpenClawAudioContent } from './types'
 import { Terminal, FileText, Brain, ChevronRight, Clock, Download, Play, Music, Paperclip, X } from 'lucide-react'
@@ -366,6 +367,12 @@ export function AIMessageViewer({
           levels: [1, 2, 3, 4, 5, 6],
         },
         codeBlock: false,
+        // Disable linkify-based autolinking: bare URLs and README.md-like
+        // filenames must stay plain text (preserve original input)
+        link: {
+          autolink: false,
+          linkOnPaste: false,
+        },
       }),
       Image.configure({
         inline: false,
@@ -384,6 +391,7 @@ export function AIMessageViewer({
         lowlight,
       }),
       Markdown.configure({
+        marked: createPlainMarked(),
         markedOptions: {
           gfm: true,
           breaks: false,

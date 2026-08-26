@@ -16,6 +16,7 @@ import { TaskItem } from '@tiptap/extension-task-item'
 import { Highlight } from '@tiptap/extension-highlight'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { common, createLowlight } from 'lowlight'
+import { createPlainMarked } from '@/lib/plain-marked'
 import { Button } from "@/components/ui/button"
 import {
   Bold,
@@ -77,7 +78,12 @@ export function TipTapEditor({
           levels: [1, 2, 3, 4, 5, 6],
         },
         codeBlock: false, // Disable default code block, use CodeBlockLowlight instead
-        // Remove link: false - in TipTap 3.19, this is handled differently
+        // Disable linkify-based autolinking: bare URLs and README.md-like
+        // filenames must stay plain text (preserve original input)
+        link: {
+          autolink: false,
+          linkOnPaste: false,
+        },
       }),
       TextStyle,
       Highlight.configure({
@@ -104,6 +110,7 @@ export function TipTapEditor({
         lowlight,
       }),
       Markdown.configure({
+        marked: createPlainMarked(),
         markedOptions: {
           gfm: true,
           breaks: false,

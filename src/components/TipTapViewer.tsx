@@ -11,6 +11,7 @@ import { TableHeader } from '@tiptap/extension-table-header'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
+import { createPlainMarked } from '@/lib/plain-marked'
 import { cn } from "@/lib/utils"
 
 interface TipTapViewerProps {
@@ -37,6 +38,8 @@ export function TipTapViewer({
   const containerRef = useRef<HTMLDivElement>(null)
   // Create lowlight instance for syntax highlighting
   const lowlight = createLowlight(common)
+  // marked instance without GFM bare-URL autolinking (preserve original input)
+  const plainMarked = createPlainMarked()
 
   // Extract all image URLs from markdown content
   // 使用 Set 去重，确保相同的 URL 只出现一次
@@ -72,6 +75,7 @@ export function TipTapViewer({
         lowlight,
       }),
       Markdown.configure({
+        marked: plainMarked,
         markedOptions: {
           gfm: true, // GitHub Flavored Markdown
           breaks: false, // Only \n\n creates new paragraph

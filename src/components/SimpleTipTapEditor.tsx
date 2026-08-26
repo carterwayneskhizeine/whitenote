@@ -12,6 +12,7 @@ import { TableHeader } from '@tiptap/extension-table-header'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
+import { createPlainMarked } from '@/lib/plain-marked'
 import { SlashCommand } from '@/lib/editor/extensions/slash-command'
 import { cn } from '@/lib/utils'
 import { Template } from '@/types/api'
@@ -46,7 +47,12 @@ export function SimpleTipTapEditor({
     extensions: [
       StarterKit.configure({
         codeBlock: false,
-        // Remove link: false - in TipTap 3.19, this is handled differently
+        // Disable linkify-based autolinking: bare URLs and README.md-like
+        // filenames must stay plain text (preserve original input)
+        link: {
+          autolink: false,
+          linkOnPaste: false,
+        },
       }),
       Image.configure({
         inline: false,
@@ -65,6 +71,7 @@ export function SimpleTipTapEditor({
         lowlight,
       }),
       Markdown.configure({
+        marked: createPlainMarked(),
         markedOptions: {
           gfm: true, // GitHub Flavored Markdown (includes tables)
           breaks: false,

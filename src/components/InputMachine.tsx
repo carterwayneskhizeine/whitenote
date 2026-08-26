@@ -12,6 +12,7 @@ import { TableHeader } from '@tiptap/extension-table-header'
 import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
+import { createPlainMarked } from '@/lib/plain-marked'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Loader2, Mic, MicOff, Sparkles } from "lucide-react"
@@ -397,7 +398,13 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
     extensions: [
       StarterKit.configure({
         codeBlock: false, // Disable default code block, use CodeBlockLowlight instead
-        // Remove link: false - in TipTap 3.19, this is handled differently
+        // Disable linkify-based autolinking: bare URLs (http://127.0.0.1:5166/admin/)
+        // and README.md-like filenames (`.md` is a valid TLD) must stay plain text,
+        // otherwise the serialized markdown differs from what the user typed
+        link: {
+          autolink: false,
+          linkOnPaste: false,
+        },
       }),
       Image.configure({
         inline: false,
@@ -416,6 +423,7 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
         lowlight,
       }),
       Markdown.configure({
+        marked: createPlainMarked(),
         markedOptions: {
           gfm: true,
           breaks: false,
