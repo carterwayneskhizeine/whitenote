@@ -15,7 +15,26 @@ export async function GET(request: NextRequest) {
 
     const workspaces = await prisma.workspace.findMany({
       where: { userId: session.user.id },
-      orderBy: { isDefault: 'desc' }
+    })
+
+    // 按最近帖子活动时间排序（新帖/编辑都会更新 updatedAt），无帖子的排最后
+    const lastActivity = await prisma.message.groupBy({
+      by: ['workspaceId'],
+      where: { workspaceId: { in: workspaces.map((w) => w.id) } },
+      _max: { updatedAt: true },
+    })
+
+    const lastActiveAt = new Map(
+      lastActivity
+        .filter((a) => a.workspaceId)
+        .map((a) => [a.workspaceId as string, a._max.updatedAt?.getTime() ?? 0])
+    )
+
+    workspaces.sort((a, b) => {
+      const at = lastActiveAt.get(a.id) ?? 0
+      const bt = lastActiveAt.get(b.id) ?? 0
+      if (at !== bt) return bt - at
+      return a.createdAt.getTime() - b.createdAt.getTime()
     })
 
     return Response.json({ data: workspaces })
