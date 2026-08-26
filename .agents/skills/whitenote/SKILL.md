@@ -102,13 +102,3 @@ Windows (mingw-w64 native) silently mangles non-ASCII bytes passed as a
 command-line argument (confirmed with `--trace-ascii` — corrupted bytes
 already on the wire before the request left the machine). `jq` is
 unaffected, so it's safe to use for building the file contents.
-
-## Using this skill from another machine/agent
-
-This file only auto-loads for Claude Code sessions that have it under
-`.claude/skills/` (project-scoped, so only sessions working in a checkout
-of this repo) or under `~/.claude/skills/` (user-scoped, any project on
-that machine). To let an agent on a different machine or a non-Claude-Code
-tool use it, copy this directory (`SKILL.md` + `whitenote.sh`) to that
-machine — the script itself has no dependency on this repo, only on
-`curl`/`jq` and the three env vars above.
