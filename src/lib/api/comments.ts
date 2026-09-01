@@ -12,7 +12,9 @@ export const commentsApi = {
    * Get comments for a message
    */
   async getComments(messageId: string): Promise<CommentsResponse> {
-    const response = await fetch(`${API_BASE}/messages/${messageId}/comments`)
+    const response = await fetch(`${API_BASE}/messages/${messageId}/comments`, {
+      cache: "no-store",
+    })
     return response.json()
   },
 

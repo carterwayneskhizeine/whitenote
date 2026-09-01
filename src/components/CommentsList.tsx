@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
@@ -11,6 +11,7 @@ import { Template } from "@/types/api"
 import { MediaItem } from "@/components/MediaUploader"
 import { ReplyDialog } from "@/components/ReplyDialog"
 import { RetweetDialog } from "@/components/RetweetDialog"
+import { useAiChatStream } from "@/hooks/useAiChatStream"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,9 +48,16 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
   const [isProcessingAI, setIsProcessingAI] = useState(false)
   const [replyInputFocused, setReplyInputFocused] = useState(false)
 
-  // 流式 AI 回复状态
-  const [aiStreamingResponse, setAiStreamingResponse] = useState<string>("")
-  const [isAiStreaming, setIsAiStreaming] = useState(false)
+  // 流式 AI 回复状态（封装在 useAiChatStream 里，统一处理 comment.created / content / comment.completed）
+  const {
+    streamingText: aiStreamingResponse,
+    isStreaming: isAiStreaming,
+    streamingCommentId: aiStreamingCommentId,
+    startStream,
+    clearStreamingText: clearAiStreamingResponse,
+  } = useAiChatStream()
+  // 同步追踪正在流式的 comment id，供 onError 回调中清理占位评论用
+  const streamingCommentIdRef = useRef<string | null>(null)
 
   const [showReplyDialog, setShowReplyDialog] = useState(false)
   const [replyTarget, setReplyTarget] = useState<Comment | null>(null)
@@ -258,9 +266,6 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
               })
             } else {
               // GoldieRill 模式：使用流式 API
-              setIsAiStreaming(true)
-              setAiStreamingResponse("")
-
               const response = await fetch('/api/ai/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -271,49 +276,44 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
                 }),
               })
 
-              if (!response.ok) {
-                throw new Error('AI stream request failed')
-              }
-
-              const reader = response.body?.getReader()
-              const decoder = new TextDecoder()
-              let buffer = ''
-
-              if (reader) {
-                while (true) {
-                  const { done, value } = await reader.read()
-                  if (done) break
-
-                  buffer += decoder.decode(value, { stream: true })
-                  const lines = buffer.split('\n\n')
-                  buffer = lines.pop() || ''
-
-                  for (const line of lines) {
-                    if (!line.trim()) continue
-
-                    const eventMatch = line.match(/^event:\s*(.+)$/m)
-                    const dataMatch = line.match(/^data:\s*([\s\S]+)$/m)
-
-                    if (eventMatch?.[1] === 'content' && dataMatch?.[1]) {
-                      try {
-                        const data = JSON.parse(dataMatch[1])
-                        if (data.text) {
-                          setAiStreamingResponse(prev => prev + data.text)
-                        }
-                      } catch (e) {
-                        // Ignore parse errors
-                      }
-                    }
+              // useAiChatStream 会处理 comment.created / content / comment.completed 三类事件
+              // 这里只需提供本地状态同步回调，让 AI 评论实时进入评论列表
+              await startStream(response, {
+                onCommentCreated: (comment) => {
+                  streamingCommentIdRef.current = comment.id
+                  setComments(prev => {
+                    if (prev.some(c => c.id === comment.id)) return prev
+                    return [...prev, comment]
+                  })
+                },
+                onCommentCompleted: (comment) => {
+                  streamingCommentIdRef.current = null
+                  setComments(prev => prev.map(c =>
+                    c.id === comment.id ? { ...c, ...comment } : c
+                  ))
+                },
+                onError: (message) => {
+                  // 错误时清理已插入的占位评论
+                  const failedId = streamingCommentIdRef.current
+                  streamingCommentIdRef.current = null
+                  if (failedId) {
+                    setComments(prev => prev.filter(c => c.id !== failedId))
                   }
-                }
-              }
+                  alert(`AI 回复失败: ${message}`)
+                },
+              })
             }
           } catch (aiError) {
             console.error("Failed to get AI reply:", aiError)
-            alert(`AI 回复失败: ${aiError instanceof Error ? aiError.message : '未知错误'}`)
+            // alert 已由 onError 回调统一处理，这里不再重复提示
           } finally {
-            setIsAiStreaming(false)
-            setTimeout(() => setAiStreamingResponse(""), 1000)
+            // 最终一致性保障：流式结束后主动 refetch 评论列表，
+            // 避免任何 SSE 事件丢失导致评论一直停留在 Thinking...
+            // 延迟 500ms 再 refetch，给服务端 prisma.update 留出写入时间
+            setTimeout(() => {
+              fetchComments()
+              setTimeout(() => clearAiStreamingResponse(), 800)
+            }, 500)
           }
         }
 
@@ -458,7 +458,10 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
         onSubmit={handlePostComment}
       />
 
-      {/* AI Streaming Response Display */}
+      {/* AI Streaming Response Display
+          - 独立流式提示框：带 AI 头像 + 光标动画，提供实时反馈
+          - 与下方评论列表中的 AI 评论同时显示（内容一致，后者多了一个完整列表位置）
+          - 流式完成后 1s 渐隐消失（由 clearAiStreamingResponse 控制） */}
       {isAiStreaming && aiStreamingResponse && (
         <div className="mx-4 mb-4 relative bg-muted/30 rounded-lg p-3 border border-border">
           <div className="flex items-start gap-2">
@@ -484,10 +487,16 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
             暂无评论，来说点什么吧
           </div>
         ) : (
-          comments.map((comment) => (
+          comments.map((comment) => {
+            // 若是正在流式的 AI 评论，用流式文本覆盖其 content，避免出现 "Thinking..." 占位
+            const displayComment =
+              comment.id === aiStreamingCommentId && aiStreamingResponse
+                ? { ...comment, content: aiStreamingResponse }
+                : comment
+            return (
             <CommentItem
               key={comment.id}
-              comment={comment}
+              comment={displayComment}
               onClick={() => router.push(`/status/${messageId}/comment/${comment.id}`)}
               onEditClick={(e: React.MouseEvent) => {
                 e.stopPropagation()
@@ -516,7 +525,8 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
               size="md"
               actionRowSize="sm"
             />
-          ))
+            )
+          })
         )}
       </div>
 

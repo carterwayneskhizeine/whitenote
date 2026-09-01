@@ -23,6 +23,7 @@ import { templatesApi } from "@/lib/api/templates"
 import { Template } from "@/types/api"
 import { useState, useEffect, useRef } from "react"
 import { detectAIMention } from "@/lib/utils/ai-detection"
+import { useAiChatStream } from "@/hooks/useAiChatStream"
 
 interface ReplyTarget {
     id: string
@@ -60,9 +61,13 @@ export function ReplyDialog({
     const mediaUploaderRef = useRef<MediaUploaderRef>(null)
     const wasOpen = useRef(false)
 
-    // 流式 AI 回复状态
-    const [aiStreamingResponse, setAiStreamingResponse] = useState<string>("")
-    const [isAiStreaming, setIsAiStreaming] = useState(false)
+    // 流式 AI 回复状态（封装在 useAiChatStream 里，统一处理 comment.created / content / comment.completed）
+    const {
+        streamingText: aiStreamingResponse,
+        isStreaming: isAiStreaming,
+        startStream,
+        clearStreamingText: clearAiStreamingResponse,
+    } = useAiChatStream()
 
     // Fetch templates
     useEffect(() => {
@@ -208,9 +213,6 @@ export function ReplyDialog({
                             })
                         } else {
                             // GoldieRill 模式：使用流式 API
-                            setIsAiStreaming(true)
-                            setAiStreamingResponse("")
-
                             const response = await fetch('/api/ai/chat/stream', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
@@ -221,49 +223,20 @@ export function ReplyDialog({
                                 }),
                             })
 
-                            if (!response.ok) {
-                                throw new Error('AI stream request failed')
-                            }
-
-                            const reader = response.body?.getReader()
-                            const decoder = new TextDecoder()
-                            let buffer = ''
-
-                            if (reader) {
-                                while (true) {
-                                    const { done, value } = await reader.read()
-                                    if (done) break
-
-                                    buffer += decoder.decode(value, { stream: true })
-                                    const lines = buffer.split('\n\n')
-                                    buffer = lines.pop() || ''
-
-                                    for (const line of lines) {
-                                        if (!line.trim()) continue
-
-                                        const eventMatch = line.match(/^event:\s*(.+)$/m)
-                                        const dataMatch = line.match(/^data:\s*([\s\S]+)$/m)
-
-                                        if (eventMatch?.[1] === 'content' && dataMatch?.[1]) {
-                                            try {
-                                                const data = JSON.parse(dataMatch[1])
-                                                if (data.text) {
-                                                    setAiStreamingResponse(prev => prev + data.text)
-                                                }
-                                            } catch (e) {
-                                                // Ignore parse errors
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            // ReplyDialog 不直接管理评论列表，但用 hook 保证 SSE 三类事件不静默丢弃
+                            await startStream(response, {
+                                onCommentCreated: () => {},
+                                onCommentCompleted: () => {},
+                                onError: (message) => {
+                                    alert(`AI 回复失败: ${message}`)
+                                },
+                            })
                         }
                     } catch (aiError) {
                         console.error("Failed to get AI reply:", aiError)
-                        alert(`AI 回复失败: ${aiError instanceof Error ? aiError.message : '未知错误'}`)
+                        // alert 已由 onError 处理
                     } finally {
-                        setIsAiStreaming(false)
-                        setTimeout(() => setAiStreamingResponse(""), 1000)
+                        setTimeout(() => clearAiStreamingResponse(), 1000)
                     }
                 }
 

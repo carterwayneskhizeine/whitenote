@@ -19,7 +19,7 @@ This skill wraps that flow in one script: `whitenote.sh`.
 
 ## Prerequisites
 
-- `curl` and `jq` available on PATH.
+- `curl` and `jq` available on PATH (`jq` may need `apt install jq` on Ubuntu/Termux).
 - Three environment variables set (do **not** hardcode credentials in
   scripts or commit them anywhere):
   - `WHITENOTE_BASE_URL` — e.g. `https://whitenote.goldie-rill.top`
@@ -31,7 +31,40 @@ These credentials are a full account login (same as the web UI) — whoever
 holds them can read/write everything that account can. Keep them in the
 calling agent's local secret store / env, never in a repo.
 
+### Recommended setup: project-root `.env`
+
+Keep the three variables in a git-ignored `.env` at the project root
+(make sure `.env` is listed in `.gitignore` **before** the file ever
+exists with real values in it):
+
+```dotenv
+# .env
+WHITENOTE_BASE_URL=https://whitenote.goldie-rill.top
+WHITENOTE_EMAIL=you@example.com
+WHITENOTE_PASSWORD=your-password
+```
+
+Load it with `set -a` so the variables are **exported** to child
+processes — a bare `source .env` only sets shell-local variables and the
+script will fail with `Missing WHITENOTE_EMAIL env var`:
+
+```bash
+# ✅ correct — exports vars so whitenote.sh (a child process) sees them
+set -a && source .env && set +a
+
+# ❌ wrong — shell-local only; whitenote.sh won't see WHITENOTE_EMAIL
+source .env
+```
+
 ## Commands
+
+All commands assume the env vars are already exported (see Prerequisites
+above). One-liner from a project with a `.env`:
+
+```bash
+set -a && source .env && set +a && \
+  bash .agents/skills/whitenote/whitenote.sh <command>
+```
 
 ```bash
 export WHITENOTE_BASE_URL="https://whitenote.goldie-rill.top"

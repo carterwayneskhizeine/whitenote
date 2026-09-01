@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useEditor, EditorContent } from '@tiptap/react'
+import { useAiChatStream } from "@/hooks/useAiChatStream"
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from '@tiptap/markdown'
@@ -52,9 +53,13 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
   const [isUploading, setIsUploading] = useState(false)
   const mediaUploaderRef = useRef<MediaUploaderRef>(null)
 
-  // 流式 AI 回复状态
-  const [aiStreamingResponse, setAiStreamingResponse] = useState<string>("")
-  const [isAiStreaming, setIsAiStreaming] = useState(false)
+  // 流式 AI 回复状态（统一封装在 useAiChatStream 里）
+  const {
+    streamingText: aiStreamingResponse,
+    isStreaming: isAiStreaming,
+    startStream,
+    clearStreamingText: clearAiStreamingResponse,
+  } = useAiChatStream()
 
   // Fetch templates
   useEffect(() => {
@@ -549,9 +554,6 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
               })
             } else {
               // GoldieRill 模式：使用流式 API
-              setIsAiStreaming(true)
-              setAiStreamingResponse("")
-
               const response = await fetch('/api/ai/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -562,48 +564,24 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
                 }),
               })
 
-              if (!response.ok) {
-                throw new Error('AI stream request failed')
-              }
-
-              const reader = response.body?.getReader()
-              const decoder = new TextDecoder()
-              let buffer = ''
-
-              if (reader) {
-                while (true) {
-                  const { done, value } = await reader.read()
-                  if (done) break
-
-                  buffer += decoder.decode(value, { stream: true })
-                  const lines = buffer.split('\n\n')
-                  buffer = lines.pop() || ''
-
-                  for (const line of lines) {
-                    if (!line.trim()) continue
-
-                    const eventMatch = line.match(/^event:\s*(.+)$/m)
-                    const dataMatch = line.match(/^data:\s*([\s\S]+)$/m)
-
-                    if (eventMatch?.[1] === 'content' && dataMatch?.[1]) {
-                      try {
-                        const data = JSON.parse(dataMatch[1])
-                        if (data.text) {
-                          setAiStreamingResponse(prev => prev + data.text)
-                        }
-                      } catch (e) {
-                        // Ignore parse errors
-                      }
-                    }
-                  }
-                }
-              }
+              // InputMachine 本身不维护评论列表，AI 回复会在 message 详情页可见
+              // 但仍用 hook 保证 SSE 三类事件都被正确处理，避免静默丢弃 comment.created / comment.completed
+              await startStream(response, {
+                onCommentCreated: () => {
+                  // 无需操作，评论区由 message 详情页拉取
+                },
+                onCommentCompleted: () => {
+                  // 同上
+                },
+                onError: (message) => {
+                  console.error("AI stream error:", message)
+                },
+              })
             }
           } catch (aiError) {
             console.error("Failed to get AI reply:", aiError)
           } finally {
-            setIsAiStreaming(false)
-            setTimeout(() => setAiStreamingResponse(""), 1000)
+            setTimeout(() => clearAiStreamingResponse(), 1000)
           }
         }
 

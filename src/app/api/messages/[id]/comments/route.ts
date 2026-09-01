@@ -3,6 +3,10 @@ import prisma from "@/lib/prisma"
 import { NextRequest } from "next/server"
 import { addTask } from "@/lib/queue"
 
+// 强制动态渲染，避免评论列表被任何中间层（CDN/Next 缓存）缓存
+// AI 回复落地后立刻调用的 fetchComments 需要拿到刚刚写入的最终内容
+export const dynamic = "force-dynamic"
+
 /**
  * GET /api/messages/[id]/comments
  * 获取消息的评论列表
