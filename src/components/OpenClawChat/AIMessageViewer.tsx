@@ -12,6 +12,7 @@ import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import { createPlainMarked } from '@/lib/plain-marked'
+import { mountMermaidViewer } from '@/lib/mermaid-viewer'
 import { cn } from "@/lib/utils"
 import type { ChatMessage, OpenClawContentBlock, OpenClawTextContent, OpenClawThinkingContent, OpenClawImageContent, OpenClawImageUrlContent, OpenClawAttachmentContent, OpenClawAudioContent } from './types'
 import { Terminal, FileText, Brain, ChevronRight, Clock, Download, Play, Music, Paperclip, X } from 'lucide-react'
@@ -408,6 +409,59 @@ export function AIMessageViewer({
       },
     },
   })
+
+  // Replace ```mermaid code blocks with zoomable/fullscreen diagram viewers
+  useEffect(() => {
+    if (!editor) return
+
+    let cancelled = false
+    const cleanups: Array<() => void> = []
+
+    const mountAll = () => {
+      const blocks = editor.view.dom.querySelectorAll('pre')
+      blocks.forEach((node: Element) => {
+        const pre = node as HTMLElement
+        if (pre.dataset.mermaidMounted) return
+        const code = pre.querySelector('code')
+        if (!code) return
+        const lang =
+          code.getAttribute('data-language') ||
+          /language-([\w-]+)/.exec(code.className)?.[1] ||
+          ''
+        if (lang.toLowerCase() !== 'mermaid') return
+
+        pre.dataset.mermaidMounted = 'true'
+        const source = code.textContent || ''
+        pre.innerHTML = ''
+        mountMermaidViewer(pre, source, {
+          dark: document.documentElement.classList.contains('dark'),
+        })
+          .then((cleanup) => {
+            if (cancelled) cleanup()
+            else cleanups.push(cleanup)
+          })
+          .catch(() => {
+            // viewer 内部已展示错误信息
+          })
+      })
+    }
+
+    const timer = setTimeout(mountAll, 150)
+
+    const observer = new MutationObserver(() => mountAll())
+    const editorElement = editor.view.dom
+    observer.observe(editorElement, {
+      childList: true,
+      subtree: true,
+    })
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+      observer.disconnect()
+      cleanups.forEach((cleanup) => cleanup())
+    }
+  }, [editor])
 
   useEffect(() => {
     if (!editor) return

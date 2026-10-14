@@ -2,12 +2,13 @@ import { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { marked } from "marked"
 import { Calendar } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { GoldieAvatar } from "@/components/GoldieAvatar"
 import { QuotedMessageCard } from "@/components/QuotedMessageCard"
+import { MermaidRenderer } from "@/components/mermaid/MermaidRenderer"
+import { renderMarkdownWithMermaid } from "@/lib/mermaid-marked"
 import { getHandle } from "@/lib/utils"
 import prisma from "@/lib/prisma"
 import ShareHeaderActions from "./ShareHeaderActions"
@@ -111,7 +112,7 @@ function extractPlainText(content: string): string {
 function CommentBlock({ comment, depth = 0 }: { comment: CommentNode; depth?: number }) {
     const authorName = comment.author?.name || "GoldieRill"
     const authorHandle = getHandle(comment.author?.email || null, !!comment.author)
-    const htmlContent = marked(comment.content) as string
+    const htmlContent = renderMarkdownWithMermaid(comment.content)
 
     return (
         <div
@@ -214,7 +215,7 @@ export default async function SharePage({ params }: Props) {
     const authorHandle = getHandle(message.author?.email || null, !!message.author)
     const retweetCount = (message._count as any).retweets ?? 0
     const plainText = extractPlainText(message.content)
-    const htmlContent = marked(message.content) as string
+    const htmlContent = renderMarkdownWithMermaid(message.content)
     const commentTree = buildCommentTree(comments)
 
     const jsonLd = {
@@ -357,6 +358,9 @@ export default async function SharePage({ params }: Props) {
                     )}
                 </article>
             </main>
+
+            {/* ── Mermaid 图表水合（缩放/全屏查看器） ── */}
+            <MermaidRenderer />
         </div>
     )
 }

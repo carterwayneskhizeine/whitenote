@@ -12,6 +12,7 @@ import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { Image } from '@tiptap/extension-image'
 import { common, createLowlight } from 'lowlight'
 import { createPlainMarked } from '@/lib/plain-marked'
+import { mountMermaidViewer } from '@/lib/mermaid-viewer'
 import { cn } from "@/lib/utils"
 
 interface TipTapViewerProps {
@@ -159,6 +160,59 @@ export function TipTapViewer({
       resizeObserver.disconnect()
     }
   }, [maxLines, onOverflow, isExpanded, content, editor])
+
+  // Replace ```mermaid code blocks with zoomable/fullscreen diagram viewers
+  useEffect(() => {
+    if (!editor) return
+
+    let cancelled = false
+    const cleanups: Array<() => void> = []
+
+    const mountAll = () => {
+      const blocks = editor.view.dom.querySelectorAll('pre')
+      blocks.forEach((pre) => {
+        if (pre.dataset.mermaidMounted) return
+        const code = pre.querySelector('code')
+        if (!code) return
+        const lang =
+          code.getAttribute('data-language') ||
+          /language-([\w-]+)/.exec(code.className)?.[1] ||
+          ''
+        if (lang.toLowerCase() !== 'mermaid') return
+
+        pre.dataset.mermaidMounted = 'true'
+        const source = code.textContent || ''
+        pre.innerHTML = ''
+        mountMermaidViewer(pre, source, {
+          dark: document.documentElement.classList.contains('dark'),
+        })
+          .then((cleanup) => {
+            if (cancelled) cleanup()
+            else cleanups.push(cleanup)
+          })
+          .catch(() => {
+            // viewer 内部已展示错误信息
+          })
+      })
+    }
+
+    // Delay to ensure editor is fully rendered
+    const timer = setTimeout(mountAll, 150)
+
+    // Watch for content changes
+    const observer = new MutationObserver(() => mountAll())
+    observer.observe(editor.view.dom, {
+      childList: true,
+      subtree: true,
+    })
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+      observer.disconnect()
+      cleanups.forEach((cleanup) => cleanup())
+    }
+  }, [editor])
 
   // Add copy buttons to code blocks after editor is ready
   useEffect(() => {
