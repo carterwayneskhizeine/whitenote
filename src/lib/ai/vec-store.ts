@@ -177,13 +177,16 @@ export function searchChunks(
   const ct = chunksTable(workspaceId)
   const mt = metaTable(workspaceId)
 
+  // sqlite-vec 的 KNN 查询必须带 "k = ?" 约束（等价于 LIMIT k）。
+  // 写成 "ORDER BY distance LIMIT ?" 不行：绑定参数在 prepare 阶段取不到值，
+  // sqlite-vec 识别不出 KNN 约束，会直接报
+  // "A LIMIT or 'k = ?' constraint is required on vec0 knn queries."。
   const results = db.prepare(`
     SELECT v.rowid, v.distance, m.content_id, m.content_type, m.chunk_index, m.content
     FROM ${ct} v
     JOIN ${mt} m ON v.rowid = m.rowid
-    WHERE v.embedding MATCH ?
+    WHERE v.embedding MATCH ? AND k = ?
     ORDER BY v.distance
-    LIMIT ?
   `).all(queryEmbedding, topK) as Array<{
     rowid: number
     distance: number
