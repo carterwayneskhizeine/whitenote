@@ -1,5 +1,6 @@
 import { getAiConfig } from "./config"
 import prisma from "@/lib/prisma"
+import { SseLineBuffer } from "./sse"
 
 interface RAGFlowMessage {
   role: "user" | "assistant"
@@ -191,7 +192,37 @@ export async function* callRAGFlowWithChatIdStream(
   }
 
   const decoder = new TextDecoder()
+  const lineBuffer = new SseLineBuffer()
   let references: Array<{ content: string; source: string }> | undefined
+
+  const handleLine = (line: string): { content: string } | null => {
+    const trimmed = line.trim()
+    if (!trimmed || trimmed === "data: [DONE]") return null
+    if (!trimmed.startsWith("data: ")) return null
+
+    try {
+      const jsonStr = trimmed.slice(6)
+      const data = JSON.parse(jsonStr)
+
+      // 提取引用（在最后一块数据中）
+      if (data.choices?.[0]?.message?.reference) {
+        references = data.choices[0].message.reference.map((ref: any) => ({
+          content: ref.content,
+          source: ref.document_name,
+        }))
+      }
+
+      // 提取内容
+      const content = data.choices?.[0]?.delta?.content
+      return content ? { content } : null
+    } catch (e) {
+      // Skip invalid JSON lines
+      if (!trimmed.includes("keep-alive")) {
+        console.warn("[RAGFlow Stream] Failed to parse SSE line:", trimmed.slice(0, 200))
+      }
+      return null
+    }
+  }
 
   try {
     while (true) {
@@ -199,37 +230,16 @@ export async function* callRAGFlowWithChatIdStream(
       if (done) break
 
       const chunk = decoder.decode(value, { stream: true })
-      const lines = chunk.split("\n")
 
-      for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || trimmed === "data: [DONE]") continue
-        if (!trimmed.startsWith("data: ")) continue
-
-        try {
-          const jsonStr = trimmed.slice(6)
-          const data = JSON.parse(jsonStr)
-
-          // 提取内容
-          const content = data.choices?.[0]?.delta?.content
-          if (content) {
-            yield { content }
-          }
-
-          // 提取引用（在最后一块数据中）
-          if (data.choices?.[0]?.message?.reference) {
-            references = data.choices[0].message.reference.map((ref: any) => ({
-              content: ref.content,
-              source: ref.document_name,
-            }))
-          }
-        } catch (e) {
-          // Skip invalid JSON lines
-          if (!trimmed.includes("keep-alive")) {
-            console.warn("[RAGFlow Stream] Failed to parse SSE line:", trimmed)
-          }
-        }
+      for (const line of lineBuffer.push(chunk)) {
+        const result = handleLine(line)
+        if (result) yield result
       }
+    }
+
+    for (const line of lineBuffer.flush()) {
+      const result = handleLine(line)
+      if (result) yield result
     }
 
     // 最后返回引用（如果有）

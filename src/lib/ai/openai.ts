@@ -1,4 +1,5 @@
 import { getAiConfig } from "./config"
+import { SseLineBuffer, parseSseDataLine } from "./sse"
 
 interface ChatMessage {
   role: "system" | "user" | "assistant"
@@ -134,11 +135,38 @@ export async function* callOpenAIStream(options: ChatOptions): AsyncGenerator<st
     }
 
     const decoder = new TextDecoder()
+    const lineBuffer = new SseLineBuffer()
 
     let yielded = false
     let sawReasoning = false
     let finishReason: string | null = null
     let lastDeltaKeys: string[] = []
+    let rawSample = ''
+
+    const handleLine = (line: string) => {
+      const jsonStr = parseSseDataLine(line)
+      if (jsonStr === null) return
+
+      try {
+        const data = JSON.parse(jsonStr)
+        const delta = data.choices?.[0]?.delta
+        const content = delta?.content
+        if (content) {
+          yielded = true
+          pendingContent += content
+        }
+        if (delta?.reasoning_content) sawReasoning = true
+        if (delta) lastDeltaKeys = Object.keys(delta)
+        if (data.choices?.[0]?.finish_reason) {
+          finishReason = data.choices[0].finish_reason
+        }
+      } catch (e) {
+        // Skip invalid JSON lines
+        console.warn("Failed to parse SSE line:", line.slice(0, 200))
+      }
+    }
+
+    let pendingContent = ''
 
     try {
       while (true) {
@@ -146,32 +174,26 @@ export async function* callOpenAIStream(options: ChatOptions): AsyncGenerator<st
         if (done) break
 
         const chunk = decoder.decode(value, { stream: true })
-        const lines = chunk.split("\n")
+        if (rawSample.length < 500) rawSample += chunk
 
-        for (const line of lines) {
-          const trimmed = line.trim()
-          if (!trimmed || trimmed === "data: [DONE]") continue
-          if (!trimmed.startsWith("data: ")) continue
-
-          try {
-            const jsonStr = trimmed.slice(6) // Remove "data: " prefix
-            const data = JSON.parse(jsonStr)
-            const delta = data.choices?.[0]?.delta
-            const content = delta?.content
-            if (content) {
-              yielded = true
-              yield content
-            }
-            if (delta?.reasoning_content) sawReasoning = true
-            if (delta) lastDeltaKeys = Object.keys(delta)
-            if (data.choices?.[0]?.finish_reason) {
-              finishReason = data.choices[0].finish_reason
-            }
-          } catch (e) {
-            // Skip invalid JSON lines
-            console.warn("Failed to parse SSE line:", trimmed)
+        for (const line of lineBuffer.push(chunk)) {
+          handleLine(line)
+          // 逐块 yield，保持流式行为
+          if (pendingContent) {
+            const out = pendingContent
+            pendingContent = ''
+            yield out
           }
         }
+      }
+
+      for (const line of lineBuffer.flush()) {
+        handleLine(line)
+      }
+      if (pendingContent) {
+        const out = pendingContent
+        pendingContent = ''
+        yield out
       }
 
       if (!yielded) {
@@ -182,6 +204,9 @@ export async function* callOpenAIStream(options: ChatOptions): AsyncGenerator<st
           sawReasoning,
           lastDeltaKeys,
           model: options.model || config.openaiModel,
+          // 响应体开头原样采样：如果是网关返回的 JSON 错误体（HTTP 200），
+          // 这里能直接看出来
+          rawSample: rawSample.slice(0, 300),
         })
       }
     } finally {
