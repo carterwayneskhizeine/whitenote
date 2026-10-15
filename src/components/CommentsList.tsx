@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { commentsApi, templatesApi, aiApi } from "@/lib/api"
+import { commentsApi, templatesApi } from "@/lib/api"
 import { Comment } from "@/types/api"
 import { Template } from "@/types/api"
 import { MediaItem } from "@/components/MediaUploader"
@@ -255,54 +255,43 @@ export function CommentsList({ messageId, onCommentAdded }: CommentsListProps) {
 
         if (aiDetection.hasMention && aiDetection.mode) {
           try {
-            // @rag: 使用非流式 API，立即发帖
-            // @goldierill: 使用流式 API
-            if (aiDetection.mode === 'rag') {
-              // RAGFlow 模式：立即发帖，不等 AI 回复
-              await aiApi.chat({
+            // @goldierill 和 @rag 都走流式 API，保证两种模式都有实时反馈和错误提示
+            const response = await fetch('/api/ai/chat/stream', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
                 messageId,
                 content: aiDetection.cleanedContent || '请回复这条评论',
                 mode: aiDetection.mode,
-              })
-            } else {
-              // GoldieRill 模式：使用流式 API
-              const response = await fetch('/api/ai/chat/stream', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  messageId,
-                  content: aiDetection.cleanedContent || '请回复这条评论',
-                  mode: aiDetection.mode,
-                }),
-              })
+              }),
+            })
 
-              // useAiChatStream 会处理 comment.created / content / comment.completed 三类事件
-              // 这里只需提供本地状态同步回调，让 AI 评论实时进入评论列表
-              await startStream(response, {
-                onCommentCreated: (comment) => {
-                  streamingCommentIdRef.current = comment.id
-                  setComments(prev => {
-                    if (prev.some(c => c.id === comment.id)) return prev
-                    return [...prev, comment]
-                  })
-                },
-                onCommentCompleted: (comment) => {
-                  streamingCommentIdRef.current = null
-                  setComments(prev => prev.map(c =>
-                    c.id === comment.id ? { ...c, ...comment } : c
-                  ))
-                },
-                onError: (message) => {
-                  // 错误时清理已插入的占位评论
-                  const failedId = streamingCommentIdRef.current
-                  streamingCommentIdRef.current = null
-                  if (failedId) {
-                    setComments(prev => prev.filter(c => c.id !== failedId))
-                  }
-                  alert(`AI 回复失败: ${message}`)
-                },
-              })
-            }
+            // useAiChatStream 会处理 comment.created / content / comment.completed 三类事件
+            // 这里只需提供本地状态同步回调，让 AI 评论实时进入评论列表
+            await startStream(response, {
+              onCommentCreated: (comment) => {
+                streamingCommentIdRef.current = comment.id
+                setComments(prev => {
+                  if (prev.some(c => c.id === comment.id)) return prev
+                  return [...prev, comment]
+                })
+              },
+              onCommentCompleted: (comment) => {
+                streamingCommentIdRef.current = null
+                setComments(prev => prev.map(c =>
+                  c.id === comment.id ? { ...c, ...comment } : c
+                ))
+              },
+              onError: (message) => {
+                // 错误时清理已插入的占位评论
+                const failedId = streamingCommentIdRef.current
+                streamingCommentIdRef.current = null
+                if (failedId) {
+                  setComments(prev => prev.filter(c => c.id !== failedId))
+                }
+                alert(`AI 回复失败: ${message}`)
+              },
+            })
           } catch (aiError) {
             console.error("Failed to get AI reply:", aiError)
             // alert 已由 onError 回调统一处理，这里不再重复提示

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Loader2 } from "lucide-react"
-import { messagesApi, commentsApi, aiApi, templatesApi } from "@/lib/api"
+import { messagesApi, commentsApi, templatesApi } from "@/lib/api"
 import { Message } from "@/lib/api/messages"
 import { Template } from "@/types/api"
 import { TipTapViewer } from "@/components/TipTapViewer"
@@ -18,6 +18,7 @@ import { getHandle } from "@/lib/utils"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { detectAIMention } from "@/lib/utils/ai-detection"
+import { useAiChatStream } from "@/hooks/useAiChatStream"
 
 export default function MobileReplyPage() {
   const { id } = useParams() as { id: string }
@@ -37,6 +38,9 @@ export default function MobileReplyPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const [markdownImages, setMarkdownImages] = useState<string[]>([])
+
+  // 流式 AI 回复（@goldierill / @rag 统一走流式 API）
+  const { startStream } = useAiChatStream()
 
   // Handle Visual Viewport API for keyboard
   useEffect(() => {
@@ -177,10 +181,24 @@ export default function MobileReplyPage() {
 
         if (aiDetection.hasMention && aiDetection.mode) {
           try {
-            await aiApi.chat({
-              messageId: message.id,
-              content: aiDetection.cleanedContent || '请回复这条评论',
-              mode: aiDetection.mode,
+            const response = await fetch('/api/ai/chat/stream', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messageId: message.id,
+                content: aiDetection.cleanedContent || '请回复这条评论',
+                mode: aiDetection.mode,
+              }),
+            })
+
+            // 本页跳转回详情页即可看到回复，评论列表由详情页负责渲染；
+            // 这里只需消费 SSE 流并把错误提示给用户，避免静默失败。
+            await startStream(response, {
+              onCommentCreated: () => {},
+              onCommentCompleted: () => {},
+              onError: (message) => {
+                alert(`AI 回复失败: ${message}`)
+              },
             })
           } catch (aiError) {
             console.error("Failed to get AI reply:", aiError)

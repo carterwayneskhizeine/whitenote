@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { commentsApi, aiApi, templatesApi } from "@/lib/api"
+import { commentsApi, templatesApi } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Bot, Loader2, Edit2, Trash2, MoreVertical } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
@@ -41,6 +41,8 @@ import { CommentItem } from "@/components/CommentItem"
 import { useMobile } from "@/hooks/use-mobile"
 import { ShareDialog } from "@/components/ShareDialog"
 import { useShare } from "@/hooks/useShare"
+import { detectAIMention } from "@/lib/utils/ai-detection"
+import { useAiChatStream } from "@/hooks/useAiChatStream"
 
 export default function CommentDetailPage() {
   const { id, commentId } = useParams() as { id: string; commentId: string }
@@ -51,6 +53,9 @@ export default function CommentDetailPage() {
   const [childComments, setChildComments] = useState<Comment[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // 流式 AI 回复（@goldierill / @rag 统一走流式 API）
+  const { startStream } = useAiChatStream()
 
   const [showReplyDialog, setShowReplyDialog] = useState(false)
   const [replyTarget, setReplyTarget] = useState<Comment | null>(null)
@@ -195,20 +200,39 @@ export default function CommentDetailPage() {
       if (result.data) {
         setChildComments([...childComments, result.data])
 
-        // Check if comment contains @goldierill and trigger AI reply
-        if (newReply.includes('@goldierill')) {
+        // Check if comment contains @goldierill / @rag and trigger AI reply
+        const aiDetection = detectAIMention(newReply)
+        if (aiDetection.hasMention && aiDetection.mode) {
           try {
-            const question = newReply.replace('@goldierill', '').trim()
-            const aiResult = await aiApi.chat({
-              messageId: id,
-              content: question || '请回复这条评论',
+            const response = await fetch('/api/ai/chat/stream', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messageId: id,
+                content: aiDetection.cleanedContent || '请回复这条评论',
+                mode: aiDetection.mode,
+              }),
             })
-            if (aiResult.data?.comment) {
-              const aiComment = aiResult.data.comment
-              setChildComments(prev => [...prev, aiComment])
-            }
+
+            await startStream(response, {
+              onCommentCreated: (comment) => {
+                setChildComments(prev => {
+                  if (prev.some(c => c.id === comment.id)) return prev
+                  return [...prev, comment]
+                })
+              },
+              onCommentCompleted: (comment) => {
+                setChildComments(prev => prev.map(c =>
+                  c.id === comment.id ? { ...c, ...comment } : c
+                ))
+              },
+              onError: (message) => {
+                alert(`AI 回复失败: ${message}`)
+              },
+            })
           } catch (aiError) {
             console.error("Failed to get AI reply:", aiError)
+            alert(`AI 回复失败: ${aiError instanceof Error ? aiError.message : '未知错误'}`)
           }
         }
 

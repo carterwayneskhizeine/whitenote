@@ -26,7 +26,6 @@ import {
 import { messagesApi } from "@/lib/api/messages"
 import { markMessageSending } from "@/hooks/useSocket"
 import { templatesApi } from "@/lib/api/templates"
-import { aiApi } from "@/lib/api"
 import { useSession } from "next-auth/react"
 import { useRef } from "react"
 import { Template } from "@/types/api"
@@ -543,41 +542,31 @@ export function InputMachine({ onSuccess }: InputMachineProps) {
             const mentionToRemove = hasRagMention ? /@rag\b/gi : /@goldierill/gi
             const question = textContent.replace(mentionToRemove, '').trim()
 
-            // @rag: 使用非流式 API，立即发帖
-            // @goldierill: 使用流式 API
-            if (mode === 'rag') {
-              // RAG 模式：立即发帖，不等 AI 回复
-              await aiApi.chat({
+            // @rag 和 @goldierill 都走流式 API，保证两种模式都有实时反馈和错误提示
+            const response = await fetch('/api/ai/chat/stream', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
                 messageId: result.data.id,
                 content: question || '请回复这条消息',
                 mode,
-              })
-            } else {
-              // GoldieRill 模式：使用流式 API
-              const response = await fetch('/api/ai/chat/stream', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  messageId: result.data.id,
-                  content: question || '请回复这条消息',
-                  mode,
-                }),
-              })
+              }),
+            })
 
-              // InputMachine 本身不维护评论列表，AI 回复会在 message 详情页可见
-              // 但仍用 hook 保证 SSE 三类事件都被正确处理，避免静默丢弃 comment.created / comment.completed
-              await startStream(response, {
-                onCommentCreated: () => {
-                  // 无需操作，评论区由 message 详情页拉取
-                },
-                onCommentCompleted: () => {
-                  // 同上
-                },
-                onError: (message) => {
-                  console.error("AI stream error:", message)
-                },
-              })
-            }
+            // InputMachine 本身不维护评论列表，AI 回复会在 message 详情页可见
+            // 但仍用 hook 保证 SSE 三类事件都被正确处理，避免静默丢弃 comment.created / comment.completed
+            await startStream(response, {
+              onCommentCreated: () => {
+                // 无需操作，评论区由 message 详情页拉取
+              },
+              onCommentCompleted: () => {
+                // 同上
+              },
+              onError: (message) => {
+                console.error("AI stream error:", message)
+                alert(`AI 回复失败: ${message}`)
+              },
+            })
           } catch (aiError) {
             console.error("Failed to get AI reply:", aiError)
           } finally {
