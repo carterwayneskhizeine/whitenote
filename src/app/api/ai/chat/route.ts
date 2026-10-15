@@ -4,7 +4,7 @@ import { buildSystemPrompt, callOpenAI } from "@/lib/ai/openai"
 import { callRAGFlowWithChatId } from "@/lib/ai/ragflow"
 import { getAiConfig } from "@/lib/ai/config"
 import { getCommentThreadContext } from "@/lib/ai/thread-context"
-import { searchRAG } from "@/lib/ai/rag"
+import { searchRAG, pickQuotableMessageId } from "@/lib/ai/rag"
 import { NextRequest } from "next/server"
 import { addTask } from "@/lib/queue"
 
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         ]
         aiResponse = await callOpenAI({ userId: session.user.id, messages: chatMessages })
         references = results.map(r => ({ content: r.content, source: r.sourceId }))
-        if (results.length > 0) quotedMessageId = results[0].sourceId
+        quotedMessageId = await pickQuotableMessageId(results)
       } else {
         // RAGFlow fallback
         console.log('[AI Chat] Using RAGFlow fallback', {

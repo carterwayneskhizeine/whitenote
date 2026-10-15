@@ -4,6 +4,7 @@ import * as sqliteVec from 'sqlite-vec'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
+import { rankQuotableMessageIds, type RAGSearchResult } from '../src/lib/ai/rag'
 
 /**
  * vec0 KNN 查询语义的回归测试。
@@ -126,5 +127,45 @@ describe('sqlite-vec knn queries', () => {
     expect(eResults[0].content_id).toBe('msg-0')
     // default metric is L2: ||[1,0,0,0] - [0,1,0,0]|| = sqrt(2)
     expect(eResults[0].distance).toBeCloseTo(Math.SQRT2, 4)
+  })
+})
+
+/**
+ * Comment.quotedMessageId 是指向 Message 的外键，但检索结果里混有评论。
+ * 曾经直接取 results[0].sourceId，命中评论时就把 Comment id 写进了 Message 外键，
+ * 线上报 "Foreign key constraint violated on the foreign key"。
+ */
+describe('rankQuotableMessageIds', () => {
+  const result = (sourceId: string, sourceType: 'message' | 'comment'): RAGSearchResult => ({
+    content: 'some content',
+    sourceId,
+    sourceType,
+    score: 0,
+  })
+
+  it('excludes comments, which cannot be written to quotedMessageId', () => {
+    const ranked = rankQuotableMessageIds([
+      result('comment-1', 'comment'),
+      result('message-1', 'message'),
+      result('comment-2', 'comment'),
+    ])
+
+    expect(ranked).toEqual(['message-1'])
+  })
+
+  it('preserves relevance order across messages', () => {
+    const ranked = rankQuotableMessageIds([
+      result('message-a', 'message'),
+      result('comment-x', 'comment'),
+      result('message-b', 'message'),
+      result('message-c', 'message'),
+    ])
+
+    expect(ranked).toEqual(['message-a', 'message-b', 'message-c'])
+  })
+
+  it('returns nothing when the search only hit comments', () => {
+    expect(rankQuotableMessageIds([result('comment-1', 'comment')])).toEqual([])
+    expect(rankQuotableMessageIds([])).toEqual([])
   })
 })
