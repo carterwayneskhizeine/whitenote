@@ -29,7 +29,15 @@ function getEmbeddingConfig(config: any): EmbeddingConfig | null {
   }
 }
 
-function stripMentions(text: string): string {
+/**
+ * 去掉 @goldierill / @ragflow / @rag 这类提及词。
+ *
+ * 提及词只是触发 AI 的开关，不是问题的一部分：
+ * - 索引用 sampleText 剥掉，避免 "@rag" 污染向量；
+ * - 检索也必须剥掉，否则每次 @rag 都会拿 "@rag" 当查询词，
+ *   把所有含提及的历史内容召回来。
+ */
+export function stripMentions(text: string): string {
   return text.replace(/@goldierill|@ragflow|@rag\b/gi, '').trim()
 }
 
@@ -186,7 +194,7 @@ export async function searchRAG(
   const limit = options?.limit ?? 5
 
   if (embConfig) {
-    return searchSqliteVec(workspaceId, query, embConfig, limit)
+    return searchSqliteVec(workspaceId, stripMentions(stripHtml(query)), embConfig, limit)
   }
 
   // RAGFlow fallback: not implemented for search (would need different API)
@@ -237,13 +245,13 @@ async function enrichWithFullContent(results: RAGSearchResult[]): Promise<void> 
           where: { id: result.sourceId },
           select: { content: true },
         })
-        if (msg) result.content = stripHtml(msg.content)
+        if (msg) result.content = stripMentions(stripHtml(msg.content))
       } else {
         const cmt = await prisma.comment.findUnique({
           where: { id: result.sourceId },
           select: { content: true },
         })
-        if (cmt) result.content = stripHtml(cmt.content)
+        if (cmt) result.content = stripMentions(stripHtml(cmt.content))
       }
     } catch {
       // Keep chunk content as fallback

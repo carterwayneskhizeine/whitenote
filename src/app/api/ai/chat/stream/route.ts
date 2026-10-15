@@ -4,7 +4,7 @@ import { buildSystemPrompt, callOpenAIStream } from "@/lib/ai/openai"
 import { callRAGFlowWithChatIdStream } from "@/lib/ai/ragflow"
 import { getAiConfig } from "@/lib/ai/config"
 import { getCommentThreadContext } from "@/lib/ai/thread-context"
-import { searchRAG, pickQuotableMessageId } from "@/lib/ai/rag"
+import { searchRAG, pickQuotableMessageId, stripMentions } from "@/lib/ai/rag"
 import { NextRequest } from "next/server"
 import { addTask } from "@/lib/queue"
 
@@ -50,6 +50,10 @@ export async function POST(request: NextRequest) {
         }
       )
     }
+
+    // 提及词只是触发开关，不是问题的一部分。服务端再剥一次，
+    // 避免任何调用方漏掉清洗就把 "@rag" 当检索词和提示词送进模型。
+    const question = stripMentions(content) || '请回复这条帖子'
 
     // 获取消息上下文
     const message = await prisma.message.findUnique({
@@ -127,14 +131,14 @@ export async function POST(request: NextRequest) {
               // sqlite-vec path (primary)
               console.log('[AI Chat Stream] Using sqlite-vec RAG')
 
-              const results = await searchRAG(session.user.id, message.workspaceId, content, { limit: 5 })
+              const results = await searchRAG(session.user.id, message.workspaceId, question, { limit: 5 })
               const ragContext = results.map(r => `[Source: ${r.sourceId}]\n${r.content}`).join('\n---\n')
               const systemPrompt = await buildSystemPrompt(session.user.id)
               const ragSystemPrompt = `${systemPrompt}\n\n以下是从历史消息中检索到的相关内容（如果为空则没有找到相关内容）：\n${ragContext || '无'}\n\n请根据以上上下文回答用户问题。如果上下文中没有相关信息，请诚实说明。`
 
               const chatMessages = [
                 { role: "system" as const, content: ragSystemPrompt },
-                { role: "user" as const, content },
+                { role: "user" as const, content: question },
               ]
 
               for await (const chunk of callOpenAIStream({ userId: session.user.id, messages: chatMessages })) {
@@ -158,7 +162,7 @@ export async function POST(request: NextRequest) {
                 return
               }
 
-              const chatMessages = [{ role: "user" as const, content }]
+              const chatMessages = [{ role: "user" as const, content: question }]
 
               for await (const chunk of callRAGFlowWithChatIdStream(
                 config.ragflowBaseUrl,
@@ -184,7 +188,7 @@ export async function POST(request: NextRequest) {
             const systemPrompt = await buildSystemPrompt(session.user.id)
             const messages = [
               { role: "system" as const, content: systemPrompt },
-              { role: "user" as const, content: `原文：${message.content}${threadContext}\n\n用户最新问题：${content}` },
+              { role: "user" as const, content: `原文：${message.content}${threadContext}\n\n用户最新问题：${question}` },
             ]
 
             for await (const chunk of callOpenAIStream({ userId: session.user.id, messages })) {

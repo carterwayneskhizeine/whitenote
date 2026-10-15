@@ -4,7 +4,7 @@ import { buildSystemPrompt, callOpenAI } from "@/lib/ai/openai"
 import { callRAGFlowWithChatId } from "@/lib/ai/ragflow"
 import { getAiConfig } from "@/lib/ai/config"
 import { getCommentThreadContext } from "@/lib/ai/thread-context"
-import { searchRAG, pickQuotableMessageId } from "@/lib/ai/rag"
+import { searchRAG, pickQuotableMessageId, stripMentions } from "@/lib/ai/rag"
 import { NextRequest } from "next/server"
 import { addTask } from "@/lib/queue"
 
@@ -33,6 +33,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // 提及词只是触发开关，不是问题的一部分。服务端再剥一次，
+    // 避免任何调用方漏掉清洗就把 "@rag" 当检索词和提示词送进模型。
+    const question = stripMentions(content) || '请回复这条帖子'
+
     const message = await prisma.message.findUnique({
       where: { id: messageId, authorId: session.user.id },
       include: { workspace: true },
@@ -56,7 +60,7 @@ export async function POST(request: NextRequest) {
         // sqlite-vec path (primary)
         console.log('[AI Chat] Using sqlite-vec RAG')
 
-        const results = await searchRAG(session.user.id, message.workspaceId, content, { limit: 5 })
+        const results = await searchRAG(session.user.id, message.workspaceId, question, { limit: 5 })
         const ragContext = results.map(r => `[Source: ${r.sourceId}]\n${r.content}`).join('\n---\n')
 
         const [systemPrompt] = await Promise.all([
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
 
         const chatMessages = [
           { role: "system" as const, content: ragSystemPrompt },
-          { role: "user" as const, content },
+          { role: "user" as const, content: question },
         ]
         aiResponse = await callOpenAI({ userId: session.user.id, messages: chatMessages })
         references = results.map(r => ({ content: r.content, source: r.sourceId }))
@@ -94,7 +98,7 @@ export async function POST(request: NextRequest) {
           )
         }
 
-        const chatMessages = [{ role: "user" as const, content }]
+        const chatMessages = [{ role: "user" as const, content: question }]
 
         try {
           const result = await callRAGFlowWithChatId(
@@ -130,7 +134,7 @@ export async function POST(request: NextRequest) {
       ])
       const chatMessages = [
         { role: "system" as const, content: systemPrompt },
-        { role: "user" as const, content: `原文：${message.content}${threadContext}\n\n用户最新问题：${content}` },
+        { role: "user" as const, content: `原文：${message.content}${threadContext}\n\n用户最新问题：${question}` },
       ]
       aiResponse = await callOpenAI({ userId: session.user.id, messages: chatMessages })
     }
