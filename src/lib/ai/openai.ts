@@ -135,6 +135,11 @@ export async function* callOpenAIStream(options: ChatOptions): AsyncGenerator<st
 
     const decoder = new TextDecoder()
 
+    let yielded = false
+    let sawReasoning = false
+    let finishReason: string | null = null
+    let lastDeltaKeys: string[] = []
+
     try {
       while (true) {
         const { done, value } = await reader.read()
@@ -151,15 +156,33 @@ export async function* callOpenAIStream(options: ChatOptions): AsyncGenerator<st
           try {
             const jsonStr = trimmed.slice(6) // Remove "data: " prefix
             const data = JSON.parse(jsonStr)
-            const content = data.choices?.[0]?.delta?.content
+            const delta = data.choices?.[0]?.delta
+            const content = delta?.content
             if (content) {
+              yielded = true
               yield content
+            }
+            if (delta?.reasoning_content) sawReasoning = true
+            if (delta) lastDeltaKeys = Object.keys(delta)
+            if (data.choices?.[0]?.finish_reason) {
+              finishReason = data.choices[0].finish_reason
             }
           } catch (e) {
             // Skip invalid JSON lines
             console.warn("Failed to parse SSE line:", trimmed)
           }
         }
+      }
+
+      if (!yielded) {
+        // 模型可能只输出了 reasoning_content，或返回了空 completion。
+        // 这里记下现场信息，避免上层只看到一个空回复而无从排查。
+        console.warn("[OpenAI] Stream produced no content", {
+          finishReason,
+          sawReasoning,
+          lastDeltaKeys,
+          model: options.model || config.openaiModel,
+        })
       }
     } finally {
       reader.releaseLock()
