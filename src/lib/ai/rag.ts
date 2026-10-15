@@ -251,6 +251,35 @@ async function enrichWithFullContent(results: RAGSearchResult[]): Promise<void> 
   }
 }
 
+/**
+ * 从检索结果里挑出可以写进 quotedMessageId 的候选 id，按相关度排序。
+ *
+ * Comment.quotedMessageId 是指向 Message 的外键，但检索结果里混有评论，
+ * 所以只有 sourceType 为 message 的结果才能被引用。
+ */
+export function rankQuotableMessageIds(results: RAGSearchResult[]): string[] {
+  return results.filter(r => r.sourceType === 'message').map(r => r.sourceId)
+}
+
+/**
+ * 选出本次回复要引用的消息 id，取第一条命中的消息。
+ *
+ * 除了要排除评论，索引可能比数据库旧（消息已删除），
+ * 直接引用同样会触发外键约束失败，所以只返回仍然存在的消息。
+ */
+export async function pickQuotableMessageId(results: RAGSearchResult[]): Promise<string | undefined> {
+  const candidates = rankQuotableMessageIds(results)
+  if (candidates.length === 0) return undefined
+
+  const existing = await prisma.message.findMany({
+    where: { id: { in: candidates } },
+    select: { id: true },
+  })
+  const existingIds = new Set(existing.map(m => m.id))
+
+  return candidates.find(id => existingIds.has(id))
+}
+
 export async function reindexWorkspace(
   userId: string,
   workspaceId: string,
