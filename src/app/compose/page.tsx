@@ -10,10 +10,12 @@ import { cn, getAvatarUrl, isDefaultAvatar } from "@/lib/utils"
 import { SimpleTipTapEditor } from "@/components/SimpleTipTapEditor"
 import { MediaUploader, MediaItem, MediaUploaderRef } from "@/components/MediaUploader"
 import { ActionButtons } from "@/components/ActionButtons"
-import { messagesApi, aiApi } from "@/lib/api"
+import { messagesApi } from "@/lib/api"
 import { templatesApi } from "@/lib/api/templates"
 import { Template } from "@/types/api"
 import { useWorkspaceStore } from "@/store/useWorkspaceStore"
+import { detectAIMention } from "@/lib/utils/ai-detection"
+import { useAiChatStream } from "@/hooks/useAiChatStream"
 
 export default function ComposePage() {
   const router = useRouter()
@@ -28,6 +30,9 @@ export default function ComposePage() {
   const [isProcessingAI, setIsProcessingAI] = useState(false)
   const [keyboardHeight, setKeyboardHeight] = useState(0)
   const mediaUploaderRef = useRef<MediaUploaderRef>(null)
+
+  // 流式 AI 回复（@goldierill / @rag 统一走流式 API）
+  const { startStream } = useAiChatStream()
 
   // Handle visual viewport changes (keyboard show/hide on mobile)
   useEffect(() => {
@@ -128,16 +133,31 @@ export default function ComposePage() {
       })
 
       if (result.data) {
-        // Check if content contains @goldierill and trigger AI reply
-        if (content.includes('@goldierill')) {
+        // Check if content contains @goldierill / @rag and trigger AI reply
+        const aiDetection = detectAIMention(content)
+        if (aiDetection.hasMention && aiDetection.mode) {
           try {
-            const question = content.replace('@goldierill', '').trim()
-            await aiApi.chat({
-              messageId: result.data.id,
-              content: question || '请回复这条帖子',
+            const response = await fetch('/api/ai/chat/stream', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messageId: result.data.id,
+                content: aiDetection.cleanedContent || '请回复这条帖子',
+                mode: aiDetection.mode,
+              }),
+            })
+
+            // 跳转后的详情页负责渲染评论，这里只消费 SSE 流并把错误提示给用户
+            await startStream(response, {
+              onCommentCreated: () => {},
+              onCommentCompleted: () => {},
+              onError: (message) => {
+                alert(`AI 回复失败: ${message}`)
+              },
             })
           } catch (aiError) {
             console.error("Failed to get AI reply:", aiError)
+            alert(`AI 回复失败: ${aiError instanceof Error ? aiError.message : '未知错误'}`)
           }
         }
 

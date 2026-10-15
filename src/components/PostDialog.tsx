@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { messagesApi, aiApi } from "@/lib/api"
+import { messagesApi } from "@/lib/api"
 import { X } from "lucide-react"
 import { useSession } from "next-auth/react"
 import { cn, getAvatarUrl, isDefaultAvatar } from "@/lib/utils"
@@ -19,6 +19,8 @@ import { templatesApi } from "@/lib/api/templates"
 import { Template } from "@/types/api"
 import { useState, useEffect, useRef } from "react"
 import { useWorkspaceStore } from "@/store/useWorkspaceStore"
+import { detectAIMention } from "@/lib/utils/ai-detection"
+import { useAiChatStream } from "@/hooks/useAiChatStream"
 
 interface PostDialogProps {
     open: boolean
@@ -41,6 +43,9 @@ export function PostDialog({
     const mediaUploaderRef = useRef<MediaUploaderRef>(null)
     const wasOpen = useRef(false)
     const { currentWorkspaceId } = useWorkspaceStore()
+
+    // 流式 AI 回复（@goldierill / @rag 统一走流式 API）
+    const { startStream } = useAiChatStream()
 
     // Fetch templates
     useEffect(() => {
@@ -132,16 +137,31 @@ export function PostDialog({
             })
 
             if (result.data) {
-                // Check if content contains @goldierill and trigger AI reply
-                if (content.includes('@goldierill')) {
+                // Check if content contains @goldierill / @rag and trigger AI reply
+                const aiDetection = detectAIMention(content)
+                if (aiDetection.hasMention && aiDetection.mode) {
                     try {
-                        const question = content.replace('@goldierill', '').trim()
-                        await aiApi.chat({
-                            messageId: result.data.id,
-                            content: question || '请回复这条帖子',
+                        const response = await fetch('/api/ai/chat/stream', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                messageId: result.data.id,
+                                content: aiDetection.cleanedContent || '请回复这条帖子',
+                                mode: aiDetection.mode,
+                            }),
+                        })
+
+                        // PostDialog 不维护评论列表，只消费 SSE 流并把错误提示给用户
+                        await startStream(response, {
+                            onCommentCreated: () => {},
+                            onCommentCompleted: () => {},
+                            onError: (message) => {
+                                alert(`AI 回复失败: ${message}`)
+                            },
                         })
                     } catch (aiError) {
                         console.error("Failed to get AI reply:", aiError)
+                        alert(`AI 回复失败: ${aiError instanceof Error ? aiError.message : '未知错误'}`)
                     }
                 }
 

@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { messagesApi, commentsApi, aiApi } from "@/lib/api"
+import { messagesApi, commentsApi } from "@/lib/api"
 import { X } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import { zhCN } from "date-fns/locale"
@@ -214,36 +214,26 @@ export function RetweetDialog({
 
                 if (aiDetection.hasMention && aiDetection.mode) {
                     try {
-                        // @rag: 使用非流式 API，立即发帖
-                        // @goldierill: 使用流式 API
-                        if (aiDetection.mode === 'rag') {
-                            // RAGFlow 模式：立即发帖，不等 AI 回复
-                            await aiApi.chat({
+                        // @rag 和 @goldierill 都走流式 API，保证两种模式都有实时反馈和错误提示
+                        const response = await fetch('/api/ai/chat/stream', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
                                 messageId: result.data.id,
                                 content: aiDetection.cleanedContent || '请回复这条消息',
                                 mode: aiDetection.mode,
-                            })
-                        } else {
-                            // GoldieRill 模式：使用流式 API
-                            const response = await fetch('/api/ai/chat/stream', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    messageId: result.data.id,
-                                    content: aiDetection.cleanedContent || '请回复这条消息',
-                                    mode: aiDetection.mode,
-                                }),
-                            })
+                            }),
+                        })
 
-                            // RetweetDialog 不直接管理评论列表，但用 hook 保证 SSE 三类事件不静默丢弃
-                            await startStream(response, {
-                                onCommentCreated: () => {},
-                                onCommentCompleted: () => {},
-                                onError: (message) => {
-                                    console.error("AI stream error:", message)
-                                },
-                            })
-                        }
+                        // RetweetDialog 不直接管理评论列表，但用 hook 保证 SSE 三类事件不静默丢弃
+                        await startStream(response, {
+                            onCommentCreated: () => {},
+                            onCommentCompleted: () => {},
+                            onError: (message) => {
+                                console.error("AI stream error:", message)
+                                alert(`AI 回复失败: ${message}`)
+                            },
+                        })
                     } catch (aiError) {
                         console.error("Failed to get AI reply:", aiError)
                     } finally {

@@ -16,7 +16,9 @@ export interface RAGSearchResult {
   score: number
 }
 
-const EMBEDDING_DIMENSION = 1024 // bge-m3 dimension
+// 向量维度不再硬编码：不同 embedding 模型的输出维度不同
+// （bge-m3 是 1024，Qwen3-Embedding-4B 是 2560），写死会让写入和检索全部报
+// "Dimension mismatch"。实际维度由 ensureVecTable 从模型返回值推断。
 
 function getEmbeddingConfig(config: any): EmbeddingConfig | null {
   if (!config.embeddingApiKey) return null
@@ -90,7 +92,13 @@ async function syncToSqliteVec(
   const texts = chunks.map(c => c.content)
   const embeddings = await getEmbeddings(texts, embConfig)
 
-  ensureVecTable(workspaceId, EMBEDDING_DIMENSION)
+  if (embeddings.length === 0) {
+    console.warn(`[RAG] No embeddings returned for ${contentType} ${contentId}`)
+    return
+  }
+
+  // 先拿到向量再建表：维度由模型返回值决定，不能写死
+  ensureVecTable(workspaceId, embeddings[0].length)
   storeChunks(workspaceId, contentId, contentType, chunks, embeddings)
 
   console.log(`[RAG] Indexed ${contentType} ${contentId}: ${chunks.length} chunks`)
@@ -192,9 +200,11 @@ async function searchSqliteVec(
   embConfig: EmbeddingConfig,
   topK: number,
 ): Promise<RAGSearchResult[]> {
-  ensureVecTable(workspaceId, EMBEDDING_DIMENSION)
-
   const queryEmbedding = await getEmbedding(query, embConfig)
+
+  // 建表维度必须和查询向量一致，否则 MATCH 会报维度不匹配
+  ensureVecTable(workspaceId, queryEmbedding.length)
+
   const results = searchChunks(workspaceId, queryEmbedding, topK)
 
   // Deduplicate by contentId, keep highest score

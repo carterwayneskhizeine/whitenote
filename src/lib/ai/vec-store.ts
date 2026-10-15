@@ -51,10 +51,50 @@ function metaTable(workspaceId: string): string {
   return `vec_meta_${safeId(workspaceId)}`
 }
 
+/**
+ * 记录每个 workspace 的向量表维度。
+ * vec0 虚拟表的维度写死在 schema 里，建表后无法 ALTER，
+ * 因此模型换了维度只能 drop 重建并重新索引。
+ */
+function dimsTable(): string {
+  return 'vec_workspace_dims'
+}
+
 export function ensureVecTable(workspaceId: string, dimension: number): void {
   const db = getVecDb()
   const ct = chunksTable(workspaceId)
   const mt = metaTable(workspaceId)
+  const dt = dimsTable()
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS ${dt} (
+      workspace_id TEXT PRIMARY KEY,
+      dimension INTEGER NOT NULL
+    )
+  `)
+
+  const recorded = db.prepare(`SELECT dimension FROM ${dt} WHERE workspace_id = ?`).get(workspaceId) as
+    | { dimension: number }
+    | undefined
+
+  const chunksTableExists = !!db
+    .prepare(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?`)
+    .get(ct)
+
+  // 维度对不上时旧向量无法再被检索到，只能重建两张表后重新索引。
+  // 没有维度记录但已有 chunks 表 = 旧版本建的表（当时维度是写死的），
+  // 同样无法确认它是否匹配，按重建处理。
+  const shouldRebuild = chunksTableExists && (!recorded || recorded.dimension !== dimension)
+
+  if (shouldRebuild) {
+    console.warn(
+      `[RAG] Rebuilding vector tables for workspace ${workspaceId}: ` +
+      `${recorded ? `${recorded.dimension} -> ` : ''}${dimension} dimensions. ` +
+      `Existing chunks must be re-indexed.`
+    )
+    db.exec(`DROP TABLE IF EXISTS ${ct}`)
+    db.exec(`DROP TABLE IF EXISTS ${mt}`)
+  }
 
   db.exec(`
     CREATE VIRTUAL TABLE IF NOT EXISTS ${ct} USING vec0(embedding float[${dimension}])
@@ -69,6 +109,11 @@ export function ensureVecTable(workspaceId: string, dimension: number): void {
     )
   `)
   db.exec(`CREATE INDEX IF NOT EXISTS idx_${mt}_content_id ON ${mt}(content_id)`)
+
+  db.prepare(`
+    INSERT INTO ${dt} (workspace_id, dimension) VALUES (?, ?)
+    ON CONFLICT(workspace_id) DO UPDATE SET dimension = excluded.dimension
+  `).run(workspaceId, dimension)
 }
 
 export function storeChunks(

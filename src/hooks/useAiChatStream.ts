@@ -83,7 +83,23 @@ export function useAiChatStream(): UseAiChatStreamReturn {
 
       try {
         if (!response.ok) {
-          throw new Error("AI stream request failed")
+          // 服务端可能在返回 SSE 流之前就失败（如鉴权、参数校验、消息不存在）。
+          // 这些响应的 body 不是 SSE 事件流，必须在这里解析出错误信息并通知调用方，
+          // 否则调用方的 catch 会把它当成"已由 onError 处理"而静默吞掉。
+          let message = `AI 请求失败（HTTP ${response.status}）`
+          try {
+            const raw = await response.text()
+            const parsed = raw ? JSON.parse(raw) : null
+            const payload = parsed?.message || parsed?.error
+            if (typeof payload === "string" && payload) {
+              message = payload
+            }
+          } catch {
+            // body 不是 JSON，保留默认提示
+          }
+          errorReported = true
+          onError?.(message)
+          throw new Error(message)
         }
 
         const reader = response.body?.getReader()
