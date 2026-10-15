@@ -203,6 +203,16 @@ export async function POST(request: NextRequest) {
           // 清理 AI 回复中的 [ID:0] 标记
           const cleanedResponse = fullContent.replace(/\[ID:\d+\]/g, '').trim()
 
+          console.log(
+            `[AI Chat Stream] ${mode} mode streamed ${fullContent.length} chars, ${cleanedResponse.length} after cleanup`
+          )
+
+          // 空回复要报错而不是写进数据库：否则用户只会看到一个空白的气泡，
+          // 既不知道失败了，也拿不到任何可以排查的信息。
+          if (!cleanedResponse) {
+            throw new Error('AI 返回了空内容，请重试或检查 AI 模型配置')
+          }
+
           // 更新评论内容
           if (!commentId) {
             throw new Error('Comment ID not available')
