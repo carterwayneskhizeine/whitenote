@@ -53,6 +53,7 @@ export function MobileNav({ disableAutoHide = false }: { disableAutoHide?: boole
   const [isVisible, setIsVisible] = useState(true)
   const [lastScrollY, setLastScrollY] = useState(0)
   const [mounted, setMounted] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const { currentWorkspaceId, setCurrentWorkspaceId } = useWorkspaceStore()
 
   // Prevent hydration mismatch
@@ -115,7 +116,7 @@ export function MobileNav({ disableAutoHide = false }: { disableAutoHide?: boole
         )}>
           {/* Main Header Row */}
           <div className="flex items-center justify-between px-4 h-[53px]">
-            <Sheet>
+            <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="rounded-full p-0 h-8 w-8">
                   <Avatar className="h-8 w-8">
@@ -145,7 +146,7 @@ export function MobileNav({ disableAutoHide = false }: { disableAutoHide?: boole
 
                 <div className="p-4">
                   <Button variant="ghost" asChild className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold">
-                    <Link href="/settings">
+                    <Link href="/settings" onClick={() => setMenuOpen(false)}>
                       <Settings className="h-6 w-6" />
                       设置与隐私
                     </Link>
@@ -153,7 +154,7 @@ export function MobileNav({ disableAutoHide = false }: { disableAutoHide?: boole
                 </div>
 
                 <div className="mt-auto p-4">
-                  <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold">
+                  <Button variant="ghost" onClick={() => { setMenuOpen(false); handleSignOut() }} className="w-full justify-start gap-4 px-0 hover:bg-transparent text-xl font-bold">
                     <LogOut className="h-6 w-6" />
                     退出登录
                   </Button>
