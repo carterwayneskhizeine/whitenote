@@ -19,12 +19,19 @@ interface MessagesListProps {
   onMessagesLoaded?: () => void
 }
 
+export interface LatestPageSnapshot {
+  /** 最新一页的 id（服务端顺序） */
+  latestPageIds: string[]
+  /** 合并后实际会渲染出来的 id */
+  renderedIds: string[]
+}
+
 export interface MessagesListHandle {
   /**
    * 静默拉取最新消息并合并到列表顶部（不清空已加载的分页），
-   * 返回本次真正新增的最靠上的一条消息 id；没有新增时返回 null。
+   * 返回最新一页与合并结果的 id 快照；请求失败时返回 null。
    */
-  fetchLatestAndMerge: () => Promise<string | null>
+  fetchLatestAndMerge: () => Promise<LatestPageSnapshot | null>
 }
 
 const PAGE_SIZE = 20 // 每页加载数量
@@ -186,7 +193,9 @@ function MessagesList({ filters, onMessagesLoaded }: MessagesListProps, ref) {
 
   // 静默拉取最新一页，并与已加载的消息合并（而不是替换），
   // 这样既能让「新消息」出现在顶部，也不会丢掉用户已经翻到的后续分页。
-  const fetchLatestAndMerge = useCallback(async (): Promise<string | null> => {
+  // 返回 id 快照交给上层判断该滚到哪里 —— socket 的推送是跨 workspace 的，
+  // 光靠「最新一页里有没有新东西」不足以决定跳转目标。
+  const fetchLatestAndMerge = useCallback(async (): Promise<LatestPageSnapshot | null> => {
     try {
       const result = await messagesApi.getMessages({
         ...filters,
@@ -200,13 +209,16 @@ function MessagesList({ filters, onMessagesLoaded }: MessagesListProps, ref) {
       }
 
       const latest = result.data
-      const { merged, firstNewId } = mergeLatestMessages(messagesRef.current, latest)
+      const { merged } = mergeLatestMessages(messagesRef.current, latest)
 
       setMessages(merged)
       setHasMore(latest.length === PAGE_SIZE &&
         (!result.meta || 1 < result.meta.totalPages))
 
-      return firstNewId
+      return {
+        latestPageIds: latest.map((m) => m.id),
+        renderedIds: merged.map((m) => m.id),
+      }
     } catch (err) {
       console.error("Failed to fetch new messages:", err)
       return null
