@@ -1,35 +1,39 @@
 "use client"
 
-import { RefreshCw } from "lucide-react"
+import { ArrowDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAppStore } from "@/store/useAppStore"
 
 interface NewMessageButtonProps {
-  onRefresh: () => void
+  onClick: () => void
 }
 
-export function NewMessageButton({ onRefresh }: NewMessageButtonProps) {
-  const { hasNewMessages, acknowledgeNewMessages } = useAppStore()
+export function NewMessageButton({ onClick }: NewMessageButtonProps) {
+  const newMessageIds = useAppStore((state) => state.newMessageIds)
 
-  if (!hasNewMessages) {
+  if (newMessageIds.length === 0) {
     return null
   }
 
-  const handleClick = () => {
-    acknowledgeNewMessages()
-    onRefresh()
-  }
-
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
-      <Button
-        onClick={handleClick}
-        size="lg"
-        className="shadow-lg rounded-full gap-2 px-6 animate-bounce"
-      >
-        <RefreshCw className="h-4 w-4" />
-        <span>有新消息</span>
-      </Button>
+    // 固定在信息流顶部居中（与 X/Twitter 的「Show new posts」位置一致）。
+    // 外层 h-0 + sticky：按钮浮在内容之上，不占用文档流高度，因此出现/消失时不会顶动信息流。
+    // top-2 对应移动端（顶栏滚动时自动隐藏）；desktop:top-12 让按钮停在 48px 的桌面顶栏下方。
+    <div className="sticky top-2 desktop:top-12 z-50 h-0 pointer-events-none">
+      <div className="flex justify-center">
+        <Button
+          onClick={onClick}
+          size="sm"
+          className="pointer-events-auto shadow-md rounded-full gap-1.5 bg-background/95 backdrop-blur hover:bg-background animate-in fade-in slide-in-from-top-2"
+        >
+          <ArrowDown className="h-4 w-4" />
+          <span>
+            {newMessageIds.length > 1
+              ? `${newMessageIds.length} 条新消息`
+              : "有新消息"}
+          </span>
+        </Button>
+      </div>
     </div>
   )
 }

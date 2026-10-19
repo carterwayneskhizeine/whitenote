@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react"
 import { MessageCard } from "@/components/MessageCard"
 import { Message, messagesApi } from "@/lib/api/messages"
+import { mergeLatestMessages } from "@/lib/message-merge"
 import { Loader2 } from "lucide-react"
 import { useWorkspaceStore } from "@/store/useWorkspaceStore"
 import { Button } from "@/components/ui/button"
@@ -18,9 +19,18 @@ interface MessagesListProps {
   onMessagesLoaded?: () => void
 }
 
+export interface MessagesListHandle {
+  /**
+   * 静默拉取最新消息并合并到列表顶部（不清空已加载的分页），
+   * 返回本次真正新增的最靠上的一条消息 id；没有新增时返回 null。
+   */
+  fetchLatestAndMerge: () => Promise<string | null>
+}
+
 const PAGE_SIZE = 20 // 每页加载数量
 
-export function MessagesList({ filters, onMessagesLoaded }: MessagesListProps) {
+export const MessagesList = forwardRef<MessagesListHandle, MessagesListProps>(
+function MessagesList({ filters, onMessagesLoaded }: MessagesListProps, ref) {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -29,9 +39,15 @@ export function MessagesList({ filters, onMessagesLoaded }: MessagesListProps) {
   const [hasMore, setHasMore] = useState(true)
   const { currentWorkspaceId } = useWorkspaceStore()
   const loadMoreRef = useRef<HTMLDivElement>(null)
-  
+
   // 用于追踪是否是初始加载
   const isInitialLoad = useRef(true)
+
+  // 供 fetchLatestAndMerge 读取最新消息，避免闭包拿到过期的 messages
+  const messagesRef = useRef<Message[]>([])
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   const fetchMessages = useCallback(async ({
     pageNum = 1,
@@ -168,6 +184,37 @@ export function MessagesList({ filters, onMessagesLoaded }: MessagesListProps) {
     fetchMessages({ pageNum: 1, isLoadMore: false, showLoading: false })
   }
 
+  // 静默拉取最新一页，并与已加载的消息合并（而不是替换），
+  // 这样既能让「新消息」出现在顶部，也不会丢掉用户已经翻到的后续分页。
+  const fetchLatestAndMerge = useCallback(async (): Promise<string | null> => {
+    try {
+      const result = await messagesApi.getMessages({
+        ...filters,
+        workspaceId: filters?.workspaceId || currentWorkspaceId || undefined,
+        page: 1,
+        limit: PAGE_SIZE,
+      })
+
+      if (result.error || !result.data) {
+        return null
+      }
+
+      const latest = result.data
+      const { merged, firstNewId } = mergeLatestMessages(messagesRef.current, latest)
+
+      setMessages(merged)
+      setHasMore(latest.length === PAGE_SIZE &&
+        (!result.meta || 1 < result.meta.totalPages))
+
+      return firstNewId
+    } catch (err) {
+      console.error("Failed to fetch new messages:", err)
+      return null
+    }
+  }, [filters, currentWorkspaceId])
+
+  useImperativeHandle(ref, () => ({ fetchLatestAndMerge }), [fetchLatestAndMerge])
+
   const handleMessageDelete = (deletedId: string) => {
     setMessages((prev) => prev.filter((m) => m.id !== deletedId))
   }
@@ -258,3 +305,7 @@ export function MessagesList({ filters, onMessagesLoaded }: MessagesListProps) {
     </div>
   )
 }
+)
+MessagesList.displayName = "MessagesList"
+
+export default MessagesList
