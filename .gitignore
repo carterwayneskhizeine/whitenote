@@ -56,3 +56,14 @@ logs/
 backups/
 
 .understand-anything/
+
+# Android (Capacitor) build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/capacitor-cordova-android-plugins/build/
+*.keystore
+*.jks
+android/keystore.properties

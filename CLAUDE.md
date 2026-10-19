@@ -29,6 +29,29 @@ pnpm dev
 pnpm start          # Start production server (NODE_ENV=production)
 ```
 
+### Android APK (Capacitor WebView shell)
+
+The APK is a thin Capacitor shell that loads the live site
+(`https://whitenote.goldie-rill.top`); web changes ship without reinstalling
+the APK.
+
+```bash
+pnpm exec cap sync android                  # after changing capacitor.config.ts or mobile-www/
+python3 scripts/generate-android-icons.py   # only after logo/branding changes
+cd android && ./gradlew assembleRelease     # artifact: android/app/build/outputs/apk/release/app-release.apk
+```
+
+- Config: `capacitor.config.ts` (appId `top.goldierill.whitenote`); offline
+  placeholder page in `mobile-www/`.
+- `android/app/src/main/java/.../MainActivity.java` adds pull-to-refresh
+  (SwipeRefreshLayout wraps the WebView → `reload()`, only at scroll top) and
+  keeps the splash logo until the remote page finishes loading (15s timeout).
+- Signing: `android/whitenote.keystore` + `android/keystore.properties`
+  (gitignored; backup copies live in `/root/apk-keystores/` on light-node-01).
+  Upgrades must be signed with this same key and bump `versionCode` in
+  `android/app/build.gradle`. Losing the keystore forces uninstall/reinstall.
+- Requires JDK 21 + Android SDK (`/root/Android/Sdk` on light-node-01).
+
 ### Database Operations
 
 ```bash
