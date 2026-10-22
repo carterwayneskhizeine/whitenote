@@ -18,10 +18,42 @@ pnpm install
 pnpm prisma generate
 pnpm build
 
-# Terminal 2 - Start development server on http://localhost:3005
+# Terminal 2 - Start development server on http://localhost:3077
 # Worker is automatically started via instrumentation.ts
 pnpm dev
 ```
+
+### 端口约定
+
+本项目固定使用 **3077** 端口。端口在三处定义，缺一不可：
+
+| 位置 | 内容 | 作用 |
+|------|------|------|
+| `package.json` → `scripts.dev` | `next dev --webpack -p 3077` | `pnpm dev` 的默认端口 |
+| `.env` → `PORT` | `PORT=3077` | `pnpm start` (server.ts) 读取的端口 |
+| `server.ts` | `process.env.PORT \|\| "3077"` | `.env` 缺失时的兜底值 |
+
+`example.env` 是 `.env` 的模板副本，两者端口保持一致。修改端口时三处一起改。
+
+### 在 tmux 中常驻运行（VPS 部署）
+
+```bash
+# 启动（会话名固定为 whitenote，日志落到 logs/dev.log）
+tmux new-session -d -s whitenote -c /root/Code/whitenote
+tmux send-keys -t whitenote 'pnpm dev 2>&1 | tee logs/dev.log' Enter
+
+# 查看实时输出
+tmux capture-pane -t whitenote -p
+
+# 改完代码后重启（Ctrl-C 停掉前台进程，再重新 send-keys 启动）
+tmux send-keys -t whitenote C-c
+tmux send-keys -t whitenote 'pnpm dev 2>&1 | tee logs/dev.log' Enter
+
+# 停止
+tmux kill-session -t whitenote
+```
+
+`.env` 为本地文件且被 `.gitignore` 忽略，包含 `NEXTAUTH_SECRET` / `ENCRYPTION_KEY` 等凭据，不要提交。
 
 ### Production
 
@@ -296,7 +328,7 @@ WhiteNote Frontend
 
 ### 使用
 
-- 访问 `http://localhost:3005/aichat` 进入 AI 对话页面
+- 访问 `http://localhost:3077/aichat` 进入 AI 对话页面
 - 页面上方有 **OpenClaw** / **Hermes** 切换按钮
 - 选择后端后可切换会话（OpenClaw 用 SessionSelector，Hermes 用 HermesSessionSelector）
 - 支持流式响应，消息自动保存到 localStorage

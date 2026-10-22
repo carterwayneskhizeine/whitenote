@@ -29,7 +29,7 @@ export function initSocketServer(httpServer: HTTPServer) {
     cors: {
       origin: process.env.NODE_ENV === 'production'
         ? process.env.NEXT_PUBLIC_APP_URL
-        : ["http://localhost:3005", "http://localhost:3000"],
+        : ["http://localhost:3077", "http://localhost:3000"],
       credentials: true,
     },
     // Cloudflare Tunnel 优化配置

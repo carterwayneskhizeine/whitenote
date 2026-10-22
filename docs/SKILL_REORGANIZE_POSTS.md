@@ -225,22 +225,22 @@ DELETE FROM Message WHERE content LIKE '[已合并到%';
 cp data/whitenote.db data/whitenote.db.bak
 
 # 1. 导出所有帖子为 markdown
-curl -X POST http://localhost:3005/api/sync/export-all
+curl -X POST http://localhost:3077/api/sync/export-all
 
 # 2. 用 AI 处理 data/link_md/ 下的 .md 文件
 #    （遵守上述规则）
 
 # 3. 导回数据库
-curl -X POST http://localhost:3005/api/sync/import-all
+curl -X POST http://localhost:3077/api/sync/import-all
 
 # 4. 清理已合并的帖子（如果有）
 #    执行上方 SQL
 
 # 5. 重新导出一次（刷新 workspace.json 映射）
-curl -X POST http://localhost:3005/api/sync/export-all
+curl -X POST http://localhost:3077/api/sync/export-all
 
 # 6. 重新生成向量嵌入
-curl -X POST http://localhost:3005/api/ai/reindex
+curl -X POST http://localhost:3077/api/ai/reindex
 
 # 7. 验证结果
 #    打开 Prisma Studio 检查：pnpm prisma studio

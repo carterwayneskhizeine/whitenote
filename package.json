@@ -6,7 +6,7 @@
     "seed": "tsx prisma/seed-ai-commands.ts"
   },
   "scripts": {
-    "dev": "next dev --webpack -p 3005",
+    "dev": "next dev --webpack -p 3077",
     "build": "next build",
     "start": "cross-env NODE_ENV=production tsx server.ts",
     "lint": "eslint",

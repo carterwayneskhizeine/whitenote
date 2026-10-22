@@ -5,7 +5,7 @@ async function testChildCommentsAPI() {
   console.log('测试子评论 API 返回顺序\n');
   console.log('=====================================\n');
 
-  const response = await fetch(`http://localhost:3005/api/public/comments/${COMMENT_ID}/children`);
+  const response = await fetch(`http://localhost:3077/api/public/comments/${COMMENT_ID}/children`);
 
   if (!response.ok) {
     console.error('API 请求失败:', response.status, response.statusText);

@@ -26,7 +26,7 @@ WhiteNote 使用 NextAuth.js 的 JWT session 认证。需要在请求头中携�
 **方法二：登录 API**
 
 ```bash
-curl -X POST http://localhost:3005/api/auth/callback/credentials \
+curl -X POST http://localhost:3077/api/auth/callback/credentials \
   -H "Content-Type: application/json" \
   -d '{
     "email": "your-email@example.com",
@@ -73,7 +73,7 @@ GET /api/workspaces
 ### 请求示例
 
 ```bash
-curl -X GET http://localhost:3005/api/workspaces \
+curl -X GET http://localhost:3077/api/workspaces \
   -H "Cookie: next-auth.session-token=YOUR_TOKEN_HERE"
 ```
 
@@ -115,7 +115,7 @@ curl -X GET http://localhost:3005/api/workspaces \
 使用 `jq` 快速提取默认工作区 ID：
 
 ```bash
-curl -s -X GET http://localhost:3005/api/workspaces \
+curl -s -X GET http://localhost:3077/api/workspaces \
   -H "Cookie: next-auth.session-token=YOUR_TOKEN_HERE" \
   | jq -r '.data[] | select(.isDefault == true) | .id'
 ```
@@ -123,7 +123,7 @@ curl -s -X GET http://localhost:3005/api/workspaces \
 ### 获取所有工作区名称和 ID
 
 ```bash
-curl -s -X GET http://localhost:3005/api/workspaces \
+curl -s -X GET http://localhost:3077/api/workspaces \
   -H "Cookie: next-auth.session-token=YOUR_TOKEN_HERE" \
   | jq -r '.data[] | "\(.name): \(.id)"'
 ```
@@ -140,7 +140,7 @@ curl -s -X GET http://localhost:3005/api/workspaces \
 ### 基础文本消息
 
 ```bash
-curl -X POST http://localhost:3005/api/messages \
+curl -X POST http://localhost:3077/api/messages \
   -H "Content-Type: application/json" \
   -H "Cookie: next-auth.session-token=YOUR_TOKEN_HERE" \
   -d '{
@@ -151,7 +151,7 @@ curl -X POST http://localhost:3005/api/messages \
 ### 带标题和标签的消息
 
 ```bash
-curl -X POST http://localhost:3005/api/messages \
+curl -X POST http://localhost:3077/api/messages \
   -H "Content-Type: application/json" \
   -H "Cookie: next-auth.session-token=YOUR_TOKEN_HERE" \
   -d '{
@@ -164,7 +164,7 @@ curl -X POST http://localhost:3005/api/messages \
 ### 引用其他消息（Quote/转发）
 
 ```bash
-curl -X POST http://localhost:3005/api/messages \
+curl -X POST http://localhost:3077/api/messages \
   -H "Content-Type: application/json" \
   -H "Cookie: next-auth.session-token=YOUR_TOKEN_HERE" \
   -d '{
@@ -176,7 +176,7 @@ curl -X POST http://localhost:3005/api/messages \
 ### 带媒体文件的消息
 
 ```bash
-curl -X POST http://localhost:3005/api/messages \
+curl -X POST http://localhost:3077/api/messages \
   -H "Content-Type: application/json" \
   -H "Cookie: next-auth.session-token=YOUR_TOKEN_HERE" \
   -d '{
@@ -193,7 +193,7 @@ curl -X POST http://localhost:3005/api/messages \
 ### 指定工作区
 
 ```bash
-curl -X POST http://localhost:3005/api/messages \
+curl -X POST http://localhost:3077/api/messages \
   -H "Content-Type: application/json" \
   -H "Cookie: next-auth.session-token=YOUR_TOKEN_HERE" \
   -d '{
@@ -287,7 +287,7 @@ curl -X POST http://localhost:3005/api/messages \
 #!/bin/bash
 
 # 配置
-API_URL="http://localhost:3005/api/messages"
+API_URL="http://localhost:3077/api/messages"
 SESSION_TOKEN="YOUR_SESSION_TOKEN_HERE"
 
 # 发帖函数
@@ -319,7 +319,7 @@ post_message \
 #!/bin/bash
 
 # 配置
-BASE_URL="http://localhost:3005"
+BASE_URL="http://localhost:3077"
 SESSION_TOKEN="YOUR_SESSION_TOKEN_HERE"
 
 # 1. 获取工作区列表并让用户选择

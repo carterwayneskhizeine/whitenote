@@ -18,7 +18,7 @@ WhiteNote AI Chat 是一个通过 **OpenClaw Gateway** 作为后端的 AI 对话
 ### 页面访问
 
 ```
-http://localhost:3005/aichat
+http://localhost:3077/aichat
 ```
 
 ---

@@ -38,7 +38,7 @@
       → 解决: docker ps 检查，docker-compose up -d 启动
 
     - 端口被占用
-      → 解决: 检查其他服务是否占用 3005 端口
+      → 解决: 检查其他服务是否占用 3077 端口
 
 .EXAMPLE
     .\dev-check.ps1
@@ -85,7 +85,7 @@ Write-Host ""
 Write-Info "准备启动开发服务器..."
 Write-Host ""
 Write-Host "提示："
-Write-Host "  - 开发服务器将运行在 http://localhost:3005"
+Write-Host "  - 开发服务器将运行在 http://localhost:3077"
 Write-Host "  - 按 Ctrl+C 可停止服务器"
 Write-Host "  - Worker 服务需要在另一个终端启动: pnpm worker"
 Write-Host ""

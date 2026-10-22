@@ -270,7 +270,7 @@ async function uploadImageToRAGFlow(
     const formData = new FormData()
 
     // 构建完整的图片 URL
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3005'
+    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3077'
     const fullImageUrl = media.url.startsWith('http')
       ? media.url
       : `${baseUrl}${media.url}`

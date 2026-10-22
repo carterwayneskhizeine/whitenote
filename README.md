@@ -355,7 +355,27 @@ pnpm build
 pnpm dev
 ```
 
-访问 [http://localhost:3005](http://localhost:3005) 查看应用。
+访问 [http://localhost:3077](http://localhost:3077) 查看应用。
+
+> 本项目固定使用 **3077** 端口。端口在 `package.json` 的 `dev` 脚本、`.env` 的 `PORT`、`server.ts` 的兜底值三处定义，需保持一致。
+
+### tmux 常驻运行（VPS 部署）
+
+```bash
+# 启动（会话名固定为 whitenote，日志落到 logs/dev.log）
+tmux new-session -d -s whitenote -c /root/Code/whitenote
+tmux send-keys -t whitenote 'pnpm dev 2>&1 | tee logs/dev.log' Enter
+
+# 查看实时输出
+tmux capture-pane -t whitenote -p
+
+# 改完代码后重启
+tmux send-keys -t whitenote C-c
+tmux send-keys -t whitenote 'pnpm dev 2>&1 | tee logs/dev.log' Enter
+
+# 停止
+tmux kill-session -t whitenote
+```
 
 ## 🗄️ 数据库管理
 
@@ -365,7 +385,7 @@ pnpm dev
 
 ```bash
 # 删除数据库文件并重新创建
-rm -f prisma/dev.db
+rm -f data/whitenote.db
 pnpm prisma db push
 pnpm prisma db seed
 ```
@@ -388,14 +408,14 @@ pnpm prisma generate
 
 ## 🔧 环境变量
 
-创建 `.env` 文件配置以下环境变量：
+创建 `.env` 文件配置以下环境变量（可直接从 `example.env` 复制，端口已按 3077 预置）：
 
 ```bash
 # 数据库（SQLite）
-DATABASE_URL="file:./prisma/dev.db"
+DATABASE_URL="file:./data/whitenote.db"
 
 # NextAuth
-NEXTAUTH_URL="http://localhost:3005"
+NEXTAUTH_URL="http://localhost:3077"
 NEXTAUTH_SECRET="your-secret-key-here"
 
 # AI 配置

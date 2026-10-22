@@ -847,7 +847,7 @@ pnpm dev
 
 打开浏览器访问：
 ```
-http://localhost:3005/aichat
+http://localhost:3077/aichat
 ```
 
 ---

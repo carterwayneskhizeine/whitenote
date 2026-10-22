@@ -341,7 +341,7 @@ openclawApi.createSession(label)  // 创建会话
 1. 确保 OpenClaw Gateway 运行在 `ws://localhost:18789`
 2. 配置 `OPENCLAW_TOKEN`
 3. 启动 WhiteNote: `pnpm build && pnpm dev`
-4. 访问 `http://localhost:3005/aichat`
+4. 访问 `http://localhost:3077/aichat`
 
 ## 注意事项
 

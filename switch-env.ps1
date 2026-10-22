@@ -213,7 +213,7 @@ if ($Mode -eq "dev") {
     Write-Host "  2. 构建项目: pnpm build"
     Write-Host "  3. 启动服务: pnpm dev"
     Write-Host "  4. 启动 Worker: pnpm worker"
-    Write-Host "  5. 访问: http://localhost:3005"
+    Write-Host "  5. 访问: http://localhost:3077"
     Write-Host ""
     Write-Warning "提示: 如果遇到数据库连接错误，请检查 Docker 容器是否运行"
 } else {
@@ -222,7 +222,7 @@ if ($Mode -eq "dev") {
     Write-Host "  2. 构建项目: pnpm build"
     Write-Host "  3. 构建 Docker 镜像: pnpm docker:dev:build"
     Write-Host "  4. 启动容器: pnpm docker:dev"
-    Write-Host "  5. 访问: http://localhost:3005"
+    Write-Host "  5. 访问: http://localhost:3077"
     Write-Host ""
     Write-Warning "注意: Docker 模式下所有服务在容器中运行"
 }

@@ -11,7 +11,7 @@ const writeFile = promisify(fs.writeFile)
 
 const dev = process.env.NODE_ENV !== "production"
 const hostname = "localhost"
-const port = parseInt(process.env.PORT || "3005", 10)
+const port = parseInt(process.env.PORT || "3077", 10)
 
 const app = next({ dev, hostname, port })
 const handle = app.getRequestHandler()
