@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // 开发模式下通过 Cloudflare 隧道域名访问时，Next.js 16 会拦截跨域的
+  // /_next/* 资源请求（当前仅警告，后续主版本会真正阻断），显式放行。
+  allowedDevOrigins: ["whitenote.goldierill.com"],
   // sync-utils.ts 里运行时拼接的 fs 路径会让 Turbopack 静态追踪推导出过宽的 glob，
   // 把 src/、docs/、data/、.env、cookies.txt 等整个项目目录 trace 进 standalone 产物。
   // Docker 部署时 data 走 FILE_WATCHER_DIR 卷挂载，这些文件都不需要打进镜像。
