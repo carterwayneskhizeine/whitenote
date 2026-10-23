@@ -64,7 +64,7 @@ pnpm start          # Start production server (NODE_ENV=production)
 ### Android APK (Capacitor WebView shell)
 
 The APK is a thin Capacitor shell that loads the live site
-(`https://whitenote.goldie-rill.top`); web changes ship without reinstalling
+(`https://whitenote.goldierill.com`); web changes ship without reinstalling
 the APK.
 
 ```bash

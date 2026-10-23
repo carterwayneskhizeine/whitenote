@@ -6,7 +6,7 @@ const config: CapacitorConfig = {
   webDir: 'mobile-www',
   server: {
     // APK 打开后直接加载线上站点（登录态/Socket.IO/上传全部走同源，照旧）
-    url: 'https://whitenote.goldie-rill.top',
+    url: 'https://whitenote.goldierill.com',
     cleartext: false,
   },
 };
