@@ -14,7 +14,7 @@
  *   且 HTTP 响应体对爬虫立即可读（无 JS hydration 依赖）。
  *
  * URL 示例：
- *   https://whitenote.goldie-rill.top/share/cmmane4qh0001x8im1cszwvub/clean
+ *   /share/cmmane4qh0001x8im1cszwvub/clean（站点基址由 site-url.ts 定义）
  *
  * 数据复用策略：
  *   与主分享页（page.tsx）共用同一个 Prisma 查询结构，
@@ -25,6 +25,7 @@
 import { notFound } from "next/navigation"
 import { Metadata } from "next"
 import prisma from "@/lib/prisma"
+import { shareUrl } from "@/lib/site-url"
 import { getHandle } from "@/lib/utils"
 import { mdToHtml, mdToText } from "@/lib/markdownUtils"
 
@@ -101,7 +102,7 @@ export async function generateMetadata({
     },
     // 告知爬虫规范 URL 是主分享页，clean 视图仅为辅助
     alternates: {
-      canonical: `https://whitenote.goldie-rill.top/share/${id}`,
+      canonical: shareUrl(id),
     },
   }
 }
@@ -124,8 +125,8 @@ export default async function CleanSharePage({ params }: CleanPageProps) {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SocialMediaPosting",
-    "@id": `https://whitenote.goldie-rill.top/share/${post.id}`,
-    "url": `https://whitenote.goldie-rill.top/share/${post.id}`,
+    "@id": shareUrl(post.id),
+    "url": shareUrl(post.id),
     "headline": plainText.slice(0, 110),
     "author": {
       "@type": "Person",
@@ -319,7 +320,7 @@ export default async function CleanSharePage({ params }: CleanPageProps) {
         {/* 页脚：来源说明，方便 AI 工具标注引用来源 */}
         <footer style={{ marginTop: "3rem", fontSize: "0.8rem", color: "#888" }}>
           <p>
-            来源：<a href={`https://whitenote.goldie-rill.top/share/${post.id}`}>
+            来源：<a href={shareUrl(post.id)}>
               WhiteNote · {post.id}
             </a>
           </p>

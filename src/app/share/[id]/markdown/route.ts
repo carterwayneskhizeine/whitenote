@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import prisma from "@/lib/prisma"
+import { shareUrl } from "@/lib/site-url"
 import { getHandle } from "@/lib/utils"
 import { format } from "date-fns"
 
@@ -88,7 +89,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
     const publishedAt = format(new Date(message.createdAt), "yyyy-MM-dd HH:mm")
     const tags = message.tags.map(({ tag }) => `#${tag.name}`).join(" ")
     const retweetCount = (message._count as any).retweets ?? 0
-    const shareUrl = `https://whitenote.goldie-rill.top/share/${id}`
+    const url = shareUrl(id)
 
     // ── Post metadata + body ───────────────────────────────────────────────────
     const lines: string[] = [
@@ -99,7 +100,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
         `| 作者 | ${authorName} (@${authorHandle}) |`,
         `| 发布时间 | ${publishedAt} |`,
         ...(tags ? [`| 标签 | ${tags} |`] : []),
-        `| 链接 | [${shareUrl}](${shareUrl}) |`,
+        `| 链接 | [${url}](${url}) |`,
         `| 评论 | ${message._count.comments} 条 |`,
         `| 转发 | ${retweetCount} 次 |`,
         ``,

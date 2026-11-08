@@ -115,8 +115,8 @@ TipTap 配合 `StarterKit` 已经在 `editable: false` 模式下输出真实语�
 {
   "@context": "https://schema.org",
   "@type": "SocialMediaPosting",
-  "@id": "https://whitenote.goldie-rill.top/share/cmmane4qh0001…",
-  "url": "https://whitenote.goldie-rill.top/share/cmmane4qh0001…",
+  "@id": "https://whitenote.goldierill.com/share/cmmane4qh0001…",
+  "url": "https://whitenote.goldierill.com/share/cmmane4qh0001…",
   "headline": "正文前 110 字（纯文本）",
   "author": {
     "@type": "Person",
@@ -177,10 +177,10 @@ TipTap 配合 `StarterKit` 已经在 `editable: false` 模式下输出真实语�
 
 ```
 # 完整分享页（客户端渲染）
-https://whitenote.goldie-rill.top/share/cmmane4qh0001x8im1cszwvub
+https://whitenote.goldierill.com/share/cmmane4qh0001x8im1cszwvub
 
 # 简洁视图（服务端渲染，AI 友好）
-https://whitenote.goldie-rill.top/share/cmmane4qh0001x8im1cszwvub/clean
+https://whitenote.goldierill.com/share/cmmane4qh0001x8im1cszwvub/clean
 ```
 
 在 Jina Reader、ChatGPT Browse、curl 等场景下，直接请求 `/clean` 即可得到干净的内容。
@@ -199,7 +199,7 @@ src/app/share/[id]/clean/page.tsx   ← Server Component（无 "use client"）
 `canonical` 指向主分享页，告知搜索引擎规范 URL，避免重复内容惩罚：
 
 ```html
-<link rel="canonical" href="https://whitenote.goldie-rill.top/share/[id]">
+<link rel="canonical" href="https://whitenote.goldierill.com/share/[id]">
 ```
 
 ### 输出的 HTML 结构
@@ -256,6 +256,6 @@ src/app/share/[id]/clean/page.tsx   ← Server Component（无 "use client"）
 |---|---|---|
 | Google Rich Results Test | 验证 JSON-LD 结构化数据 | https://search.google.com/test/rich-results |
 | Schema.org Validator | 验证 schema.org 类型正确性 | https://validator.schema.org |
-| Jina Reader | 测试 AI 抓取效果 | `https://r.jina.ai/https://whitenote.goldie-rill.top/share/[id]/clean` |
+| Jina Reader | 测试 AI 抓取效果 | `https://r.jina.ai/https://whitenote.goldierill.com/share/[id]/clean` |
 | readability.js | 主内容提取测试 | Firefox 阅读模式 / `@mozilla/readability` |
-| curl | 验证 clean view 无 JS 依赖 | `curl https://whitenote.goldie-rill.top/share/[id]/clean` |
+| curl | 验证 clean view 无 JS 依赖 | `curl https://whitenote.goldierill.com/share/[id]/clean` |

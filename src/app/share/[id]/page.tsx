@@ -11,6 +11,7 @@ import { MermaidRenderer } from "@/components/mermaid/MermaidRenderer"
 import { renderMarkdownWithMermaid } from "@/lib/mermaid-marked"
 import { getHandle } from "@/lib/utils"
 import prisma from "@/lib/prisma"
+import { SITE_URL, shareUrl } from "@/lib/site-url"
 import ShareHeaderActions from "./ShareHeaderActions"
 import ShareExpandable from "./ShareExpandable"
 
@@ -183,7 +184,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const authorName = message.author?.name || "GoldieRill"
     const authorHandle = getHandle(message.author?.email || null, !!message.author)
     const plainText = extractPlainText(message.content)
-    const shareUrl = `https://whitenote.goldie-rill.top/share/${id}`
 
     return {
         title: `${authorName} (@${authorHandle}) · WhiteNote`,
@@ -191,13 +191,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         openGraph: {
             title: `${authorName} on WhiteNote`,
             description: plainText.slice(0, 200),
-            url: shareUrl,
+            url: shareUrl(id),
             type: "article",
             publishedTime: new Date(message.createdAt).toISOString(),
             authors: [authorName],
             tags: message.tags.map(({ tag }) => tag.name),
         },
         alternates: {
+            canonical: `${SITE_URL}/share/${id}`,
             types: { "text/markdown": `/share/${id}/markdown` },
         },
     }
@@ -221,8 +222,8 @@ export default async function SharePage({ params }: Props) {
     const jsonLd = {
         "@context": "https://schema.org",
         "@type": "SocialMediaPosting",
-        "@id": `https://whitenote.goldie-rill.top/share/${id}`,
-        url: `https://whitenote.goldie-rill.top/share/${id}`,
+        "@id": shareUrl(id),
+        url: shareUrl(id),
         headline: plainText.slice(0, 110),
         author: { "@type": "Person", name: authorName, identifier: `@${authorHandle}` },
         datePublished: new Date(message.createdAt).toISOString(),
@@ -233,7 +234,7 @@ export default async function SharePage({ params }: Props) {
             { "@type": "InteractionCounter", interactionType: "https://schema.org/CommentAction", userInteractionCount: message._count.comments },
             { "@type": "InteractionCounter", interactionType: "https://schema.org/ShareAction", userInteractionCount: retweetCount },
         ],
-        isBasedOn: `https://whitenote.goldie-rill.top/share/${id}/markdown`,
+        isBasedOn: `${shareUrl(id)}/markdown`,
     }
 
     const clientMessage = {

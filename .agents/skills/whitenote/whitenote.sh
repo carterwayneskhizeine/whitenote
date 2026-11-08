@@ -18,7 +18,7 @@ Required env vars:
   WHITENOTE_PASSWORD
 
 Optional env var:
-  WHITENOTE_BASE_URL   (default: https://whitenote.goldie-rill.top)
+  WHITENOTE_BASE_URL   (default: https://whitenote.goldierill.com)
 EOF
 }
 
@@ -34,7 +34,7 @@ esac
 
 : "${WHITENOTE_EMAIL:?Missing WHITENOTE_EMAIL env var}"
 : "${WHITENOTE_PASSWORD:?Missing WHITENOTE_PASSWORD env var}"
-BASE_URL="${WHITENOTE_BASE_URL:-https://whitenote.goldie-rill.top}"
+BASE_URL="${WHITENOTE_BASE_URL:-https://whitenote.goldierill.com}"
 BASE_URL="${BASE_URL%/}"
 
 command -v curl >/dev/null 2>&1 || { echo "Error: curl is required" >&2; exit 1; }

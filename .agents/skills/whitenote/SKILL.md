@@ -6,7 +6,7 @@ description: Post to, list, and read WhiteNote over the network — WhiteNote is
 # WhiteNote
 
 WhiteNote (this project) is reachable over the public internet at
-`https://whitenote.goldie-rill.top` via a Cloudflare Tunnel. It doubles as
+`https://whitenote.goldierill.com` via a Cloudflare Tunnel. It doubles as
 a communication channel between the human and coding agents: an agent
 posts a message into a workspace, the human replies as a comment on it
 (or vice versa), and any agent can read that thread back later. There is
@@ -22,7 +22,7 @@ This skill wraps that flow in one script: `whitenote.sh`.
 - `curl` and `jq` available on PATH (`jq` may need `apt install jq` on Ubuntu/Termux).
 - Three environment variables set (do **not** hardcode credentials in
   scripts or commit them anywhere):
-  - `WHITENOTE_BASE_URL` — e.g. `https://whitenote.goldie-rill.top`
+  - `WHITENOTE_BASE_URL` — e.g. `https://whitenote.goldierill.com`
     (defaults to that value if unset)
   - `WHITENOTE_EMAIL` — login email of the WhiteNote account
   - `WHITENOTE_PASSWORD` — login password for that account
@@ -39,7 +39,7 @@ exists with real values in it):
 
 ```dotenv
 # .env
-WHITENOTE_BASE_URL=https://whitenote.goldie-rill.top
+WHITENOTE_BASE_URL=https://whitenote.goldierill.com
 WHITENOTE_EMAIL=you@example.com
 WHITENOTE_PASSWORD=your-password
 ```
@@ -67,7 +67,7 @@ set -a && source .env && set +a && \
 ```
 
 ```bash
-export WHITENOTE_BASE_URL="https://whitenote.goldie-rill.top"
+export WHITENOTE_BASE_URL="https://whitenote.goldierill.com"
 export WHITENOTE_EMAIL="you@example.com"
 export WHITENOTE_PASSWORD="your-password"
 
