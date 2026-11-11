@@ -28,6 +28,7 @@ import prisma from "@/lib/prisma"
 import { shareUrl } from "@/lib/site-url"
 import { getHandle } from "@/lib/utils"
 import { mdToHtml, mdToText } from "@/lib/markdownUtils"
+import { getPostTitle } from "@/lib/post-title"
 
 // ── 类型 ─────────────────────────────────────────────────────────────────────
 
@@ -79,12 +80,13 @@ export async function generateMetadata({
   if (!post) return {}
 
   const plainText = mdToText(post.content)
-  const title = plainText.slice(0, 80)
   const description = plainText.slice(0, 160)
   const authorName = post.author?.name || "GoldieRill"
+  const postTitle = getPostTitle(post.content)
+  const title = `${postTitle} · ${authorName}`
 
   return {
-    title: `${title} — ${authorName} | WhiteNote`,
+    title,
     description,
     openGraph: {
       title,

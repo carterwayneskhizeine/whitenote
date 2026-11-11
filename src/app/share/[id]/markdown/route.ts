@@ -2,6 +2,7 @@ import { NextRequest } from "next/server"
 import prisma from "@/lib/prisma"
 import { shareUrl } from "@/lib/site-url"
 import { getHandle } from "@/lib/utils"
+import { getPostTitle } from "@/lib/post-title"
 import { format } from "date-fns"
 
 interface RouteContext {
@@ -93,7 +94,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 
     // ── Post metadata + body ───────────────────────────────────────────────────
     const lines: string[] = [
-        `# ${authorName} on WhiteNote`,
+        `# ${getPostTitle(message.content)}`,
         ``,
         `| 字段 | 值 |`,
         `|------|-----|`,

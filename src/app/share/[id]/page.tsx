@@ -10,6 +10,7 @@ import { QuotedMessageCard } from "@/components/QuotedMessageCard"
 import { MermaidRenderer } from "@/components/mermaid/MermaidRenderer"
 import { renderMarkdownWithMermaid } from "@/lib/mermaid-marked"
 import { getHandle } from "@/lib/utils"
+import { getPostTitle } from "@/lib/post-title"
 import prisma from "@/lib/prisma"
 import { SITE_URL, shareUrl } from "@/lib/site-url"
 import ShareHeaderActions from "./ShareHeaderActions"
@@ -182,20 +183,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (!message) return { title: "帖子不存在 · WhiteNote" }
 
     const authorName = message.author?.name || "GoldieRill"
-    const authorHandle = getHandle(message.author?.email || null, !!message.author)
     const plainText = extractPlainText(message.content)
+    const postTitle = getPostTitle(message.content)
+    const title = `${postTitle} · ${authorName}`
 
     return {
-        title: `${authorName} (@${authorHandle}) · WhiteNote`,
+        title,
         description: plainText.slice(0, 200),
         openGraph: {
-            title: `${authorName} on WhiteNote`,
+            title,
             description: plainText.slice(0, 200),
+            siteName: "WhiteNote",
             url: shareUrl(id),
             type: "article",
             publishedTime: new Date(message.createdAt).toISOString(),
             authors: [authorName],
             tags: message.tags.map(({ tag }) => tag.name),
+        },
+        twitter: {
+            card: "summary",
+            title,
+            description: plainText.slice(0, 200),
         },
         alternates: {
             canonical: `${SITE_URL}/share/${id}`,
