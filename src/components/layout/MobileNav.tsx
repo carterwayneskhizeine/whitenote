@@ -62,10 +62,10 @@ export function MobileNav({ disableAutoHide = false }: { disableAutoHide?: boole
   }, [])
 
   // Use session data directly
-  const userName = session?.user?.name || "User Name"
+  const userName = session?.user?.name || ""
   const userEmail = session?.user?.email
     ? `@${session.user.email.split("@")[0]}`
-    : "@username"
+    : ""
   const userAvatar = getAvatarUrl(session?.user?.name || null, session?.user?.image || null) || ""
   const userInitials = userName?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "CN"
 

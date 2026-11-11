@@ -182,7 +182,7 @@ export default function ComposePage() {
     }
   }
 
-  const userName = session?.user?.name || "User Name"
+  const userName = session?.user?.name || ""
   const userAvatar = getAvatarUrl(session?.user?.name || null, session?.user?.image || null) || ""
   const userInitials = userName?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "CN"
 

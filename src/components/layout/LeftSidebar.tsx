@@ -6,7 +6,7 @@ import { signOut, useSession } from "next-auth/react"
 import { useState } from "react"
 import {
   Hash, MessageSquare, Bookmark,
-  MoreHorizontal, PenLine, LogOut, UserCircle
+  MoreHorizontal, PenLine, LogOut, UserCircle, LogIn
 } from "lucide-react"
 
 import { cn, getAvatarUrl, isDefaultAvatar } from "@/lib/utils"
@@ -60,15 +60,22 @@ const navItems = [
   { icon: XMore, label: "更多", href: "/settings" },
 ]
 
-const UserInfo = () => (
+interface UserInfoProps {
+  name: string
+  handle: string
+  avatar: string
+  initials: string
+}
+
+const UserInfo = ({ name, handle, avatar, initials }: UserInfoProps) => (
   <div className="flex flex-col px-4 py-2 gap-3">
     <Avatar className="h-10 w-10">
-      <AvatarImage src="https://github.com/shadcn.png" />
-      <AvatarFallback>CN</AvatarFallback>
+      {avatar && <AvatarImage src={avatar} />}
+      <AvatarFallback>{initials}</AvatarFallback>
     </Avatar>
     <div className="flex flex-col">
-      <span className="font-bold text-base leading-tight">User Name</span>
-      <span className="text-muted-foreground text-sm">@username</span>
+      <span className="font-bold text-base leading-tight">{name}</span>
+      <span className="text-muted-foreground text-sm">{handle}</span>
     </div>
   </div>
 )
@@ -76,7 +83,7 @@ const UserInfo = () => (
 export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { data: session } = useSession()
+  const { data: session, status } = useSession()
   const [showMenu, setShowMenu] = useState(false)
   const [showPostDialog, setShowPostDialog] = useState(false)
 
@@ -84,13 +91,13 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
     await signOut({ callbackUrl: "/login" })
   }
 
-  // Use session data directly
-  const userName = session?.user?.name || "User Name"
+  // Use session data directly (only rendered when status === "authenticated")
+  const userName = session?.user?.name || ""
   const userEmail = session?.user?.email
     ? `@${session.user.email.split("@")[0]}`
-    : "@username"
+    : ""
   const userAvatar = getAvatarUrl(session?.user?.name || null, session?.user?.image || null) || ""
-  const userInitials = userName?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "CN"
+  const userInitials = userName.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "CN"
 
   return (
     <aside className={cn(
@@ -107,7 +114,9 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
       */}
       <div className={cn("flex flex-col gap-1", isMobile ? "w-full" : collapsed ? "w-[52px]" : "w-[250px]")}>
         {/* Mobile Header */}
-        {isMobile && <UserInfo />}
+        {isMobile && status === "authenticated" && (
+          <UserInfo name={userName} handle={userEmail} avatar={userAvatar} initials={userInitials} />
+        )}
 
         {/* Logo */}
         {!isMobile && (
@@ -154,11 +163,17 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
         </nav>
 
         {/* Post Button */}
-        {!isMobile && (
+        {!isMobile && status !== "loading" && (
           <div className="my-4">
             <Button
               size="lg"
-              onClick={() => setShowPostDialog(true)}
+              onClick={() => {
+                if (status === "authenticated") {
+                  setShowPostDialog(true)
+                } else {
+                  router.push("/login")
+                }
+              }}
               className={cn(
                 "rounded-full font-bold text-[17px] shadow-lg text-black transition-all duration-200 border border-border",
                 collapsed
@@ -177,7 +192,29 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
       </div>
 
       {/* User Profile */}
-      {!isMobile && (
+      {!isMobile && status === "loading" && (
+        // 会话加载中：同高占位，避免已登录用户闪现「登录」
+        <div className={cn("mb-3", collapsed ? "w-[64px]" : "w-[255px]")}>
+          <div className={cn("h-[64px] rounded-full bg-secondary/50 animate-pulse", collapsed ? "w-[64px]" : "w-full")} />
+        </div>
+      )}
+
+      {!isMobile && status === "unauthenticated" && (
+        <div className={cn("mb-3", collapsed ? "w-[64px]" : "w-[255px]")}>
+          <Button
+            variant="ghost"
+            className={cn(
+              "rounded-full hover:bg-secondary/50 transition-colors h-[64px]",
+              collapsed ? "w-[64px] h-[64px] p-0 justify-center" : "w-full justify-between px-3"
+            )}
+            onClick={() => router.push("/login")}
+          >
+            {collapsed ? <LogIn className="h-6 w-6" /> : <span className="font-bold text-[17px]">登录</span>}
+          </Button>
+        </div>
+      )}
+
+      {!isMobile && status === "authenticated" && (
         <div className={cn("mb-3", collapsed ? "w-[64px]" : "w-[255px]")}>
           <Button
             variant="ghost"
@@ -222,7 +259,7 @@ export function LeftSidebar({ isMobile, collapsed }: LeftSidebarProps) {
       )}
 
       {/* Post Dialog */}
-      {!isMobile && (
+      {!isMobile && status === "authenticated" && (
         <PostDialog
           open={showPostDialog}
           onOpenChange={setShowPostDialog}

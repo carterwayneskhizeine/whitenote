@@ -42,7 +42,7 @@ export function isDefaultAvatar(url: string | null | undefined): boolean {
 }
 
 /**
- * 获取用户 handle (@username)
+ * 获取用户 handle（邮箱 @ 前缀）
  * @param email 用户邮箱
  * @param hasAuthor 是否有作者
  * @returns handle（不包含 @ 符号）
