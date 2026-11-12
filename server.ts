@@ -1,6 +1,5 @@
 import "dotenv/config"  // 必须在所有其他导入之前
 import { createServer } from "http"
-import { parse } from "url"
 import next from "next"
 import { initSocketServer } from "./src/lib/socket/server"
 import * as fs from "fs"
@@ -36,8 +35,8 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 app.prepare().then(() => {
   const httpServer = createServer(async (req, res) => {
     try {
-      const parsedUrl = parse(req.url!, true)
-      const pathname = parsedUrl.pathname || ""
+      // WHATWG URL API —— 旧版 url.parse() 会触发 Node 的 DEP0169 弃用警告
+      const pathname = new URL(req.url ?? "/", "http://localhost").pathname
 
       // Handle upload endpoint with custom multipart parsing
       if (pathname === "/api/upload" && req.method === "POST") {
@@ -45,7 +44,7 @@ app.prepare().then(() => {
         return
       }
 
-      await handle(req, res, parsedUrl)
+      await handle(req, res)
     } catch (err) {
       console.error("Error occurred handling", req.url, err)
       if (!res.headersSent) {

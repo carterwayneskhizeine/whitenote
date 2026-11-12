@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // 只在生产环境使用 standalone 模式（Docker 部署）
-  // 本地开发时不设置此选项
-  ...(process.env.NODE_ENV === 'production' ? { output: 'standalone' as const } : {}),
+  // 注意：不要开 output: 'standalone'——本项目生产方式是 `pnpm start`（tsx server.ts），
+  // 不消费 standalone 产物；开着会让每次构建额外复制 107MB，并在启动时警告
+  // "next start does not work with output: standalone"。
+  // 若将来恢复 Docker 部署，再在 Docker 构建阶段单独加回这一项。
   images: {
     unoptimized: true,
   },
