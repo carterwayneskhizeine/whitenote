@@ -8,7 +8,7 @@ import { useState, useEffect, Suspense, useRef, useCallback } from "react"
 import { useSocket } from "@/hooks/useSocket"
 import { useAppStore } from "@/store/useAppStore"
 import { useWorkspaceStore } from "@/store/useWorkspaceStore"
-import { resolveNewMessageJump } from "@/lib/new-message-target"
+import { buildNewMessageStatusHref, resolveNewMessageJump } from "@/lib/new-message-target"
 import { useSession } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Loader2 } from "lucide-react"
@@ -16,7 +16,7 @@ import { Loader2 } from "lucide-react"
 // 滚动到指定消息，元素尚未渲染时重试（与 scrollto 深链逻辑一致）。
 // 重试用尽仍找不到元素（合并尚未提交进 DOM）时兜底跳详情页，
 // 免得又变成「点了没反应」。
-function scrollToMessageElement(messageId: string, retryCount = 0) {
+function scrollToMessageElement(messageId: string, statusHref: string, retryCount = 0) {
   const element = document.getElementById(`message-${messageId}`)
   if (element) {
     element.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -24,9 +24,9 @@ function scrollToMessageElement(messageId: string, retryCount = 0) {
   }
   if (retryCount < 15) {
     const delay = 80 * (retryCount + 1)
-    setTimeout(() => scrollToMessageElement(messageId, retryCount + 1), delay)
+    setTimeout(() => scrollToMessageElement(messageId, statusHref, retryCount + 1), delay)
   } else {
-    window.location.href = `/status/${messageId}`
+    window.location.href = statusHref
   }
   return false
 }
@@ -34,7 +34,7 @@ function scrollToMessageElement(messageId: string, retryCount = 0) {
 function HomeContent() {
   const [refreshKey, setRefreshKey] = useState(0)
   const { pushNewMessage, acknowledgeNewMessages, newMessageIds } = useAppStore()
-  const { setCurrentWorkspaceId } = useWorkspaceStore()
+  const { currentWorkspaceId, setCurrentWorkspaceId } = useWorkspaceStore()
   const searchParams = useSearchParams()
   const router = useRouter()
   const scrollAttemptedRef = useRef(false)
@@ -79,18 +79,21 @@ function HomeContent() {
     })
 
     if (target.kind === 'scroll') {
-      scrollToMessageElement(target.messageId)
+      scrollToMessageElement(
+        target.messageId,
+        buildNewMessageStatusHref(target.messageId, currentWorkspaceId)
+      )
       return
     }
 
     if (target.kind === 'navigate') {
-      router.push(`/status/${target.messageId}`)
+      router.push(buildNewMessageStatusHref(target.messageId, currentWorkspaceId))
       return
     }
 
     // 没有可跳转的新消息（例如网络失败），退回到信息流顶部
     window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [acknowledgeNewMessages, newMessageIds, router])
+  }, [acknowledgeNewMessages, currentWorkspaceId, newMessageIds, router])
 
   // 监听来自其他设备的新消息
   useSocket({

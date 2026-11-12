@@ -17,6 +17,23 @@ export type NewMessageJump =
   | { kind: 'navigate'; messageId: string }
   | { kind: 'top' }
 
+/**
+ * 跳到消息详情页时带上「来处 workspace」。
+ *
+ * 详情页左上角的返回按钮会读 `from` 并跳回 `/?workspace=<from>`；
+ * 不带这个参数时，返回就只能依赖当前 workspace 状态，跨 workspace
+ * 跳转后容易落回新消息所在的 workspace，而不是用户来时的那个。
+ */
+export function buildNewMessageStatusHref(
+  messageId: string,
+  fromWorkspaceId?: string | null
+): string {
+  if (!fromWorkspaceId) {
+    return `/status/${messageId}`
+  }
+  return `/status/${messageId}?from=${encodeURIComponent(fromWorkspaceId)}`
+}
+
 export function resolveNewMessageJump({
   pendingIds,
   latestPageIds,
