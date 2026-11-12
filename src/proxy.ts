@@ -6,18 +6,28 @@ export function proxy(request: NextRequest) {
 
   // ── Agent 友好的分享链接约定（/share 是公开路由，放行前先改写）──────────────
   // 1. Cloudflare 约定 — URL 加 `.md` 后缀即返回 Markdown：
-  //      /share/{id}.md  →  /share/{id}/markdown
+  //      /share/{id}.md          →  /share/{id}/markdown
+  //      /share/comment/{id}.md  →  /share/comment/{id}/markdown
   // 2. Mintlify 约定 — Accept 头带 text/markdown 即返回 Markdown（内容协商）：
-  //      GET /share/{id} + Accept: text/markdown  →  /share/{id}/markdown
-  // 两者都复用 /share/[id]/markdown 路由，一次请求拿到整帖（正文 + 全部评论树）。
+  //      GET /share/{id}[...] + Accept: text/markdown  →  同路径 + /markdown
+  // 两者都复用对应目录下的 markdown 路由，一次请求拿到整个对话。
   // 浏览器发送的 Accept 是 text/html,... 不含 text/markdown，人看到的仍是 HTML 页。
+  const commentMdMatch = pathname.match(/^\/share\/comment\/([^/]+?)\.md$/)
+  if (commentMdMatch) {
+    const url = request.nextUrl.clone()
+    url.pathname = `/share/comment/${commentMdMatch[1]}/markdown`
+    return NextResponse.rewrite(url)
+  }
   const mdMatch = pathname.match(/^\/share\/([^/]+?)\.md$/)
   if (mdMatch) {
     const url = request.nextUrl.clone()
     url.pathname = `/share/${mdMatch[1]}/markdown`
     return NextResponse.rewrite(url)
   }
-  if (/^\/share\/[^/.]+$/.test(pathname)) {
+  if (
+    /^\/share\/[^/.]+$/.test(pathname) ||
+    /^\/share\/comment\/[^/.]+$/.test(pathname)
+  ) {
     const accept = request.headers.get("accept") ?? ""
     if (accept.includes("text/markdown")) {
       const url = request.nextUrl.clone()
