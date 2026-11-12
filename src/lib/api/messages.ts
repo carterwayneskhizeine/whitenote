@@ -7,6 +7,7 @@ export interface Message {
   isStarred: boolean
   isPinned: boolean
   authorId: string
+  workspaceId?: string | null
   quotedMessageId?: string | null
   quotedCommentId?: string | null
   quotedMessage?: {

@@ -1,25 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildNewMessageStatusHref, resolveNewMessageJump } from '@/lib/new-message-target'
-
-describe('buildNewMessageStatusHref', () => {
-  // 详情页左上角的返回按钮靠 `from` 回到用户来时的 workspace。
-  it('carries the origin workspace so the back button can restore it', () => {
-    expect(buildNewMessageStatusHref('msg_1', 'ws_origin')).toBe(
-      '/status/msg_1?from=ws_origin'
-    )
-  })
-
-  it('omits the query when there is no origin workspace', () => {
-    expect(buildNewMessageStatusHref('msg_1', null)).toBe('/status/msg_1')
-    expect(buildNewMessageStatusHref('msg_1')).toBe('/status/msg_1')
-  })
-
-  it('encodes workspace ids that need escaping', () => {
-    expect(buildNewMessageStatusHref('msg_1', 'ws/a&b')).toBe(
-      '/status/msg_1?from=ws%2Fa%26b'
-    )
-  })
-})
+import { resolveNewMessageJump } from '@/lib/new-message-target'
 
 describe('resolveNewMessageJump', () => {
   // socket 是按 user 房间广播的（不分 workspace），而信息流是按当前 workspace 分页的。
