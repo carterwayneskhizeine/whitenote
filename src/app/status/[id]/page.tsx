@@ -36,6 +36,7 @@ import { ImageLightbox } from "@/components/ImageLightbox"
 import { useShare } from "@/hooks/useShare"
 import { ActionRow } from "@/components/ActionRow"
 import { useMobile } from "@/hooks/use-mobile"
+import { buildStatusBackHref } from "@/lib/status-navigation"
 
 function StatusPageContent() {
     const { id } = useParams() as { id: string }
@@ -178,8 +179,7 @@ function StatusPageContent() {
                     size="icon"
                     className="mr-4 rounded-full"
                     onClick={() => {
-                        const workspaceParam = fromWorkspaceId ? `&workspace=${fromWorkspaceId}` : ""
-                        router.push(`/?scrollto=${id}${workspaceParam}`)
+                        router.push(buildStatusBackHref(id, message.workspaceId, fromWorkspaceId))
                     }}
                 >
                     <ArrowLeft className="h-5 w-5" />
