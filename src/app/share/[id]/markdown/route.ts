@@ -101,7 +101,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
         `| 作者 | ${authorName} (@${authorHandle}) |`,
         `| 发布时间 | ${publishedAt} |`,
         ...(tags ? [`| 标签 | ${tags} |`] : []),
-        `| 链接 | [${url}](${url}) |`,
+        `| 链接 | ${url} |`,
         `| 评论 | ${message._count.comments} 条 |`,
         `| 转发 | ${retweetCount} 次 |`,
         ``,
