@@ -145,7 +145,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
         `| 发布时间 | ${publishedAt} |`,
         ...(tags ? [`| 标签 | ${tags} |`] : []),
         `| 所属帖子 | [${postTitle}](${postUrl}) |`,
-        `| 评论链接 | [${commentUrl}](${commentUrl}) |`,
+        `| 评论链接 | ${commentUrl} |`,
         `| 回复 | ${replyCount} 条 |`,
         ``,
         `---`,
